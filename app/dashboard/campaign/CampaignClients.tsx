@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  createCampaignAction,
-  attachLeadsAction,
-  startCampaignAction,
-  pauseCampaignAction
-} from './actions';
+// import {
+//   createCampaignAction,
+//   attachLeadsAction,
+//   startCampaignAction,
+//   pauseCampaignAction
+// } from './actions';
 
 export default function CampaignClient({
   role,
@@ -25,7 +25,7 @@ export default function CampaignClient({
       <h2 className="text-xl font-semibold">Campaigns</h2>
 
       {/* CREATE CAMPAIGN */}
-      <form action={createCampaignAction} className="space-y-2">
+      {/* <form action={createCampaignAction} className="space-y-2">
         <input
           name="name"
           placeholder="Campaign name"
@@ -49,10 +49,10 @@ export default function CampaignClient({
         <Button disabled={!campaignName || !sequenceId}>
           Create Campaign
         </Button>
-      </form>
+      </form> */}
 
       {/* LEAD SELECTION */}
-      <div className="border p-4 rounded">
+      {/* <div className="border p-4 rounded">
         <h3 className="font-medium">Select Leads</h3>
 
         <div className="max-h-64 overflow-y-auto space-y-1">
@@ -84,10 +84,10 @@ export default function CampaignClient({
             Attach Leads to Campaign
           </Button>
         </form>
-      </div>
+      </div> */}
 
       {/* CAMPAIGN LIST */}
-      <div className="space-y-2">
+      {/* <div className="space-y-2">
         {campaigns.map((c: any) => (
           <div key={c.id} className="border p-3 rounded flex justify-between">
             <div>
@@ -108,7 +108,7 @@ export default function CampaignClient({
             )}
           </div>
         ))}
-      </div>
+      </div> */}
     </div>
   );
 }

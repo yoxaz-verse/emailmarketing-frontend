@@ -11,6 +11,7 @@ import DynamicTable from '@/components/dynamic/dynamicTable';
 import { crudServer } from '@/lib/crud-server';
 import { cookies } from 'next/headers';
 import { resolveRelations } from '@/lib/resolveRelation';
+import { RunValidationButton } from '@/components/buttton/RunValidationButton';
 
 export default async function OverviewPage() {
   const data = await serverFetch<any>('/stats/overview');
@@ -67,15 +68,8 @@ const relations = await resolveRelations("leads");
           <Button variant="outline">Campaign Control</Button>
         </Link>
       </div>
-      <Button
-  onClick={async () => {
-    await fetch('/api/leads/run-validation', {
-      method: 'POST'
-    })
-  }}
->
-  Run Email Validation
-</Button>
+
+      <RunValidationButton />
 
 <div>
 
