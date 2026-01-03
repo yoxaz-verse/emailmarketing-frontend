@@ -4,8 +4,8 @@ import { serverFetch } from '@/lib/server-fetch';
 import { revalidatePath } from 'next/cache';
 
 export async function startCampaign(row: any) {
-  await serverFetch(`/crud/campaigns/${row.id}`, {
-    method: 'PUT',
+  await serverFetch(`/campaigns/${row.id}/start`, {
+    method: 'POST',
     body: JSON.stringify({ status: 'running' }),
   });
 
@@ -13,8 +13,8 @@ export async function startCampaign(row: any) {
 }
 
 export async function pauseCampaign(row: any) {
-  await serverFetch(`/crud/campaigns/${row.id}`, {
-    method: 'PUT',
+  await serverFetch(`/campaigns/${row.id}/pause`, {
+    method: 'POST',
     body: JSON.stringify({ status: 'paused' }),
   });
 

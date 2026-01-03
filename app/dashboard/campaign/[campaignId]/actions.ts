@@ -30,3 +30,28 @@ export async function attachLeadsAction(
 
   revalidatePath(`/dashboard/campaigns/${campaignId}`);
 }
+
+
+
+import { crudServer } from '@/lib/crud-server';
+
+export async function updateCampaignInboxes(
+  campaignId: string,
+  toAttach: string[],
+  toDetach: string[]
+) {
+  // Attach new inboxes
+  for (const inboxId of toAttach) {
+    await crudServer.create('campaign_inboxes', {
+      campaign_id: campaignId,
+      inbox_id: inboxId
+    });
+  }
+
+  // Detach removed inboxes
+  for (const campaignInboxId of toDetach) {
+    await crudServer.delete('campaign_inboxes', campaignInboxId);
+  }
+
+  revalidatePath(`/dashboard/campaign/${campaignId}`);
+}

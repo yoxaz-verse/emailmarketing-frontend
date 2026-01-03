@@ -1,21 +1,19 @@
 import CampaignHeader from './CampaignHeader';
 import AnalyticsTab from './AnalyticsTab';
-import { serverFetch } from '@/lib/server-fetch';
 import LeadsTab from './LeadTab';
-
-
+import { serverFetch } from '@/lib/server-fetch';
 
 export default async function CampaignPage({
   params
 }: {
   params: Promise<{ campaignId: string }>;
 }) {
-  /**
-   * 1️⃣ Load campaign (single row via CRUD)
-   * CRUD always returns array → take first
-   */
   const { campaignId } = await params;
 
+  /**
+   * 1️⃣ Load campaign
+   * CRUD returns array → take first
+   */
   const campaign = (
     await serverFetch<any[]>(`/crud/campaigns?id=${campaignId}`)
   )[0];
@@ -27,34 +25,60 @@ export default async function CampaignPage({
       </div>
     );
   }
-console.log("campaign", campaign);
 
   /**
    * 2️⃣ Load operator leads
-   * These are the selectable leads for this campaign
    */
   const leads = await serverFetch<any[]>(
     `/crud/leads?operator_id=${campaign.operator_id}`
   );
 
-  console.log("leads",leads);
-  
   /**
-   * 3️⃣ Load campaign_leads (mapping table)
-   * This tells which leads are already attached
+   * 3️⃣ Load campaign ↔ lead mappings
    */
   const campaignLeads = await serverFetch<any[]>(
     `/crud/campaign_leads?campaign_id=${campaign.id}`
   );
 
+  /**
+   * 4️⃣ Load ALL inboxes
+   * (CRUD-safe, filter in code)
+   */
+  const allInboxes = await serverFetch<any[]>(
+    `/crud/inboxes`
+  );
+
+  /**
+   * 5️⃣ Filter inboxes
+   * - public inboxes → operator_id === null
+   * - private inboxes → operator_id === campaign.operator_id
+   */
+  const inboxes = allInboxes.filter((inbox) =>
+    inbox.operator_id === null ||
+    inbox.operator_id === campaign.operator_id
+  );
+
+  /**
+   * 6️⃣ Load campaign ↔ inbox mappings
+   * IMPORTANT:
+   * This table now HAS `id`
+   */
+  const campaignInboxes = await serverFetch<any[]>(
+    `/crud/campaign_inboxes?campaign_id=${campaign.id}`
+  );
+
   return (
     <div className="space-y-6">
-      {/* Campaign control header */}
-      <CampaignHeader campaign={campaign} />
+      {/* Campaign header + inbox selector */}
+      <CampaignHeader
+        campaign={campaign}
+        inboxes={inboxes}
+        campaignInboxes={campaignInboxes}
+      />
 
-      {/* Main content */}
+      {/* Main layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Leads management */}
+        {/* Leads */}
         <div className="lg:col-span-2">
           <LeadsTab
             campaign={campaign}

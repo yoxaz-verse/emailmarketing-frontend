@@ -22,12 +22,20 @@ export default function RelationField({
     let mounted = true;
 
     async function load() {
+      const params = new URLSearchParams();
+
+      // ✅ FLATTEN filters to match listRows contract
+      if (relation.filters) {
+        for (const [key, val] of Object.entries(relation.filters)) {
+          params.set(key, String(val));
+        }
+      }
+
       const rows = await serverFetch<any[]>(
-        `/crud/${relation.table}`
+        `/crud/${relation.table}?${params.toString()}`
       );
 
       if (!mounted) return;
-
       setOptions(rows);
     }
 

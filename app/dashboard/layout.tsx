@@ -47,6 +47,30 @@ export default async function DashboardLayout({
           >
             Sequences
           </Link>
+          <Link
+            href="/dashboard/leads"
+            className="block rounded px-3 py-2 text-sm hover:bg-gray-100"
+          >
+            Leads
+          </Link>
+          <Link
+            href="/dashboard/sending_domains"
+            className="block rounded px-3 py-2 text-sm hover:bg-gray-100"
+          >
+            Domain
+          </Link>
+          <Link
+            href="/dashboard/smtp_accounts"
+            className="block rounded px-3 py-2 text-sm hover:bg-gray-100"
+          >
+            SMTP Accounts
+          </Link>
+          <Link
+            href="/dashboard/campaign_leads"
+            className="block rounded px-3 py-2 text-sm hover:bg-gray-100"
+          >
+            Campaign Lead
+          </Link>
 
           <Link
             href="/dashboard/campaign"

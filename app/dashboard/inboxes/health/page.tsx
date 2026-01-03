@@ -19,7 +19,7 @@ export default async function InboxesPage() {
   const roleCookie = await cookieStore.get('user_role');
   const role = roleCookie?.value;
 
-  if (role !== 'admin') {
+  if (role === 'operator') {
     redirect('/dashboard');
   }
   return (

@@ -14,8 +14,19 @@ export async function resolveRelations(
       const tableName = field.relation.table;
 
       if (!relations[tableName]) {
+        const params = new URLSearchParams();
+
+        // ✅ FLATTEN STATIC FILTERS (same contract as backend)
+        if (field.relation.filters) {
+          for (const [key, value] of Object.entries(
+            field.relation.filters
+          )) {
+            params.set(key, String(value));
+          }
+        }
+
         relations[tableName] = await serverFetch(
-          `/crud/${tableName}`
+          `/crud/${tableName}?${params.toString()}`
         );
       }
     }

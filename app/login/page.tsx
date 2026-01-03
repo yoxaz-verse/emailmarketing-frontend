@@ -1,9 +1,14 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams?: { error?: string };
+}) {
   const cookieStore = await cookies();
   const token = cookieStore.get("auth_token");
+  const error = cookieStore.get("login_error")?.value;
 
   if (token) redirect("/dashboard");
 
@@ -52,7 +57,13 @@ export default async function LoginPage() {
       {/* RIGHT LOGIN PANEL */}
       <div className="flex items-center justify-center px-6 bg-neutral-50 text-black">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-neutral-200">
-          
+            {/* ERROR MESSAGE — TOP */}
+
+            {error && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
           <div className="mb-8 text-center">
             <h2 className="text-2xl font-semibold tracking-tight">
               Sign in to OBAOL
@@ -64,7 +75,7 @@ export default async function LoginPage() {
 
           <form
             method="post"
-            action="/api/login"
+            action="/api/auth/login"
             className="space-y-5"
           >
             <div>
@@ -100,12 +111,13 @@ export default async function LoginPage() {
               Sign in
             </button>
           </form>
-
+       
           <div className="mt-6 text-center text-xs text-neutral-500">
             This is not a mass email tool.
             <br />
             This is outbound infrastructure.
           </div>
+          
         </div>
       </div>
     </div>

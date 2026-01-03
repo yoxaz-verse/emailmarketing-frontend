@@ -25,13 +25,25 @@ type Props = {
   data: any[];
   relations?: RelationMap;
   role?: string;
+  defaultValues?: Record<string, any>
+
 };
+
+const MAX_CHAR_LENGTH = 30;
+
+function truncate(value: any, max = MAX_CHAR_LENGTH) {
+  if (typeof value !== 'string') return value;
+  if (value.length <= max) return value;
+  return value.slice(0, max) + '...';
+}
 
 export default function DynamicTable({
   table,
   data,
   relations = {},
   role,
+  defaultValues = {},   // 👈 ADD THIS
+
 }: Props) {
   const fields = tableConfig[table] ?? [];
   const meta = tableMeta[table] ?? {};
@@ -76,7 +88,8 @@ export default function DynamicTable({
               setShowForm(true);
             }}
           >
-            Add {table}
+            Add           {table.replace('_', ' ')}
+
           </Button>
         )}
       </div>
@@ -133,7 +146,8 @@ export default function DynamicTable({
 
                     return (
                       <TableCell key={f.key}>
-                        <span className="text-sm">{displayValue}</span>
+                        <span className="text-sm">    {truncate(displayValue)}
+                        </span>
                       </TableCell>
                     );
                   })}
@@ -182,6 +196,7 @@ export default function DynamicTable({
           role={role}
           onClose={() => setShowForm(false)}
           onSuccess={refresh}
+          defaultValues={defaultValues}
         />
       )}
 

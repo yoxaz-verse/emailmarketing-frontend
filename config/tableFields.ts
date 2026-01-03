@@ -33,7 +33,11 @@ export type TableField = {
   table: string;
   labelKey: string;
   valueKey: string;
+
+  filters?: Record<string, any>;        // static
+  dynamicFilters?: string[];             // allowed keys
 };
+
 
   required?: boolean;
   readOnly?: boolean;
@@ -110,6 +114,7 @@ export const tableConfig: Record<string, TableField[]> = {
       readOnly: true,
     },
   ],
+
   leads: [
     {
       label: "Email",
@@ -149,12 +154,29 @@ export const tableConfig: Record<string, TableField[]> = {
       adminOnly: true,
       required: true,
     },
+
+    {
+      key: 'email_eligibility',
+      label: 'Email Eligibility',
+      type: 'text',
+      inTable: false,
+      inForm: false,
+      required: true,
+    },
+    {
+      key: 'email_eligibility_reason',
+      label: 'Email Eligibility Reason',
+      type: 'text',
+      inTable: true,
+      inForm: false,
+      required: true,
+    },
     {
       label: "Created At",
       key: "created_at",
       type: "dateTime",
       inForm: false,
-      inTable: true,
+      inTable: false,
       readOnly: true,
     },
   ],
@@ -175,6 +197,321 @@ export const tableConfig: Record<string, TableField[]> = {
             falsyLabel: "Disabled",
           },}    ],
 
+          sending_domains: [
+            {
+              key: 'domain',
+              label: 'Domain',
+              type: 'text',
+              inTable: true,
+              inForm: true,
+              required: true,
+            },
+            {
+              key: 'daily_limit',
+              label: 'Daily Cap',
+              type: 'number',
+              inTable: true,
+              inForm: false,
+     },
+            {
+              key: 'hourly_limit',
+              label: 'Hourly Cap',
+              type: 'number',
+              inTable: true,
+              inForm: false,
+     },
+     {
+      label: "SPF",
+      key: "spf_verified",
+      type: "boolean",
+      inTable: true,
+      inForm: false,
+badge: {
+        type: 'boolean',
+        truthyLabel: "Verified",
+        falsyLabel: "No Match",
+      },},  
+         
+     {
+      label: "DKIM",
+      key: "dkim_verified",
+      type: "boolean",
+      inTable: true,
+      inForm: false,
+badge: {
+        type: 'boolean',
+        truthyLabel: "Verified",
+        falsyLabel: "No Match",
+      },},  
+     {
+      label: "DMARC",
+      key: "dmarc_verified",
+      type: "boolean",
+      inTable: true,
+      inForm: false,
+badge: {
+        type: 'boolean',
+        truthyLabel: "Verified",
+        falsyLabel: "No Match",
+      },},  
+         
+        
+            {
+              key: 'health_score',
+              label: 'Health',
+              type: 'number',
+              inTable: true,
+              inForm: false,
+            },
+          ],
+          
+          sequences: [
+            {
+              key: 'name',
+              label: 'Campaign Name',
+              type: 'text',
+              inTable: true,
+              inForm: true,
+              required: true,
+            },
+            {
+              label: "Valid",
+              key: "is_active",
+              type: "boolean",
+              inTable: true,
+              inForm: false,
+badge: {
+                type: 'boolean',
+                truthyLabel: "active",
+                falsyLabel: "disabled",
+              },}, 
+          ],
+          sequence_steps: [
+           
+            {
+              key: 'step_number',
+              label: 'Step Number',
+              type: 'number',
+              inTable: true,
+              inForm: true,
+              required: true,
+            },
+            {
+              key: 'delay_days',
+              label: 'Delay Days',
+              type: 'number',
+              inTable: true,
+              inForm: true,
+              required: true,
+            },
+            {
+              key: 'subject',
+              label: 'Subject',
+              type: 'text',
+              inTable: true,
+              inForm: true,
+              required: true,
+            },
+            {
+              key: 'body',
+              label: 'Body',
+              type: 'textarea',
+              inTable: true,
+              inForm: true,
+              required: true,
+            },
+          ],
+          smtp_accounts: [
+            {
+              key: 'provider',
+              label: 'Provider',
+              type: 'text',
+              inTable: true,
+              inForm: true,
+              required: true,
+            },
+            {
+              key: 'host',
+              label: 'SMTP Host',
+              type: 'text',
+              inTable: true,
+              inForm: true,
+              required: true,
+            },
+            {
+              key: 'port',
+              label: 'Port',
+              type: 'number',
+              inTable: true,
+              inForm: true,
+              required: true,
+            },
+            {
+              key: 'username',
+              label: 'Username',
+              type: 'text',
+              inTable: false,
+              inForm: true,
+              required: true,
+            },
+
+            {
+              key: 'password',
+              label: 'Password',
+              type: 'password',
+              inTable: false,
+              inForm: true,
+              required: true,
+            },
+            {
+              key: 'encryption',
+              label: 'Encryption',
+              type: 'text',
+              inTable: true,
+              inForm: true,
+              required: true,
+            },
+            {
+              key: 'sending_domain_id',
+              label: 'Sending Domain',
+              type: 'relation',
+              relation: {
+                table: 'sending_domains',
+                labelKey: 'domain',
+                valueKey: 'id',
+              },
+              inTable: true,
+              inForm: true,
+              required: true,
+            },
+            {
+              label: "Valid",
+              key: "is_valid",
+              type: "boolean",
+              inTable: true,
+              inForm: false,
+badge: {
+                type: 'boolean',
+                truthyLabel: "valid",
+                falsyLabel: "invalid",
+              },},               
+            {
+              key: 'created_at',
+              label: 'Created At',
+              type: 'dateTime',
+              inTable: true,
+              inForm: false,
+              readOnly: true,
+            },
+          ],
+          
+          inboxes: [
+            {
+              key: 'email_address',
+              label: 'Email',
+              type: 'text',
+              inTable: true,
+              inForm: true,
+              required: true,
+            },
+            {
+              key: 'provider',
+              label: 'Provider',
+              type: 'text',
+              inTable: true,
+              inForm: true,
+              required: true,
+            },
+            {
+              key: 'sending_domain_id',
+              label: 'Sending Domain',
+              type: 'relation',
+              relation: {
+                table: 'sending_domains',
+                labelKey: 'domain',
+                valueKey: 'id',
+                filters: {
+                  spf_verified: true,
+                  dkim_verified: true,
+                  dmarc_verified: true,
+                },
+              }
+,              
+              inTable: true,
+              inForm: true,
+              required: true,
+            },
+            {
+              key: 'smtp_account_id',
+              label: 'SMTP Account',
+              type: 'relation',
+              inTable: false,
+              inForm: true,
+              relation: {
+                table: 'smtp_accounts',
+                labelKey: 'username',
+                valueKey: 'id',
+                filters: {
+                  is_valid: true,
+                },
+              },
+              required: false,
+            },
+            
+            {
+              key: 'daily_limit',
+              label: 'Daily Cap',
+              type: 'number',
+              inTable: false,
+              inForm: false,
+              required: true,
+            },
+            {
+              key: 'hourly_limit',
+              label: 'Hourly Cap',
+              type: 'number',
+              inTable: false,
+              inForm: false,
+              required: true,
+            },
+            {
+              key: 'health_score',
+              label: 'Health',
+              type: 'number',
+              inTable: true,
+              inForm: false,
+            },
+            {
+              key: 'sent_count',
+              label: 'Sent',
+              type: 'number',
+              inTable: true,
+              inForm: false,
+            },
+            {
+              key: 'failed_count',
+              label: 'Failed',
+              type: 'number',
+              inTable: true,
+              inForm: false,
+            },
+            {
+              key: 'replies_count',
+              label: 'Replies',
+              type: 'number',
+              inTable: true,
+              inForm: false,
+            },
+            
+            {
+              key: 'is_paused',
+              label: 'Paused',
+              type: 'boolean',
+              inTable: true,
+              inForm: false,
+            },
+          ],
+          
   campaigns: [
             {
               key: 'name',
@@ -225,7 +562,31 @@ export const tableConfig: Record<string, TableField[]> = {
             },
           ],
         
+          campaign_inboxes: [
+            {
+              key: 'inbox_id',
+              label: 'Inbox',
+              type: 'relation',
+              relation: {
+                table: 'inboxes',
+                labelKey: 'email_address',
+                valueKey: 'id',
+              },
+              inTable: true,
+              inForm: true,
+              required: true,
+            },
+          ],
+        
           campaign_leads: [
+            {
+              key: 'current_step',
+              label: 'Current Steps',
+              type: 'text',
+              inTable: true,
+              inForm: true,
+              required: true,
+            },
             {
               key: 'lead_id',
               label: 'Lead',

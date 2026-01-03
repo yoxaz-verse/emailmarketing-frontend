@@ -1,5 +1,5 @@
-// lib/server-fetch.ts
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 export async function serverFetch<T>(
   path: string,
@@ -9,7 +9,7 @@ export async function serverFetch<T>(
   const token = cookieStore.get('auth_token')?.value;
 
   if (!token) {
-    throw new Error('Not authenticated');
+    redirect('/login');
   }
 
   const res = await fetch(
@@ -25,12 +25,20 @@ export async function serverFetch<T>(
     }
   );
 
+  // ✅ THIS IS ENOUGH
+// 🔑 SESSION INVALID → CLEANUP VIA ROUTE HANDLER
+if (res.status === 401 || res.status === 403) {
+  redirect("/api/auth/logout");
+
+  // Then redirect
+}
+
 
 
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || 'API request failed');
   }
-  
+
   return res.json();
 }

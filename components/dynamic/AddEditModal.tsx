@@ -5,6 +5,7 @@ import { FieldRenderer } from './fields/FieldRenderer';
 import { tableConfig } from '@/config/tableFields';
 import { createRow, updateRow } from './action';
 import { RelationMap } from '@/lib/resolveRelation';
+import { executeAction } from '@/lib/action-executor';
 
 type Props = {
   table: string;
@@ -13,6 +14,7 @@ type Props = {
   role?: string;
   onClose: () => void;
   onSuccess: () => void;
+  defaultValues?: Record<string, any>
 };
 
 export default function AddEditModal({
@@ -22,6 +24,8 @@ export default function AddEditModal({
   role,
   onClose,
   onSuccess,
+  defaultValues = {},   // 👈 ADD THIS
+
 }: Props) {
   const config = tableConfig[table];
   const isEdit = !!row;
@@ -30,13 +34,34 @@ export default function AddEditModal({
 
   useEffect(() => {
     const initial: any = {};
+  
+    // 1️⃣ Inject defaultValues FIRST (hidden FKs, parent context)
+    Object.entries(defaultValues).forEach(([key, value]) => {
+      initial[key] = value;
+    });
+  
+    // 2️⃣ Merge row values on edit (including hidden fields)
+    if (row) {
+      Object.entries(row).forEach(([key, value]) => {
+        if (value !== undefined) {
+          initial[key] = value;
+        }
+      });
+    }
+  
+    // 3️⃣ Ensure visible form fields exist
     config.forEach((f) => {
       if (!f.inForm) return;
       if (isEdit && f.inEdit === false) return;
-      initial[f.key] = row?.[f.key] ?? '';
+  
+      if (initial[f.key] === undefined) {
+        initial[f.key] = '';
+      }
     });
+  
     setForm(initial);
   }, [row, table]);
+  
 
   function update(key: string, value: any) {
     setForm((prev: any) => ({
@@ -47,7 +72,16 @@ export default function AddEditModal({
 
   async function submit() {
     if (isEdit) {
-      await updateRow(table, row.id, form);
+      
+      await executeAction(
+        () =>  updateRow(table, row.id, form)
+        ,
+        {
+          success: 'Campaign updated',
+          error: 'Failed to update campaign'
+        }
+      );
+      
     } else {
       await createRow(table, form);
     }
@@ -59,7 +93,7 @@ export default function AddEditModal({
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
       <div className="bg-white p-6 rounded w-[520px] space-y-4 max-h-[90vh] overflow-auto">
         <h2 className="text-lg font-semibold">
-          {isEdit ? 'Edit' : 'Add'} {table}
+          {isEdit ? 'Edit' : 'Add'}           {table.replace('_', ' ')}
         </h2>
 
         {config.map((field) => {

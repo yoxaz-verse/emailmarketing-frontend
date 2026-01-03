@@ -1,26 +1,20 @@
+export const dynamic = 'force-dynamic';
+
 import { cookies } from 'next/headers';
-import UploadLeadsForm from './UploadLeadsForm';
-import { serverFetch } from '@/lib/server-fetch';
+import { crudServer } from '@/lib/crud-server';
+import { resolveRelations } from '@/lib/resolveRelation';
+import LeadsClientPage from './LeadClientPage';
 
-export default async function UploadLeadsPage() {
-    const cookieStore = await cookies(); // ✅ FIX
-    const role = cookieStore.get('user_role')?.value;
- 
-  
-  let operators: any[] = [];
-
-  if (role === 'admin') {
-    operators = await serverFetch('/admin/operators');
-  }
-
+export default async function LeadsPage() {
+  const leads = await crudServer.list('leads');
+  const relations = await resolveRelations('leads');
+  const cookieStore = await cookies(); // ✅ FIX
+  const role = cookieStore.get('user_role')?.value;
   return (
-    <div className="space-y-6">
-      <h2 className="text-lg font-semibold">Upload Leads</h2>
-
-      <UploadLeadsForm
-        role={role}
-        operators={operators}
-      />
-    </div>
+    <LeadsClientPage
+      leads={leads}
+      relations={relations}
+      role={role}
+    />
   );
 }

@@ -1,11 +1,23 @@
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
+import { serverFetch } from "@/lib/server-fetch";
 
 export async function POST() {
-  const res = await fetch(
-    `${process.env.BACKEND_API_URL}/leads/validate`,
-    { method: 'POST' }
-  )
+  try {
+    // Just call backend. serverFetch handles auth + redirects.
+    await serverFetch("/lead", {
+      method: "POST",
+    });
 
-  const data = await res.json()
-  return NextResponse.json(data)
+    return NextResponse.json({
+      success: true,
+      message: "Email validation triggered",
+    });
+  } catch (err: any) {
+    console.error("RUN VALIDATION ERROR:", err);
+
+    return NextResponse.json(
+      { error: err.message || "Failed to trigger validation" },
+      { status: 500 }
+    );
+  }
 }

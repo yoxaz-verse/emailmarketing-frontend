@@ -1,14 +1,16 @@
 // config/actionRegistry.ts
 
 import { pauseCampaign, startCampaign } from "@/app/dashboard/campaign/actions";
-import { disableSequence, enableSequence } from "./tableActions";
-import { redirect } from "next/navigation";
-export async function viewCampaign(row: any) {
-  redirect(`/dashboard/campaign/${row.id}`);
-}
+import { disableSequence, enableSequence, validateSendingDomain, validateSmtpAccount, viewCampaign, viewSequence } from "./tableActions";
+
   
   export const actionRegistry: Record<string, Function> = {
-    viewCampaign,  enableSequence,
+  
+    viewSequence,
+    validateSmtpAccount,
+    viewCampaign,  
+    validateSendingDomain,
+    enableSequence,
     disableSequence,
     startCampaign,
     pauseCampaign,

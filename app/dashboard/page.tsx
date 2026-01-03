@@ -11,14 +11,13 @@ import DynamicTable from '@/components/dynamic/dynamicTable';
 import { crudServer } from '@/lib/crud-server';
 import { cookies } from 'next/headers';
 import { resolveRelations } from '@/lib/resolveRelation';
-import { RunValidationButton } from '@/components/buttton/RunValidationButton';
 
 export default async function OverviewPage() {
   const data = await serverFetch<any>('/stats/overview');
-  const leadData = await crudServer.list("leads");
+  const leadData = await crudServer.list("campaign_leads");
   const cookieStore = await cookies(); // ✅ FIX
   const role = cookieStore.get('user_role')?.value;
-const relations = await resolveRelations("leads");
+const relations = await resolveRelations("campaign_leads");
   const activeInboxes = data.inboxes.filter(
     (i: any) => i.status === 'active'
   ).length;
@@ -69,12 +68,11 @@ const relations = await resolveRelations("leads");
         </Link>
       </div>
 
-      <RunValidationButton />
 
 <div>
 
       <DynamicTable
-      table={"leads"}
+      table={"campaign_leads"}
       data={leadData}
       role={role}
       relations={relations}

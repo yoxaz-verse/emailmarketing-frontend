@@ -22,19 +22,19 @@ export type BadgeConfig = {
   };
   
   export const tableMeta: Record<string, TableMeta> = {
-    sequence_analytics: {
-      allowCreate: false,
+    sequences: {
+      allowCreate: true,
       allowEdit: false,
       allowDelete: false,
   
-      badge: {
-        type: 'boolean',
-        field: 'is_active',
-        truthyLabel: 'Active',
-        falsyLabel: 'Disabled',
-      },
+ 
   
       actions: [
+        {
+          key: 'viewSequence',
+          label: 'View',
+          variant: 'outline',
+        },
         {
           key: 'enableSequence',
           label: 'Enable',
@@ -48,6 +48,11 @@ export type BadgeConfig = {
         },
       ],
     },
+    campaign_inboxes: {
+      allowCreate: true,
+      allowEdit: true,
+      allowDelete: true,
+    },  
     campaigns: {
       allowCreate: true,
       allowEdit: true,
@@ -72,6 +77,39 @@ export type BadgeConfig = {
             row.status === 'running',
         },
       ],
+    },
+    smtp_accounts: {
+      allowCreate: true,
+      allowEdit: true,
+      allowDelete: false,
+  
+      actions: [
+        {
+          key: 'validateSmtpAccount',
+          label: 'Validate',
+          variant: 'outline',
+        },  
+      ],
+    },
+    sending_domains: {
+      allowCreate: true,
+      allowEdit: true,
+      allowDelete: false,
+  
+      actions: [
+        {
+          key: 'validateSendingDomain',
+          label: 'Validate',
+          variant: 'outline',
+        },  
+      ],
+    },
+    campaign_leads: {
+      allowCreate: false,
+      allowEdit: false,
+      allowDelete: false,
+  
+   
     },
     
   };

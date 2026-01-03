@@ -1,33 +1,35 @@
-'use server';
+"use server";
 
-import { cookies } from 'next/headers';
-import { serverFetch } from '@/lib/server-fetch';
+import { cookies } from "next/headers";
 
-type Lead = {
-  email: string;
-  first_name: string;
-  company: string;
-  country: string;
-  phone?: string;
-  company_description?: string;
-};
+export async function runEmailValidationAction() {
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-export async function uploadLeadsAction(
-  leads: Lead[],
-  operatorId?: string
-) {
-  if (!leads || leads.length === 0) {
-    throw new Error('No leads provided');
+  if (!apiBase) {
+    throw new Error("API base URL not configured");
   }
 
-  // Admin may pass operatorId, worker cannot
-  const body: any = { leads };
-  if (operatorId) body.operator_id = operatorId;
+  // ✅ cookies() MUST be awaited in Server Actions
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth_token")?.value;
 
-  await serverFetch('/operator/leads/upload', {
-    method: 'POST',
-    body: JSON.stringify(body)
+  if (!token) {
+    throw new Error("Unauthorized");
+  }
+
+  const res = await fetch(`${apiBase}/validate/lead`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
   });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || "Backend rejected request");
+  }
 
   return { success: true };
 }
