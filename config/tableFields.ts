@@ -5,8 +5,9 @@ export type FieldType =
   | "password"
   | "number"
   | "select"
-  | "boolean"  | 'relation'
-|"adminOnly"
+  | "boolean"  
+  | 'relation'
+  |"adminOnly"
   | "date"
   | "dateTime"
   | "textarea"
@@ -74,11 +75,22 @@ export const tableConfig: Record<string, TableField[]> = {
       type: "select",
       inForm: true,
       inTable: true,
+      required: true,
       values: [
         { key: "admin", value: "Admin" },
-        { key: "operator", value: "Operator" },
+        { key: "user", value: "User" },
+        { key: "viewer", value: "Viewer" },
       ],
-    },
+    },{
+      label: "Operator Access",
+      key: "is_operator",
+      type: "boolean",
+      inForm: true,
+      inTable: false,
+      // description: "Enable operator capabilities for this user",
+    }
+,    
+    
     {
       label: "Created At",
       key: "created_at",
@@ -88,7 +100,62 @@ export const tableConfig: Record<string, TableField[]> = {
       readOnly: true,
     },
   ],
-  operators: [
+  api_keys: [
+    {
+      label: 'Role',
+      key: 'role',
+      type: 'select',
+      inForm: false,
+      inTable: false,
+      values: [
+        { key: 'admin', value: 'Admin' },
+        { key: 'user', value: 'User' },
+        { key: 'viewer', value: 'Viewer' },
+      ],
+      required: true,
+    },
+  
+    {
+      label: 'User',
+      key: 'user_id',
+      type: 'relation',
+      relation: {
+        table: 'users',
+        labelKey: 'email',
+        valueKey: 'id',
+      },
+      inForm: true,
+      inTable: true,
+      required: true,
+    },
+
+    {
+      label: 'Active',
+      key: 'active',
+      type: 'boolean',
+      inForm: false,
+      inTable: true,
+    },
+  
+    {
+      label: 'Created At',
+      key: 'created_at',
+      type: 'dateTime',
+      inForm: false,
+      inTable: true,
+      readOnly: true,
+    },
+  
+    {
+      label: 'Last Used',
+      key: 'last_used_at',
+      type: 'dateTime',
+      inForm: false,
+      inTable: true,
+      readOnly: true,
+    },
+  ],
+   operators: [
     {
       label: "Name",
       key: "name",

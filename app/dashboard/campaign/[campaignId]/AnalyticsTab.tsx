@@ -1,4 +1,4 @@
-import { serverFetch } from '@/lib/server-fetch';
+import { serverFetch } from '@/lib/server/server-fetch';
 
 export default async function AnalyticsTab({
   campaignId,

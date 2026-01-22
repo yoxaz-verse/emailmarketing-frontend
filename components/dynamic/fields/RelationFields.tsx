@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { TableField } from '@/config/tableFields';
-import { serverFetch } from '@/lib/server-fetch';
+import { serverFetch } from '@/lib/server/server-fetch';
 
 type Props = {
   field: TableField;

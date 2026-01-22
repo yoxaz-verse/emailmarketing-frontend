@@ -45,6 +45,8 @@ if (field.adminOnly && role !== 'admin' && role !== 'superadmin') {
 
     case 'multiselect':
       return <MultiSelectField {...props} />;
+    case 'boolean':
+      return <BooleanField {...props} />;
 
     case 'relation':
       return renderRelationField(field, value, onChange, relations);
@@ -139,16 +141,33 @@ export  function TextAreaField({ field, value, onChange }: any) {
 
 
 
-export  function BooleanField({ field, value, onChange }: any) {
+import { cn } from "@/lib/utils";
+
+export function BooleanField({ field, value, onChange }: any) {
+  const checked = !!value;
+
   return (
-    <label className="flex items-center gap-2">
-      <Input
-        type="checkbox"
-        checked={!!value}
-        onChange={(e) => onChange(e.target.checked)}
-      />
-      <span>{field.label}</span>
-    </label>
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-sm font-medium">
+        {field.label}
+      </span>
+
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={cn(
+          "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+          checked ? "bg-green-600" : "bg-gray-300"
+        )}
+      >
+        <span
+          className={cn(
+            "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+            checked ? "translate-x-6" : "translate-x-1"
+          )}
+        />
+      </button>
+    </div>
   );
 }
 

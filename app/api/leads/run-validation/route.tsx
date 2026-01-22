@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { serverFetch } from "@/lib/server-fetch";
+import { serverFetch } from "@/lib/server/server-fetch";
 
 export async function POST() {
   try {

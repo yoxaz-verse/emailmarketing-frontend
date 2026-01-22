@@ -1,26 +1,13 @@
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams?: { error?: string };
-}) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("auth_token");
-  const error = cookieStore.get("login_error")?.value;
+export default async function LoginPage() {
 
-  if (token) redirect("/dashboard");
 
   return (
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 bg-neutral-950 text-white">
-      
       {/* LEFT BRAND PANEL */}
       <div className="hidden md:flex flex-col justify-between p-12 bg-gradient-to-br from-neutral-900 via-neutral-900 to-black">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            OBAOL
-          </h1>
+          <h1 className="text-3xl font-semibold tracking-tight">OBAOL</h1>
           <p className="mt-2 text-sm text-neutral-400">
             Cold Email Marketing · Execution Infrastructure
           </p>
@@ -30,9 +17,7 @@ export default async function LoginPage({
           <h2 className="text-4xl font-semibold leading-tight">
             Cold Email Marketing
             <br />
-            <span className="text-neutral-400">
-              Ultimate Tool
-            </span>
+            <span className="text-neutral-400">Ultimate Tool</span>
           </h2>
 
           <p className="mt-6 text-neutral-400 leading-relaxed">
@@ -57,13 +42,13 @@ export default async function LoginPage({
       {/* RIGHT LOGIN PANEL */}
       <div className="flex items-center justify-center px-6 bg-neutral-50 text-black">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-neutral-200">
-            {/* ERROR MESSAGE — TOP */}
 
-            {error && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+          {/* {error && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )} */}
+
           <div className="mb-8 text-center">
             <h2 className="text-2xl font-semibold tracking-tight">
               Sign in to OBAOL
@@ -111,13 +96,12 @@ export default async function LoginPage({
               Sign in
             </button>
           </form>
-       
+
           <div className="mt-6 text-center text-xs text-neutral-500">
             This is not a mass email tool.
             <br />
             This is outbound infrastructure.
           </div>
-          
         </div>
       </div>
     </div>

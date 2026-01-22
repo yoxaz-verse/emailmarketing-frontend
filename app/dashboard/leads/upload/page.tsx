@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import UploadLeadsForm from './UploadLeadsForm';
-import { serverFetch } from '@/lib/server-fetch';
+import { serverFetch } from '@/lib/server/server-fetch';
 
 export default async function UploadLeadsPage() {
     const cookieStore = await cookies(); // ✅ FIX

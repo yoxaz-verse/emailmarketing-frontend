@@ -1,7 +1,7 @@
 'use server';
 
 import { cookies } from 'next/headers';
-import { serverFetch } from '@/lib/server-fetch';
+import { serverFetch } from '@/lib/server/server-fetch';
 
 type Lead = {
   email: string;

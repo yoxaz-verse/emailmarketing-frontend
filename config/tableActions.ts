@@ -1,7 +1,7 @@
 // config/serverActions.ts
 'use server';
 
-import { serverFetch } from '@/lib/server-fetch';
+import { serverFetch } from '@/lib/server/server-fetch';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 

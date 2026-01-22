@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { serverFetch } from '@/lib/server-fetch';
+import { serverFetch } from '@/lib/server/server-fetch';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
@@ -16,7 +16,7 @@ import { revalidatePath } from 'next/cache';
 export default async function InboxesPage() {
   const inboxes = await serverFetch<any[]>('/stats/inboxes');
   const cookieStore = await cookies();
-  const roleCookie = await cookieStore.get('user_role');
+  const roleCookie =  cookieStore.get('user_role');
   const role = roleCookie?.value;
 
   if (role === 'operator') {

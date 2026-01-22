@@ -1,6 +1,6 @@
 'use server';
 
-import { serverFetch } from '@/lib/server-fetch';
+import { serverFetch } from '@/lib/server/server-fetch';
 import { revalidatePath } from 'next/cache';
 
 export async function startCampaign(row: any) {

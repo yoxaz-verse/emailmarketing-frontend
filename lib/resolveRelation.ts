@@ -1,4 +1,4 @@
-import { serverFetch } from '@/lib/server-fetch';
+import { serverFetch } from '@/lib/server/server-fetch';
 import { tableConfig } from '@/config/tableFields';
 
 export type RelationMap = Record<string, any[]>;

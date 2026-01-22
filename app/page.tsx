@@ -1,14 +1,15 @@
+import { serverFetch } from "@/lib/server/server-fetch";
 import { cookies } from "next/headers";
 import Link from "next/link";
 
-export default async function OverviewPage() {
+export default async function LandingPage() {
   const cookieStore = await cookies();
-  const token = cookieStore.get("auth_token");
+  const hasToken = Boolean(cookieStore.get('auth_token'));
 
-  const ctaHref = token ? "/dashboard" : "/login";
-  const ctaLabel = token ? "Go to Dashboard" : "Sign in";
+  const ctaHref = hasToken ? '/dashboard' : '/login';
+  const ctaLabel = hasToken ? 'Go to Dashboard' : 'Sign in';
 
-  return (
+return (
     <div className="min-h-screen bg-white text-neutral-900">
       
       {/* HERO SECTION */}

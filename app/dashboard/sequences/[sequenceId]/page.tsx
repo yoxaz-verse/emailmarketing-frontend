@@ -1,5 +1,5 @@
 import DynamicTable from '@/components/dynamic/dynamicTable'
-import { serverFetch } from '@/lib/server-fetch'
+import { serverFetch } from '@/lib/server/server-fetch'
 import { resolveRelations } from '@/lib/resolveRelation'
 import { cookies } from 'next/headers'
 

@@ -1,5 +1,5 @@
 // lib/crud-server.ts
-import { serverFetch } from './server-fetch';
+import { serverFetch } from './server/server-fetch';
 
 export const crudServer = {
   

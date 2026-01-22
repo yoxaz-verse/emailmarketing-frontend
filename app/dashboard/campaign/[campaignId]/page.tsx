@@ -1,7 +1,7 @@
 import CampaignHeader from './CampaignHeader';
 import AnalyticsTab from './AnalyticsTab';
 import LeadsTab from './LeadTab';
-import { serverFetch } from '@/lib/server-fetch';
+import { serverFetch } from '@/lib/server/server-fetch';
 
 export default async function CampaignPage({
   params
