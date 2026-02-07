@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import NotificationPanel from './NotificationPanel';
 
 export default function TopBar() {
     const pathname = usePathname();
@@ -35,7 +36,7 @@ export default function TopBar() {
         <header className="h-16 bg-white border-b flex items-center justify-between px-8 sticky top-0 z-30">
             <div className="flex items-center gap-8">
                 <h1 className="text-xl font-bold text-gray-900 border-r pr-8 h-8 flex items-center">
-                OBT
+                    OBT
                     {/* {getPageTitle(pathname)} */}
                 </h1>
 
@@ -49,10 +50,7 @@ export default function TopBar() {
             </div>
 
             <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" className="text-gray-400 hover:text-gray-600 relative">
-                    <Bell className="h-5 w-5" />
-                    <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-                </Button>
+                <NotificationPanel />
 
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
