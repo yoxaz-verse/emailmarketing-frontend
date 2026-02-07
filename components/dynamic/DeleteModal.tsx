@@ -1,6 +1,7 @@
 'use client';
 
 import { deleteRow } from "./action";
+import { executeAction } from "@/lib/action-executor";
 
 
 export default function DeleteModal({
@@ -14,12 +15,22 @@ export default function DeleteModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-    async function confirm() {
-        await deleteRow(table, id);
-        onSuccess();
-        onClose();
+  async function confirm() {
+    const label = table.replace('_', ' ');
+    const res = await executeAction(
+      () => deleteRow(table, id),
+      {
+        success: `${label} deleted`,
+        error: `Failed to delete ${label}`
       }
-    
+    );
+
+    if (res !== undefined) {
+      onSuccess();
+      onClose();
+    }
+  }
+
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center">

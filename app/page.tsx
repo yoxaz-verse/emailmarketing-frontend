@@ -20,7 +20,7 @@ return (
           </p>
 
           <h1 className="mt-6 text-4xl md:text-6xl font-semibold leading-tight">
-            Cold Email Marketing
+            Outbound Email Marketing
             <br />
             <span className="text-neutral-500">
               Built as Infrastructure

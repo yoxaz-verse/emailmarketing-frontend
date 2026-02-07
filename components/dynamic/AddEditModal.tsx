@@ -34,12 +34,12 @@ export default function AddEditModal({
 
   useEffect(() => {
     const initial: any = {};
-  
+
     // 1️⃣ Inject defaultValues FIRST (hidden FKs, parent context)
     Object.entries(defaultValues).forEach(([key, value]) => {
       initial[key] = value;
     });
-  
+
     // 2️⃣ Merge row values on edit (including hidden fields)
     if (row) {
       Object.entries(row).forEach(([key, value]) => {
@@ -48,20 +48,20 @@ export default function AddEditModal({
         }
       });
     }
-  
+
     // 3️⃣ Ensure visible form fields exist
     config.forEach((f) => {
       if (!f.inForm) return;
       if (isEdit && f.inEdit === false) return;
-  
+
       if (initial[f.key] === undefined) {
         initial[f.key] = '';
       }
     });
-  
+
     setForm(initial);
   }, [row, table]);
-  
+
 
   function update(key: string, value: any) {
     setForm((prev: any) => ({
@@ -71,22 +71,19 @@ export default function AddEditModal({
   }
 
   async function submit() {
-    if (isEdit) {
-      
-      await executeAction(
-        () =>  updateRow(table, row.id, form)
-        ,
-        {
-          success: 'Campaign updated',
-          error: 'Failed to update campaign'
-        }
-      );
-      
-    } else {
-      await createRow(table, form);
+    const label = table.replace('_', ' ');
+    const res = await executeAction(
+      () => (isEdit ? updateRow(table, row.id, form) : createRow(table, form)),
+      {
+        success: `${label} ${isEdit ? 'updated' : 'created'}`,
+        error: `Failed to ${isEdit ? 'update' : 'create'} ${label}`,
+      }
+    );
+
+    if (res !== undefined) {
+      onSuccess();
+      onClose();
     }
-    onSuccess();
-    onClose();
   }
 
   return (

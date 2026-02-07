@@ -67,10 +67,10 @@ export default function LeadsClientPage({
         onValueChange={v => v && setView(v as View)}
         className="flex gap-2"
       >
-        <ToggleItem value="free" icon={<Database />} label="Free" />
-        <ToggleItem value="used" icon={<CheckCircle />} label="Used" />
-        <ToggleItem value="blocked" icon={<AlertTriangle />} label="Blocked" />
-        <ToggleItem value="validity" icon={<Clock />} label="Validity Pending" />
+        <ToggleItem value="free" icon={<Database color="lightgreen" size={16} />} label="Free" />
+        <ToggleItem value="used" icon={<CheckCircle color="gray" size={16} />} label="Used" />
+        <ToggleItem value="blocked" icon={<AlertTriangle color="red" size={16} />} label="Blocked" />
+        <ToggleItem value="validity" icon={<Clock color="lightblue" size={16} />} label="Validity Pending" />
       </ToggleGroup.Root>
 
       {/* Table */}
@@ -98,7 +98,7 @@ function ToggleItem({
       value={value}
       className="
         flex items-center gap-2
-        px-3 py-2 rounded-md text-sm
+        px-2 py-1 rounded-md text-xs
         border
         data-[state=on]:bg-primary
         data-[state=on]:text-primary-foreground
