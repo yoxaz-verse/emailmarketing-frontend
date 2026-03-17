@@ -146,7 +146,7 @@ export default function UploadLeadsForm({
       />
 
       {leads.length > 0 && (
-        <pre className="text-xs bg-white p-3 border rounded">
+        <pre className="text-xs bg-card p-3 border border-border rounded">
           {JSON.stringify(leads, null, 2)}
         </pre>
       )}

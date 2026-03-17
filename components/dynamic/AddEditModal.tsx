@@ -87,8 +87,8 @@ export default function AddEditModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
-      <div className="bg-white p-6 rounded w-[520px] space-y-4 max-h-[90vh] overflow-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+      <div className="bg-card text-card-foreground border border-border p-6 rounded w-[520px] space-y-4 max-h-[90vh] overflow-auto">
         <h2 className="text-lg font-semibold">
           {isEdit ? 'Edit' : 'Add'}           {table.replace('_', ' ')}
         </h2>
@@ -111,9 +111,11 @@ export default function AddEditModal({
         })}
 
         <div className="flex justify-end gap-2 pt-4">
-          <button onClick={onClose}>Cancel</button>
+          <button className="text-muted-foreground hover:text-foreground" onClick={onClose}>
+            Cancel
+          </button>
           <button
-            className="bg-black text-white px-4 py-1 rounded"
+            className="bg-primary text-primary-foreground px-4 py-1 rounded"
             onClick={submit}
           >
             {isEdit ? 'Save' : 'Create'}

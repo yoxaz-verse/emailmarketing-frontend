@@ -12,7 +12,7 @@ export default async function Page({
   const { table } = await params;
   const cookieStore = await cookies(); // ✅ FIX
   const role = cookieStore.get('user_role')?.value;
-const relations = await resolveRelations(table);
+const relations = await resolveRelations(table, role);
   const data = await crudServer.list(table);
 
   return (

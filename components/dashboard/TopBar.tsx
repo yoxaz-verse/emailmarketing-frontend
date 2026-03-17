@@ -33,9 +33,9 @@ export default function TopBar() {
     };
 
     return (
-        <header className="h-16 bg-white border-b flex items-center justify-between px-8 sticky top-0 z-30">
+        <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 sticky top-0 z-30">
             <div className="flex items-center gap-8">
-                <h1 className="text-xl font-bold text-gray-900 border-r pr-8 h-8 flex items-center">
+                <h1 className="text-xl font-bold text-foreground border-r border-border pr-8 h-8 flex items-center">
                     OBT
                     {/* {getPageTitle(pathname)} */}
                 </h1>
@@ -54,13 +54,13 @@ export default function TopBar() {
 
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <button className="flex items-center gap-3 p-1 rounded-full hover:bg-gray-50 transition-colors outline-none">
+                        <button className="flex items-center gap-3 p-1 rounded-full hover:bg-muted transition-colors outline-none">
                             <div className="w-8 h-8 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-white shadow-sm">
                                 JD
                             </div>
                             <div className="text-left hidden lg:block">
-                                <p className="text-sm font-semibold text-gray-900 leading-tight">John Doe</p>
-                                <p className="text-[10px] text-gray-500 font-medium">Administrator</p>
+                                <p className="text-sm font-semibold text-foreground leading-tight">John Doe</p>
+                                <p className="text-[10px] text-muted-foreground font-medium">Administrator</p>
                             </div>
                         </button>
                     </DropdownMenuTrigger>
@@ -77,7 +77,7 @@ export default function TopBar() {
                             <HelpCircle className="mr-2 h-4 w-4" /> Support
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600 focus:bg-red-50 focus:text-red-600" onClick={() => window.location.href = '/api/auth/logout'}>
+                        <DropdownMenuItem className="text-red-500 focus:bg-red-500/10 focus:text-red-500" onClick={() => window.location.href = '/api/auth/logout'}>
                             <LogOut className="mr-2 h-4 w-4" /> Sign out
                         </DropdownMenuItem>
                     </DropdownMenuContent>

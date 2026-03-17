@@ -53,14 +53,14 @@ export default function Sidebar() {
                 className={cn(
                     "flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group",
                     isActive
-                        ? "bg-blue-50 text-blue-700"
-                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
             >
                 <div className="flex items-center gap-3">
                     <item.icon className={cn(
                         "h-4 w-4 transition-colors",
-                        isActive ? "text-blue-600" : "text-gray-400 group-hover:text-gray-600"
+                        isActive ? "text-accent-foreground" : "text-muted-foreground group-hover:text-foreground"
                     )} />
                     {item.label}
                 </div>
@@ -70,13 +70,13 @@ export default function Sidebar() {
     );
 
     return (
-        <aside className="w-64 bg-white border-r flex flex-col h-screen sticky top-0">
+        <aside className="w-64 bg-card border-r border-border flex flex-col h-screen sticky top-0">
             <div className="p-6">
                 <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
                         O
                     </div>
-                    <span className="font-bold text-xl tracking-tight text-gray-900">Obaol</span>
+                    <span className="font-bold text-xl tracking-tight text-foreground">Obaol</span>
                 </div>
             </div>
 
@@ -86,7 +86,7 @@ export default function Sidebar() {
                 </ul>
 
                 <div>
-                    <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
+                    <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
                         Marketing
                     </h3>
                     <ul className="space-y-1">
@@ -95,7 +95,7 @@ export default function Sidebar() {
                 </div>
 
                 <div>
-                    <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
+                    <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
                         Email AI
                     </h3>
                     <ul className="space-y-1">
@@ -104,7 +104,7 @@ export default function Sidebar() {
                 </div>
 
                 <div>
-                    <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
+                    <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
                         Voice AI
                     </h3>
                     <ul className="space-y-1">
@@ -113,7 +113,7 @@ export default function Sidebar() {
                 </div>
 
                 <div>
-                    <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
+                    <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
                         Admin
                     </h3>
                     <ul className="space-y-1">

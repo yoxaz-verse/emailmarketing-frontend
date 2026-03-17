@@ -7,7 +7,7 @@ import LeadsClientPage from './LeadClientPage';
 
 export default async function LeadsPage() {
   const leads = await crudServer.list('leads');
-  const relations = await resolveRelations('leads');
+  const relations = await resolveRelations('leads', role);
   const cookieStore = await cookies(); // ✅ FIX
   const role = cookieStore.get('user_role')?.value;
   return (

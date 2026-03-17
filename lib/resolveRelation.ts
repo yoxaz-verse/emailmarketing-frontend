@@ -4,13 +4,17 @@ import { tableConfig } from '@/config/tableFields';
 export type RelationMap = Record<string, any[]>;
 
 export async function resolveRelations(
-  table: string
+  table: string,
+  role?: string
 ): Promise<RelationMap> {
   const fields = tableConfig[table] ?? [];
   const relations: RelationMap = {};
 
   for (const field of fields) {
     if (field.type === 'relation' && field.relation) {
+      if (field.adminOnly && role !== 'admin' && role !== 'superadmin') {
+        continue;
+      }
       const tableName = field.relation.table;
 
       if (!relations[tableName]) {
@@ -25,9 +29,14 @@ export async function resolveRelations(
           }
         }
 
-        relations[tableName] = await serverFetch(
-          `/crud/${tableName}?${params.toString()}`
-        );
+        try {
+          relations[tableName] = await serverFetch(
+            `/crud/${tableName}?${params.toString()}`
+          );
+        } catch (error) {
+          console.error('[resolveRelations] Failed to load', tableName, error);
+          relations[tableName] = [];
+        }
       }
     }
   }

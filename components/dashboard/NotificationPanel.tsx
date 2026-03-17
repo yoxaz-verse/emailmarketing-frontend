@@ -31,6 +31,8 @@ export default function NotificationPanel() {
     const [loading, setLoading] = useState(false);
 
     const fetchNotifications = async () => {
+        // Temporarily disabled to prevent "Failed to fetch" errors
+        return;
         setLoading(true);
         try {
             const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
@@ -54,18 +56,18 @@ export default function NotificationPanel() {
     return (
         <DropdownMenu onOpenChange={(open) => open && fetchNotifications()}>
             <DropdownMenuTrigger asChild>
-                <button className="relative p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors outline-none cursor-pointer group">
+                <button className="relative p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors outline-none cursor-pointer group">
                     <Bell className="h-5 w-5 transform group-hover:rotate-12 transition-transform" />
                     {notifications.length > 0 && (
-                        <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
+                        <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-background animate-pulse"></span>
                     )}
                 </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 mt-2 p-0 overflow-hidden shadow-2xl border-gray-200 animate-in fade-in zoom-in-95 duration-200">
-                <DropdownMenuLabel className="p-4 bg-gray-50/50 border-b">
+            <DropdownMenuContent align="end" className="w-80 mt-2 p-0 overflow-hidden shadow-2xl border-border bg-popover text-popover-foreground animate-in fade-in zoom-in-95 duration-200">
+                <DropdownMenuLabel className="p-4 bg-muted/40 border-b border-border">
                     <div className="flex items-center justify-between">
-                        <span className="font-bold text-gray-900 tracking-tight">Notifications</span>
-                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full uppercase tracking-widest ring-1 ring-blue-100/50">
+                        <span className="font-bold text-foreground tracking-tight">Notifications</span>
+                        <span className="text-[10px] font-bold text-blue-300 bg-blue-500/10 px-2.5 py-1 rounded-full uppercase tracking-widest ring-1 ring-blue-500/20">
                             Activity
                         </span>
                     </div>
@@ -75,34 +77,34 @@ export default function NotificationPanel() {
                     {loading && notifications.length === 0 ? (
                         <div className="p-12 text-center">
                             <div className="animate-spin h-6 w-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
-                            <p className="text-[11px] font-medium text-gray-400 tracking-wide uppercase">Updating feed...</p>
+                            <p className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Updating feed...</p>
                         </div>
                     ) : notifications.length === 0 ? (
                         <div className="p-12 text-center">
-                            <div className="bg-gray-50 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <Bell className="h-6 w-6 text-gray-300" />
+                            <div className="bg-muted w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <Bell className="h-6 w-6 text-muted-foreground/60" />
                             </div>
-                            <p className="text-sm font-semibold text-gray-900">Quiet for now</p>
-                            <p className="text-xs text-gray-400 mt-1">No notifications yet</p>
+                            <p className="text-sm font-semibold text-foreground">Quiet for now</p>
+                            <p className="text-xs text-muted-foreground mt-1">No notifications yet</p>
                         </div>
                     ) : (
-                        <div className="divide-y divide-gray-100/80">
+                        <div className="divide-y divide-border">
                             {notifications.map((n) => (
-                                <div key={n.id} className="p-4 hover:bg-gray-50/80 transition-all cursor-default group/item">
+                                <div key={n.id} className="p-4 hover:bg-muted/60 transition-all cursor-default group/item">
                                     <div className="flex gap-3">
                                         <div className="mt-1 flex-shrink-0">
                                             <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 group-hover/item:scale-125 transition-transform" />
                                         </div>
                                         <div className="flex-1">
-                                            <p className="text-sm text-gray-700 leading-relaxed font-medium">
+                                            <p className="text-sm text-foreground leading-relaxed font-medium">
                                                 {n.message}
                                             </p>
                                             <div className="flex items-center gap-2 mt-2">
-                                                <span className="text-[10px] font-bold text-gray-400/80 uppercase tracking-tighter">
+                                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">
                                                     {n.type?.replace(/_/g, ' ')}
                                                 </span>
-                                                <span className="text-[10px] text-gray-300">•</span>
-                                                <p className="text-[10px] text-gray-400 font-medium italic">
+                                                <span className="text-[10px] text-muted-foreground/60">•</span>
+                                                <p className="text-[10px] text-muted-foreground font-medium italic">
                                                     {getRelativeTime(n.created_at)}
                                                 </p>
                                             </div>
@@ -117,7 +119,7 @@ export default function NotificationPanel() {
                 <DropdownMenuSeparator className="m-0" />
                 <button
                     onClick={() => setNotifications([])}
-                    className="w-full p-3.5 text-[10px] font-bold text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all uppercase tracking-[0.2em] border-t border-gray-100"
+                    className="w-full p-3.5 text-[10px] font-bold text-muted-foreground hover:text-blue-300 hover:bg-blue-500/10 transition-all uppercase tracking-[0.2em] border-t border-border"
                 >
                     Mark all as read
                 </button>

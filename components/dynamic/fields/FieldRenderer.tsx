@@ -69,22 +69,33 @@ function renderRelationField(
   return (
     <div className="space-y-1">
       <label className="text-sm font-medium">{field.label}</label>
-      <select
-        className="border p-2 rounded w-full"
-        value={value ?? ''}
-        required={field.required}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        <option value="">Select {field.label}</option>
-        {options.map((row: any) => (
-          <option
-            key={row[rel.valueKey]}
-            value={row[rel.valueKey]}
+      <div className="flex gap-2 items-center">
+        <select
+          className="border border-border bg-card text-foreground p-2 rounded w-full"
+          value={value ?? ''}
+          required={field.required}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          <option value="">Select {field.label}</option>
+          {options.map((row: any) => (
+            <option
+              key={row[rel.valueKey]}
+              value={row[rel.valueKey]}
+            >
+              {row[rel.labelKey]}
+            </option>
+          ))}
+        </select>
+        {options.length === 0 && (
+          <a
+            href={`/dashboard/${rel.table}`}
+            className="text-xs font-medium text-blue-600 hover:text-blue-800 whitespace-nowrap bg-blue-50 px-2 py-1 flex items-center h-full rounded border border-blue-200"
+            title={`Add new ${field.label}`}
           >
-            {row[rel.labelKey]}
-          </option>
-        ))}
-      </select>
+            + Add New
+          </a>
+        )}
+      </div>
     </div>
   );
 }
@@ -157,12 +168,12 @@ export function BooleanField({ field, value, onChange }: any) {
         onClick={() => onChange(!checked)}
         className={cn(
           "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-          checked ? "bg-green-600" : "bg-gray-300"
+          checked ? "bg-green-500" : "bg-muted"
         )}
       >
         <span
           className={cn(
-            "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+            "inline-block h-4 w-4 transform rounded-full bg-card transition-transform",
             checked ? "translate-x-6" : "translate-x-1"
           )}
         />
@@ -203,7 +214,7 @@ export default function TimeField({ field, value, onChange }: any) {
   return (
     <input
       type="time"
-      className="border p-2 w-full"
+      className="border border-border bg-card text-foreground p-2 w-full"
       value={value ?? ''}
       onChange={(e) => onChange(e.target.value)}
     />
@@ -226,7 +237,7 @@ export  function LinkField({ field, value, onChange }: any) {
   return (
     <input
       type="url"
-      className="border p-2 w-full"
+      className="border border-border bg-card text-foreground p-2 w-full"
       placeholder={field.label}
       value={value ?? ''}
       onChange={(e) => onChange(e.target.value)}

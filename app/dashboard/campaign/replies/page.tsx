@@ -20,19 +20,19 @@ export default async function OperatorRepliesPage() {
       <h2 className="text-lg font-semibold">Replies</h2>
 
       {replies.length === 0 && (
-        <p className="text-sm text-gray-500">No replies yet</p>
+        <p className="text-sm text-muted-foreground">No replies yet</p>
       )}
 
       {replies.map((r) => (
         <div
           key={r.id}
-          className="border rounded bg-white p-4"
+          className="border border-border rounded bg-card p-4"
         >
           <div className="text-sm font-medium">
             {r.first_name} ({r.email})
           </div>
 
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-muted-foreground">
             Company: {r.company} • Replied at{' '}
             {new Date(r.replied_at).toLocaleString()}
           </div>
@@ -42,7 +42,7 @@ export default async function OperatorRepliesPage() {
           </div>
 
           {r.inboxes?.email_address && (
-            <div className="mt-2 text-xs text-gray-400">
+            <div className="mt-2 text-xs text-muted-foreground">
               Received via {r.inboxes.email_address}
             </div>
           )}

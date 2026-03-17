@@ -70,7 +70,7 @@ export default function CampaignHeader({
     campaign.status === 'draft' || campaign.status === 'paused';
 
   return (
-    <div className="border rounded-md p-4 space-y-6 bg-white">
+    <div className="border border-border rounded-md p-4 space-y-6 bg-card">
 
       {/* Campaign Info */}
       <div>
@@ -135,7 +135,7 @@ export default function CampaignHeader({
               {inbox.email_address}
 
               {inbox.operator_id == null && (
-                <span className="text-xs text-blue-600">
+                <span className="text-xs text-blue-300">
                   Public
                 </span>
               )}

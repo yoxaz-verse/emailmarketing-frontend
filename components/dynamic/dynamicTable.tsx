@@ -99,27 +99,27 @@ export default function DynamicTable({
       {/* Header & Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-gray-900 capitalize flex items-center gap-2">
+          <h2 className="text-xl font-bold text-foreground capitalize flex items-center gap-2">
             {table.replace('_', ' ')}
             <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-bold">
               {data.length}
             </Badge>
           </h2>
-          <p className="text-sm text-gray-500">Manage {table.replace('_', ' ')} records and data.</p>
+          <p className="text-sm text-muted-foreground">Manage {table.replace('_', ' ')} records and data.</p>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="relative group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-blue-400 transition-colors" />
             <Input
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 w-[200px] lg:w-[300px] h-9 bg-white border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-sm"
+              className="pl-9 w-[200px] lg:w-[300px] h-9 bg-card border-border focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-sm"
             />
           </div>
 
-          <Button variant="outline" size="sm" className="h-9 gap-2 hidden lg:flex border-gray-200 hover:bg-gray-50">
+          <Button variant="outline" size="sm" className="h-9 gap-2 hidden lg:flex border-border hover:bg-muted">
             <Filter className="h-4 w-4" /> Filter
           </Button>
 
@@ -139,20 +139,20 @@ export default function DynamicTable({
       </div>
 
       {/* Table Container */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader className="bg-gray-50/50">
-              <TableRow className="hover:bg-transparent border-b border-gray-200/60">
+            <TableHeader className="bg-muted/40">
+              <TableRow className="hover:bg-transparent border-b border-border">
                 {visibleFields.map((f) => (
-                  <TableHead key={f.key} className="h-11 text-xs font-bold text-gray-500 uppercase tracking-wider py-3 px-4">
+                  <TableHead key={f.key} className="h-11 text-xs font-bold text-muted-foreground uppercase tracking-wider py-3 px-4">
                     {f.label}
                   </TableHead>
                 ))}
                 {(actions.length > 0 ||
                   meta.allowEdit !== false ||
                   meta.allowDelete !== false) && (
-                    <TableHead className="h-11 text-right text-xs font-bold text-gray-500 uppercase tracking-wider py-3 px-4">
+                    <TableHead className="h-11 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider py-3 px-4">
                       Actions
                     </TableHead>
                   )}
@@ -164,17 +164,17 @@ export default function DynamicTable({
                 <TableRow>
                   <TableCell
                     colSpan={visibleFields.length + 1}
-                    className="h-32 text-center text-sm text-gray-400 italic"
+                    className="h-32 text-center text-sm text-muted-foreground italic"
                   >
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <Search className="h-8 w-8 text-gray-200" />
+                      <Search className="h-8 w-8 text-muted-foreground/40" />
                       {searchQuery ? `No results found for "${searchQuery}"` : "No data available"}
                     </div>
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredData.map((row) => (
-                  <TableRow key={row.id} className="group hover:bg-blue-50/30 transition-colors border-b border-gray-100 last:border-none">
+                  <TableRow key={row.id} className="group hover:bg-muted/50 transition-colors border-b border-border last:border-none">
                     {visibleFields.map((f) => {
                       let displayValue: React.ReactNode = '—';
 
@@ -198,8 +198,8 @@ export default function DynamicTable({
                       return (
                         <TableCell key={f.key} className="py-3 px-4">
                           <span className={cn(
-                            "text-sm font-medium text-gray-700",
-                            f.key === 'name' || f.key === 'title' ? "text-gray-900 font-semibold" : ""
+                            "text-sm font-medium text-foreground",
+                            f.key === 'name' || f.key === 'title' ? "font-semibold" : ""
                           )}>
                             {truncate(displayValue)}
                           </span>
@@ -213,7 +213,7 @@ export default function DynamicTable({
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8 text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                            className="h-8 w-8 text-muted-foreground hover:text-blue-300 hover:bg-blue-500/10"
                             onClick={() => {
                               setEditingRow(row);
                               setShowForm(true);
@@ -227,7 +227,7 @@ export default function DynamicTable({
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                            className="h-8 w-8 text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
                             onClick={() => setDeleteId(row.id)}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -235,7 +235,7 @@ export default function DynamicTable({
                         )}
 
                         {actions.length > 0 && (
-                          <div className="pl-1 border-l ml-1 border-gray-100">
+                          <div className="pl-1 border-l ml-1 border-border">
                             <ActionRenderer actions={actions} row={row} />
                           </div>
                         )}
@@ -250,7 +250,7 @@ export default function DynamicTable({
       </div>
 
       {/* Footer / Pagination Placeholder */}
-      <div className="flex items-center justify-between text-xs text-gray-500 px-2">
+      <div className="flex items-center justify-between text-xs text-muted-foreground px-2">
         <p>Showing {filteredData.length} of {data.length} records</p>
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" disabled className="h-7 text-[10px] px-2 uppercase font-bold tracking-tight">Previous</Button>

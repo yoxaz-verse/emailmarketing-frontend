@@ -40,8 +40,8 @@ export default async function LoginPage() {
       </div>
 
       {/* RIGHT LOGIN PANEL */}
-      <div className="flex items-center justify-center px-6 bg-neutral-50 text-black">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-neutral-200">
+      <div className="flex items-center justify-center px-6 bg-background text-foreground">
+        <div className="w-full max-w-md bg-card text-card-foreground rounded-2xl shadow-xl p-8 border border-border">
 
           {/* {error && (
             <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -53,7 +53,7 @@ export default async function LoginPage() {
             <h2 className="text-2xl font-semibold tracking-tight">
               Sign in to OBAOL
             </h2>
-            <p className="mt-2 text-sm text-neutral-500">
+            <p className="mt-2 text-sm text-muted-foreground">
               Access your cold email execution dashboard
             </p>
           </div>
@@ -64,7 +64,7 @@ export default async function LoginPage() {
             className="space-y-5"
           >
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
+              <label className="block text-sm font-medium text-muted-foreground mb-1">
                 Email address
               </label>
               <input
@@ -72,12 +72,12 @@ export default async function LoginPage() {
                 type="email"
                 required
                 placeholder="you@company.com"
-                className="w-full rounded-lg border border-neutral-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
+              <label className="block text-sm font-medium text-muted-foreground mb-1">
                 Password
               </label>
               <input
@@ -85,14 +85,14 @@ export default async function LoginPage() {
                 type="password"
                 required
                 placeholder="••••••••"
-                className="w-full rounded-lg border border-neutral-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
 
             <div className="flex items-center justify-end">
               <a
                 href="/forgot-password"
-                className="text-xs text-neutral-500 hover:text-black transition"
+                className="text-xs text-muted-foreground hover:text-foreground transition"
               >
                 Forgot Password?
               </a>
@@ -100,13 +100,13 @@ export default async function LoginPage() {
 
             <button
               type="submit"
-              className="w-full rounded-lg bg-black py-2.5 text-white text-sm font-medium hover:bg-neutral-900 transition"
+              className="w-full rounded-lg bg-primary py-2.5 text-primary-foreground text-sm font-medium hover:bg-primary/90 transition"
             >
               Sign in
             </button>
           </form>
 
-          <div className="mt-6 text-center text-xs text-neutral-500">
+          <div className="mt-6 text-center text-xs text-muted-foreground">
             This is not a mass email tool.
             <br />
             This is outbound infrastructure.

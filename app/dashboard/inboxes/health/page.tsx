@@ -26,7 +26,7 @@ export default async function InboxesPage() {
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Inboxes</h2>
 
-      <div className="rounded border bg-white">
+      <div className="rounded border border-border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
