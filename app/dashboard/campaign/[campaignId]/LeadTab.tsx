@@ -39,6 +39,13 @@ export default function LeadsTab({
     );
   });
 
+  const invalidLeads = leads.filter((lead) => {
+    return (
+      lead.is_used === true ||
+      lead.is_blocked === true
+    );
+  });
+
   /**
    * Local selection state (UI intent)
    * Default: already attached leads
@@ -83,7 +90,7 @@ export default function LeadsTab({
   }
 
   return (
-    <div className="border rounded p-4 space-y-4">
+    <div className="border border-border rounded p-4 space-y-4 bg-card">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="font-semibold">
@@ -110,8 +117,13 @@ export default function LeadsTab({
         </div>
       </div>
 
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <span>Valid: {freeLeads.length}</span>
+        <span>Invalid: {invalidLeads.length}</span>
+      </div>
+
       {/* Lead list (FREE ONLY) */}
-      <div className="space-y-2 max-h-[420px] overflow-auto border rounded p-2">
+      <div className="space-y-2 max-h-[420px] overflow-auto border border-border rounded p-2 bg-background">
         {freeLeads.length === 0 && (
           <div className="text-sm text-muted-foreground text-center py-6">
             No free leads available
@@ -127,9 +139,9 @@ export default function LeadsTab({
               key={lead.id}
               className={`flex items-center gap-2 text-sm p-1 rounded cursor-pointer ${
                 isAttached
-                  ? 'bg-green-50'
+                  ? 'bg-emerald-500/10'
                   : isSelected
-                  ? 'bg-blue-50'
+                  ? 'bg-blue-500/10'
                   : ''
               }`}
             >
@@ -144,7 +156,7 @@ export default function LeadsTab({
               </span>
 
               {isAttached && (
-                <span className="text-xs text-green-700">
+                <span className="text-xs text-emerald-300">
                   Attached
                 </span>
               )}
@@ -152,6 +164,34 @@ export default function LeadsTab({
           );
         })}
       </div>
+
+      {invalidLeads.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold">Invalid Leads</h3>
+          <div className="space-y-2 max-h-[240px] overflow-auto border border-border rounded p-2 bg-background">
+            {invalidLeads.map((lead) => {
+              const status = lead.is_blocked
+                ? 'Blocked'
+                : lead.is_used
+                ? 'Used'
+                : 'Invalid';
+              return (
+                <div
+                  key={lead.id}
+                  className="flex items-center gap-2 text-sm p-1 rounded bg-muted/30"
+                >
+                  <span className="flex-1 text-muted-foreground">
+                    {lead.email}
+                  </span>
+                  <span className="text-xs rounded-full border border-border px-2 py-0.5 text-muted-foreground">
+                    {status}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Action */}
       <div className="flex justify-end">

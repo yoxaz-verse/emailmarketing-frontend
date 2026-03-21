@@ -1,19 +1,17 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
-function logout(req: Request) {
-  const response = NextResponse.redirect(
-    new URL('/login', req.url)
-  );
+async function logout(req: Request) {
+  const cookieStore = await cookies();
 
-  response.cookies.delete('auth_token');
-  response.cookies.delete('user_role');
-  response.cookies.delete('operator_id');
-  response.cookies.delete('login_error');
+  cookieStore.delete('auth_token');
+  cookieStore.delete('user_role');
+  cookieStore.delete('operator_id');
+  cookieStore.delete('login_error');
 
-  return response;
+  return NextResponse.redirect(new URL('/login', req.url));
 }
 
-// ✅ SUPPORT BOTH METHODS
 export async function GET(req: Request) {
   return logout(req);
 }

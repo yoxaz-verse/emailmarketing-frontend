@@ -12,6 +12,7 @@ import ReactFlow, {
   useEdgesState,
   useNodesState,
   ReactFlowInstance,
+  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -22,12 +23,37 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 
 const NODE_TYPES = ['Email', 'Wait', 'Condition', 'AI Agent'] as const;
+type NodeType = (typeof NODE_TYPES)[number];
+
+type ConditionBranches = {
+  true?: string;
+  false?: string;
+};
+
+type NodeData = {
+  label: string;
+  nodeType?: NodeType;
+  subject?: string;
+  body?: string;
+  from?: string;
+  reply_to?: string;
+  delay_amount?: number;
+  delay_unit?: string;
+  rules?: unknown[];
+  branches?: ConditionBranches;
+  agent_id?: string;
+  prompt_template?: string;
+  input_mapping?: Record<string, unknown>;
+};
+
+type SequenceNode = Node<NodeData>;
+type SequenceEdge = Edge;
 
 type Sequence = {
   id: string;
   name: string;
   status?: string;
-  graph_json?: { nodes: Node[]; edges: Edge[] };
+  graph_json?: { nodes: SequenceNode[]; edges: SequenceEdge[] };
 };
 
 type Agent = {
@@ -47,7 +73,7 @@ type Props = {
   sequenceId: string;
 };
 
-const defaultNodeData: Record<string, any> = {
+const defaultNodeData: Record<NodeType, Partial<NodeData>> = {
   Email: {
     subject: '',
     body: '',
@@ -69,7 +95,7 @@ const defaultNodeData: Record<string, any> = {
   },
 };
 
-const NodeCard = ({ data }: { data: { label: string } }) => (
+const NodeCard = ({ data }: { data: NodeData }) => (
   <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-sm">
     <div className="font-semibold">{data.label}</div>
   </div>
@@ -77,8 +103,8 @@ const NodeCard = ({ data }: { data: { label: string } }) => (
 
 export default function SequenceBuilderClient({ sequenceId }: Props) {
   const [sequence, setSequence] = useState<Sequence | null>(null);
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<NodeData>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<SequenceEdge>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
@@ -99,7 +125,7 @@ export default function SequenceBuilderClient({ sequenceId }: Props) {
   const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
   const saveTimer = useRef<number | null>(null);
 
-  const selectedNode = useMemo(
+  const selectedNode = useMemo<SequenceNode | null>(
     () => nodes.find(node => node.id === selectedNodeId) || null,
     [nodes, selectedNodeId]
   );
@@ -118,8 +144,8 @@ export default function SequenceBuilderClient({ sequenceId }: Props) {
 
       setSequence(sequenceData);
       setStatus(sequenceData.status ?? 'draft');
-      setNodes(graph?.nodes ?? []);
-      setEdges(graph?.edges ?? []);
+      setNodes((graph?.nodes ?? []) as SequenceNode[]);
+      setEdges((graph?.edges ?? []) as SequenceEdge[]);
       setAgents(agentData);
     } catch (err) {
       console.error('Failed to load sequence data:', err);
@@ -168,7 +194,7 @@ export default function SequenceBuilderClient({ sequenceId }: Props) {
     [setEdges]
   );
 
-  const onNodeClick = useCallback((_: unknown, node: Node) => {
+  const onNodeClick = useCallback((_: unknown, node: SequenceNode) => {
     setSelectedNodeId(node.id);
   }, []);
 
@@ -181,6 +207,7 @@ export default function SequenceBuilderClient({ sequenceId }: Props) {
     event.preventDefault();
     const type = event.dataTransfer.getData('application/reactflow');
     if (!type || !reactFlowInstance.current || !reactFlowWrapper.current) return;
+    if (!NODE_TYPES.includes(type as NodeType)) return;
 
     const bounds = reactFlowWrapper.current.getBoundingClientRect();
     const clientPosition = {
@@ -193,13 +220,13 @@ export default function SequenceBuilderClient({ sequenceId }: Props) {
       : reactFlowInstance.current.screenToFlowPosition(clientPosition);
 
     const id = `${type}-${Date.now()}`;
-    const newNode: Node = {
+    const newNode: SequenceNode = {
       id,
       type,
       position,
       data: {
         label: type,
-        nodeType: type,
+        nodeType: type as NodeType,
         ...(defaultNodeData[type] ?? {}),
       },
     };
@@ -213,7 +240,7 @@ export default function SequenceBuilderClient({ sequenceId }: Props) {
     event.dataTransfer.dropEffect = 'move';
   };
 
-  const updateSelectedNodeData = (updates: Record<string, any>) => {
+  const updateSelectedNodeData = (updates: Partial<NodeData>) => {
     if (!selectedNode) return;
     setNodes(nds =>
       nds.map(node =>
@@ -458,164 +485,169 @@ export default function SequenceBuilderClient({ sequenceId }: Props) {
   };
 
   return (
-    <div className="grid h-[calc(100vh-120px)] grid-cols-[220px_minmax(0,1fr)_320px] gap-4 p-6">
-      <aside className="space-y-4 rounded-lg border border-border bg-card p-4">
-        <div>
-          <h2 className="text-sm font-semibold">Node Palette</h2>
-          <p className="text-xs text-muted-foreground">
-            Drag nodes onto the canvas.
-          </p>
-        </div>
-        <div className="space-y-2">
-          {NODE_TYPES.map(type => (
-            <div
-              key={type}
-              draggable
-              onDragStart={event => onDragStart(event, type)}
-              className="cursor-grab rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"
-            >
-              {type}
-            </div>
-          ))}
-        </div>
-      </aside>
-
-      <div className="flex flex-col rounded-lg border border-border bg-card">
-        <div className="flex items-center justify-between border-b px-4 py-3">
+    <ReactFlowProvider>
+      <div className="grid h-[calc(100vh-120px)] grid-cols-[220px_minmax(0,1fr)_320px] gap-4 p-6">
+        <aside className="space-y-4 rounded-lg border border-border bg-card p-4">
           <div>
-            <Input
-              value={sequence?.name ?? ''}
-              placeholder="Sequence name"
-              onChange={e =>
-                setSequence(prev =>
-                  prev ? { ...prev, name: e.target.value } : prev
-                )
-              }
-            />
+            <h2 className="text-sm font-semibold">Node Palette</h2>
+            <p className="text-xs text-muted-foreground">
+              Drag nodes onto the canvas.
+            </p>
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Badge>{status}</Badge>
-            {isSaving && <span className="text-xs text-muted-foreground">Saving…</span>}
-            <Button variant="outline" onClick={handleValidate}>
-              Validate
-            </Button>
-          </div>
-        </div>
-        <div
-          className="flex-1"
-          ref={reactFlowWrapper}
-          onDrop={onDrop}
-          onDragOver={onDragOver}
-        >
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={{
-              Email: NodeCard,
-              Wait: NodeCard,
-              Condition: NodeCard,
-              'AI Agent': NodeCard,
-            }}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={onNodeClick}
-            onInit={instance => {
-              reactFlowInstance.current = instance;
-              instance.fitView();
-            }}
-            fitView
-          >
-            <Background gap={16} />
-            <MiniMap />
-            <Controls />
-          </ReactFlow>
-        </div>
-      </div>
-
-      <aside className="space-y-4 rounded-lg border border-border bg-card p-4 overflow-y-auto">
-        <div>
-          <h2 className="text-sm font-semibold">Node Configuration</h2>
-          {renderNodeConfig()}
-        </div>
-
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold">Validation Errors</h3>
-          {validationErrors.length === 0 && (
-            <p className="text-xs text-muted-foreground">No errors yet.</p>
-          )}
-          {validationErrors.map((err, idx) => (
-            <div key={`${err.nodeId ?? 'global'}-${idx}`} className="text-xs">
-              <span className="font-medium">{err.nodeId ?? 'Sequence'}:</span>{' '}
-              {err.message}
-            </div>
-          ))}
-        </div>
-
-        <div className="space-y-2 border-t pt-4">
-          <h3 className="text-sm font-semibold">Assigned Agents</h3>
           <div className="space-y-2">
-            {agents.map(agent => (
-              <div key={agent.id} className="rounded-md border border-border px-3 py-2 text-xs">
-                <div className="font-medium">{agent.name}</div>
-                <div className="text-muted-foreground">{agent.provider}</div>
+            {NODE_TYPES.map(type => (
+              <div
+                key={type}
+                draggable
+                onDragStart={event => onDragStart(event, type)}
+                className="cursor-grab rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"
+              >
+                {type}
               </div>
             ))}
           </div>
-          <div className="space-y-2">
-            <Input
-              placeholder="Agent name"
-              value={agentForm.name}
-              onChange={e => setAgentForm(prev => ({ ...prev, name: e.target.value }))}
-            />
-            <Input
-              placeholder="Provider"
-              value={agentForm.provider}
-              onChange={e =>
-                setAgentForm(prev => ({ ...prev, provider: e.target.value }))
-              }
-            />
-            <Input
-              placeholder="Webhook endpoint"
-              value={agentForm.endpoint}
-              onChange={e =>
-                setAgentForm(prev => ({ ...prev, endpoint: e.target.value }))
-              }
-            />
-            <Textarea
-              placeholder="Headers JSON"
-              value={agentForm.headers}
-              onChange={e =>
-                setAgentForm(prev => ({ ...prev, headers: e.target.value }))
-              }
-            />
-            {jsonErrors.agentHeaders && (
-              <p className="text-xs text-red-500">{jsonErrors.agentHeaders}</p>
-            )}
-            <Button onClick={handleCreateAgent}>Create Agent</Button>
+        </aside>
+
+        <div className="flex flex-col rounded-lg border border-border bg-card">
+          <div className="flex items-center justify-between border-b px-4 py-3">
+            <div>
+              <Input
+                value={sequence?.name ?? ''}
+                placeholder="Sequence name"
+                onChange={e =>
+                  setSequence(prev =>
+                    prev ? { ...prev, name: e.target.value } : prev
+                  )
+                }
+              />
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <Badge>{status}</Badge>
+              {isSaving && <span className="text-xs text-muted-foreground">Saving…</span>}
+              <Button variant="outline" onClick={handleValidate}>
+                Validate
+              </Button>
+            </div>
+          </div>
+          <div
+            className="flex-1 h-full w-full"
+            ref={reactFlowWrapper}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+          >
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={{
+                Email: NodeCard,
+                Wait: NodeCard,
+                Condition: NodeCard,
+                'AI Agent': NodeCard,
+              }}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onNodeClick={onNodeClick}
+              onDrop={onDrop}
+              onDragOver={onDragOver}
+              onInit={instance => {
+                reactFlowInstance.current = instance;
+                instance.fitView();
+              }}
+              fitView
+              className="h-full w-full"
+            >
+              <Background gap={16} />
+              <MiniMap />
+              <Controls />
+            </ReactFlow>
           </div>
         </div>
 
-        <div className="space-y-2 border-t pt-4">
-          <h3 className="text-sm font-semibold">Execute Test</h3>
-          <Input
-            placeholder="Test contact email"
-            value={testContactEmail}
-            onChange={e => setTestContactEmail(e.target.value)}
-          />
-          <Textarea
-            placeholder="Contact attributes JSON"
-            value={testContactAttrs}
-            onChange={e => setTestContactAttrs(e.target.value)}
-          />
-          {jsonErrors.testContact && (
-            <p className="text-xs text-red-500">{jsonErrors.testContact}</p>
-          )}
-          <Button variant="outline" onClick={handleExecuteTest}>
-            Execute
-          </Button>
-        </div>
-      </aside>
-    </div>
+        <aside className="space-y-4 rounded-lg border border-border bg-card p-4 overflow-y-auto">
+          <div>
+            <h2 className="text-sm font-semibold">Node Configuration</h2>
+            {renderNodeConfig()}
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold">Validation Errors</h3>
+            {validationErrors.length === 0 && (
+              <p className="text-xs text-muted-foreground">No errors yet.</p>
+            )}
+            {validationErrors.map((err, idx) => (
+              <div key={`${err.nodeId ?? 'global'}-${idx}`} className="text-xs">
+                <span className="font-medium">{err.nodeId ?? 'Sequence'}:</span>{' '}
+                {err.message}
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-2 border-t pt-4">
+            <h3 className="text-sm font-semibold">Assigned Agents</h3>
+            <div className="space-y-2">
+              {agents.map(agent => (
+                <div key={agent.id} className="rounded-md border border-border px-3 py-2 text-xs">
+                  <div className="font-medium">{agent.name}</div>
+                  <div className="text-muted-foreground">{agent.provider}</div>
+                </div>
+              ))}
+            </div>
+            <div className="space-y-2">
+              <Input
+                placeholder="Agent name"
+                value={agentForm.name}
+                onChange={e => setAgentForm(prev => ({ ...prev, name: e.target.value }))}
+              />
+              <Input
+                placeholder="Provider"
+                value={agentForm.provider}
+                onChange={e =>
+                  setAgentForm(prev => ({ ...prev, provider: e.target.value }))
+                }
+              />
+              <Input
+                placeholder="Webhook endpoint"
+                value={agentForm.endpoint}
+                onChange={e =>
+                  setAgentForm(prev => ({ ...prev, endpoint: e.target.value }))
+                }
+              />
+              <Textarea
+                placeholder="Headers JSON"
+                value={agentForm.headers}
+                onChange={e =>
+                  setAgentForm(prev => ({ ...prev, headers: e.target.value }))
+                }
+              />
+              {jsonErrors.agentHeaders && (
+                <p className="text-xs text-red-500">{jsonErrors.agentHeaders}</p>
+              )}
+              <Button onClick={handleCreateAgent}>Create Agent</Button>
+            </div>
+          </div>
+
+          <div className="space-y-2 border-t pt-4">
+            <h3 className="text-sm font-semibold">Execute Test</h3>
+            <Input
+              placeholder="Test contact email"
+              value={testContactEmail}
+              onChange={e => setTestContactEmail(e.target.value)}
+            />
+            <Textarea
+              placeholder="Contact attributes JSON"
+              value={testContactAttrs}
+              onChange={e => setTestContactAttrs(e.target.value)}
+            />
+            {jsonErrors.testContact && (
+              <p className="text-xs text-red-500">{jsonErrors.testContact}</p>
+            )}
+            <Button variant="outline" onClick={handleExecuteTest}>
+              Execute
+            </Button>
+          </div>
+        </aside>
+      </div>
+    </ReactFlowProvider>
   );
 }

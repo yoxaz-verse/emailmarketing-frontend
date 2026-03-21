@@ -70,6 +70,25 @@ export default async function CampaignPage({
       `/crud/campaign_inboxes?campaign_id=${campaign.id}`
     );
 
+    /**
+     * 7️⃣ Load sequence + graph (for read-only steps)
+     */
+    let sequenceName = 'Sequence';
+    let sequenceSteps: any[] = [];
+    if (campaign.sequence_id) {
+      const sequences = await serverFetch<any[]>(
+        `/crud/sequences?id=${campaign.sequence_id}`
+      );
+      const sequence = sequences?.[0];
+      if (sequence) {
+        sequenceName = sequence.name ?? sequenceName;
+        sequenceSteps = await serverFetch<any[]>(
+          `/crud/sequence_steps?sequence_id=${campaign.sequence_id}`
+        );
+        sequenceSteps.sort((a, b) => (a.step_number ?? 0) - (b.step_number ?? 0));
+      }
+    }
+
     return (
       <div className="-mx-8 -my-8">
         <div className="px-8 py-8 space-y-6">
@@ -91,8 +110,42 @@ export default async function CampaignPage({
               />
             </div>
 
-            {/* Analytics */}
-            <AnalyticsTab campaignId={campaign.id} />
+            {/* Sequence + Analytics */}
+            <div className="space-y-6">
+              <div className="rounded-lg border border-border bg-card p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold">Sequence Steps</h3>
+                  <span className="text-xs text-muted-foreground">
+                    {sequenceName}
+                  </span>
+                </div>
+                {sequenceSteps.length === 0 ? (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    No sequence steps yet.
+                  </p>
+                ) : (
+                  <ol className="mt-3 space-y-2 text-sm">
+                    {sequenceSteps.map((step, index) => {
+                      return (
+                        <li key={step.id ?? index} className="rounded-md border border-border bg-muted/40 p-2">
+                          <div className="text-xs text-muted-foreground">
+                            Step {step.step_number ?? index + 1}
+                          </div>
+                          <div className="font-medium">
+                            {step.subject?.trim() ? step.subject : 'Untitled Email'}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Delay: {step.delay_days ?? 0} day(s)
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
+              </div>
+
+              <AnalyticsTab campaignId={campaign.id} />
+            </div>
           </div>
         </div>
       </div>

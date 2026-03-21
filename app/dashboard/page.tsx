@@ -1,4 +1,7 @@
-import { serverFetch } from '@/lib/server/server-fetch';
+"use client";
+
+import { useEffect, useMemo, useState } from 'react';
+import { clientFetch } from '@/lib/client-fetch';
 import {
   Card,
   CardContent,
@@ -20,15 +23,41 @@ import {
 } from 'lucide-react';
 import { MOCK_VOICE_AGENTS, MOCK_CALL_HISTORY } from '@/lib/mock-voice-agents';
 
-export default async function OverviewPage() {
-  const data = await serverFetch<any>('/stats/overview');
+type OverviewData = {
+  inboxes: { status?: string }[];
+  daily: any[];
+};
 
-  const activeInboxes = data.inboxes.filter(
-    (i: any) => i.status === 'active'
-  ).length;
+export default function OverviewPage() {
+  const [data, setData] = useState<OverviewData | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const totalCalls = MOCK_VOICE_AGENTS.reduce((acc, agent) => acc + agent.totalCalls, 0);
-  const totalAnswered = MOCK_VOICE_AGENTS.reduce((acc, agent) => acc + agent.answeredCalls, 0);
+  useEffect(() => {
+    let active = true;
+    clientFetch<OverviewData>('/stats/overview')
+      .then((result) => {
+        if (active) setData(result);
+      })
+      .catch((err) => {
+        if (active) setLoadError(err?.message ?? 'Failed to load stats');
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const inboxes = data?.inboxes ?? [];
+  const activeInboxes = inboxes.filter((i: any) => i.status === 'active').length;
+
+  const totalCalls = useMemo(
+    () => MOCK_VOICE_AGENTS.reduce((acc, agent) => acc + agent.totalCalls, 0),
+    []
+  );
+  const totalAnswered = useMemo(
+    () => MOCK_VOICE_AGENTS.reduce((acc, agent) => acc + agent.answeredCalls, 0),
+    []
+  );
   const overallAnswerRate = totalCalls > 0 ? ((totalAnswered / totalCalls) * 100).toFixed(1) : "0";
 
   return (
@@ -64,8 +93,12 @@ export default async function OverviewPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground">{activeInboxes}</div>
-            <p className="text-xs text-muted-foreground mt-1">out of {data.inboxes.length} total</p>
+            <div className="text-3xl font-bold text-foreground">
+              {data ? activeInboxes : '—'}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {data ? `out of ${inboxes.length} total` : 'Loading inbox stats…'}
+            </p>
           </CardContent>
         </Card>
 
@@ -112,6 +145,12 @@ export default async function OverviewPage() {
         </Card>
       </div>
 
+      {loadError && (
+        <div className="rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
+          Overview stats failed to load: {loadError}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Activity */}
         <Card className="lg:col-span-2 border border-border shadow-sm bg-card">
@@ -139,7 +178,7 @@ export default async function OverviewPage() {
                     </div>
                     <div>
                       <h4 className="text-sm font-semibold text-foreground">{call.leadName}</h4>
-                      <p className="text-xs text-muted-foreground">{call.campaignName} • {new Date(call.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                      <p className="text-xs text-muted-foreground" suppressHydrationWarning>{call.campaignName} • {new Date(call.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">

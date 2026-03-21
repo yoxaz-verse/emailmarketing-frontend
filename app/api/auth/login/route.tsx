@@ -1,14 +1,27 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 export async function POST(req: Request) {
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
-  const formData = await req.formData();
+  const contentType = req.headers.get('content-type') || '';
 
-  const email = formData.get('email');
-  const password = formData.get('password');
+  let email, password;
+
+  if (contentType.includes('application/json')) {
+    const body = await req.json();
+    email = body.email;
+    password = body.password;
+  } else {
+    const formData = await req.formData();
+    email = formData.get('email');
+    password = formData.get('password');
+  }
 
   if (!email || !password) {
-    return NextResponse.redirect(new URL('/login', req.url));
+    if (contentType.includes('application/json')) {
+      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
+    }
+    return NextResponse.redirect(new URL('/login?error=Email and password are required', req.url));
   }
 
   const backendRes = await fetch(`${apiBase}/auth/login`, {
@@ -17,39 +30,67 @@ export async function POST(req: Request) {
     body: JSON.stringify({ email, password }),
   });
 
-  if (!backendRes.ok) {
-    return NextResponse.redirect(new URL('/login', req.url));
+  const responseText = await backendRes.text();
+  let backendData: any = null;
+  try {
+    backendData = responseText ? JSON.parse(responseText) : null;
+  } catch (e) {
+    console.error('[AUTH LOGIN] JSON Parse Error:', e);
   }
 
-  const data = await backendRes.json();
+  if (!backendRes.ok) {
+    const errorMessage =
+      backendData?.error ||
+      backendData?.message ||
+      'Login failed. Backend unavailable or returned invalid response.';
 
-  const response = NextResponse.redirect(
-    new URL('/dashboard', req.url),
-    { status: 303 }
-  );
+    if (contentType.includes('application/json')) {
+      return NextResponse.json({ error: errorMessage }, { status: 401 });
+    }
+    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(errorMessage)}`, req.url));
+  }
 
-  response.cookies.set('auth_token', data.token, {
+  if (!backendData?.token || !backendData?.user) {
+    const errorMessage = 'Login failed. Backend returned invalid response.';
+    if (contentType.includes('application/json')) {
+      return NextResponse.json({ error: errorMessage }, { status: 401 });
+    }
+    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(errorMessage)}`, req.url));
+  }
+
+  const data = backendData;
+  const cookieStore = await cookies();
+
+  // ✅ MODERN COOKIE SETTING (Next.js 15 compatible)
+  cookieStore.set('auth_token', data.token, {
     httpOnly: true,
     path: '/',
     sameSite: 'lax',
-    secure: false,
+    secure: false, // Set to true for production HTTPS
+    maxAge: 60 * 60 * 24 * 7, // 1 week
   });
 
-  response.cookies.set('user_role', data.user.role, {
+  cookieStore.set('user_role', data.user.role, {
     httpOnly: true,
     path: '/',
     sameSite: 'lax',
     secure: false,
+    maxAge: 60 * 60 * 24 * 7,
   });
 
   if (data.user.operator_id) {
-    response.cookies.set('operator_id', data.user.operator_id, {
+    cookieStore.set('operator_id', data.user.operator_id, {
       httpOnly: true,
       path: '/',
       sameSite: 'lax',
       secure: false,
+      maxAge: 60 * 60 * 24 * 7,
     });
   }
 
-  return response;
+  if (contentType.includes('application/json')) {
+    return NextResponse.json({ success: true, user: data.user });
+  }
+
+  return NextResponse.redirect(new URL('/dashboard', req.url), { status: 303 });
 }

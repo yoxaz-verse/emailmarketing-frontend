@@ -104,7 +104,7 @@ export default function NotificationPanel() {
                                                     {n.type?.replace(/_/g, ' ')}
                                                 </span>
                                                 <span className="text-[10px] text-muted-foreground/60">•</span>
-                                                <p className="text-[10px] text-muted-foreground font-medium italic">
+                                                <p className="text-[10px] text-muted-foreground font-medium italic" suppressHydrationWarning>
                                                     {getRelativeTime(n.created_at)}
                                                 </p>
                                             </div>

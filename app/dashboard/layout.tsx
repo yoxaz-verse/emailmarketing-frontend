@@ -1,19 +1,18 @@
-import { serverFetch } from '@/lib/server/server-fetch';
 import { redirect } from 'next/navigation';
 import Sidebar from '@/components/dashboard/Sidebar';
 import TopBar from '@/components/dashboard/TopBar';
+import AuthGuardClient from '@/components/dashboard/AuthGuardClient';
+import { cookies } from 'next/headers';
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  try {
-    await serverFetch('/auth/me');
-  } catch (error) {
-    console.log('UNAUTHORIZED', error);
-    // 🔥 DB user deleted → kill session
-    redirect('/api/auth/logout');
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth_token')?.value;
+  if (!token) {
+    redirect('/login');
   }
 
   return (
@@ -22,6 +21,7 @@ export default async function DashboardLayout({
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <TopBar />
+        <AuthGuardClient />
 
         <main className="flex-1 relative overflow-y-auto focus:outline-none">
           <div className="py-8 px-8">

@@ -11,10 +11,12 @@ export function middleware(req: NextRequest) {
   const token = req.cookies.get('auth_token')?.value;
 
   if (!token && pathname.startsWith('/dashboard')) {
+    console.log(`[Middleware] No token found for ${pathname}, redirecting to /login`);
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
   if (token && pathname === '/login') {
+    console.log(`[Middleware] Token found, redirecting from /login to /dashboard`);
     return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 
@@ -22,5 +24,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login'],
+  matcher: ['/dashboard', '/dashboard/:path*', '/login'],
 };
