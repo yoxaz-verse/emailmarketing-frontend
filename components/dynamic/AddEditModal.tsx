@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FieldRenderer } from './fields/FieldRenderer';
 import { tableConfig } from '@/config/tableFields';
 import { createRow, updateRow } from './action';
@@ -31,6 +31,23 @@ export default function AddEditModal({
   const isEdit = !!row;
 
   const [form, setForm] = useState<any>({});
+  const previousProviderRef = useRef<string>('');
+
+  const SMTP_PROVIDER_PRESETS: Record<
+    string,
+    { host: string; port: number; encryption: 'tls' | 'ssl' }
+  > = {
+    mxroute: {
+      host: 'chocobo.mxrouting.net',
+      port: 587,
+      encryption: 'tls',
+    },
+    google: {
+      host: 'smtp.gmail.com',
+      port: 587,
+      encryption: 'tls',
+    },
+  };
 
   useEffect(() => {
     const initial: any = {};
@@ -60,7 +77,52 @@ export default function AddEditModal({
     });
 
     setForm(initial);
-  }, [row, table]);
+  }, [row, table, defaultValues, config, isEdit]);
+
+  useEffect(() => {
+    if (table !== 'smtp_accounts') return;
+
+    const provider = String(form.provider ?? '').toLowerCase().trim();
+    if (!provider || provider === previousProviderRef.current) return;
+    previousProviderRef.current = provider;
+
+    const preset = SMTP_PROVIDER_PRESETS[provider];
+    if (!preset) return;
+
+    setForm((prev: any) => ({
+      ...prev,
+      host: prev.host ? prev.host : preset.host,
+      port: prev.port ? prev.port : preset.port,
+      encryption: prev.encryption ? prev.encryption : preset.encryption,
+    }));
+  }, [form.provider, table]);
+
+  useEffect(() => {
+    if (table !== 'inboxes') return;
+
+    const smtpAccountId = String(form.smtp_account_id ?? '').trim();
+    if (!smtpAccountId) return;
+
+    const smtpAccounts = relations?.smtp_accounts ?? [];
+    const selectedSmtp = smtpAccounts.find(
+      (row: any) => String(row.id) === smtpAccountId
+    );
+
+    if (!selectedSmtp) return;
+
+    setForm((prev: any) => ({
+      ...prev,
+      email_address: prev.email_address
+        ? prev.email_address
+        : String(selectedSmtp.username ?? ''),
+      provider: prev.provider
+        ? prev.provider
+        : String(selectedSmtp.provider ?? ''),
+      sending_domain_id: prev.sending_domain_id
+        ? prev.sending_domain_id
+        : String(selectedSmtp.sending_domain_id ?? ''),
+    }));
+  }, [form.smtp_account_id, table, relations]);
 
 
   function update(key: string, value: any) {
@@ -70,10 +132,33 @@ export default function AddEditModal({
     }));
   }
 
+  function normalizeSmtpUsername(payload: Record<string, any>) {
+    if (table !== 'smtp_accounts') return payload;
+
+    const usernameRaw = String(payload.username ?? '').trim();
+    if (!usernameRaw || usernameRaw.includes('@')) return payload;
+
+    const sendingDomainId = payload.sending_domain_id;
+    if (!sendingDomainId) return payload;
+
+    const domains = relations?.sending_domains ?? [];
+    const matchedDomain = domains.find(
+      (row: any) => String(row.id) === String(sendingDomainId)
+    );
+    const domain = String(matchedDomain?.domain ?? '').trim().toLowerCase();
+    if (!domain) return payload;
+
+    return {
+      ...payload,
+      username: `${usernameRaw}@${domain}`,
+    };
+  }
+
   async function submit() {
     const label = table.replace('_', ' ');
+    const normalizedForm = normalizeSmtpUsername(form);
     const res = await executeAction(
-      () => (isEdit ? updateRow(table, row.id, form) : createRow(table, form)),
+      () => (isEdit ? updateRow(table, row.id, normalizedForm) : createRow(table, normalizedForm)),
       {
         success: `${label} ${isEdit ? 'updated' : 'created'}`,
         error: `Failed to ${isEdit ? 'update' : 'create'} ${label}`,

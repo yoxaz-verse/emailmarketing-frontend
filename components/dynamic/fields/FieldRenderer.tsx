@@ -96,6 +96,9 @@ function renderRelationField(
           </a>
         )}
       </div>
+      {field.description ? (
+        <p className="text-xs text-muted-foreground">{field.description}</p>
+      ) : null}
     </div>
   );
 }
@@ -108,9 +111,13 @@ export  function TextField({ field, value, onChange }: any) {
         <Input
           type={field.type}
           value={value ?? ''}
+          placeholder={field.placeholder ?? field.label}
           required={field.required}
           onChange={(e) => onChange(e.target.value)}
         />
+        {field.description ? (
+          <p className="text-xs text-muted-foreground">{field.description}</p>
+        ) : null}
       </div>
     );
   }
@@ -139,9 +146,13 @@ export  function TextAreaField({ field, value, onChange }: any) {
       <label className="text-sm font-medium">{field.label}</label>
       <Textarea
         value={value ?? ''}
+        placeholder={field.placeholder ?? field.label}
         required={field.required}
         onChange={(e) => onChange(e.target.value)}
       />
+      {field.description ? (
+        <p className="text-xs text-muted-foreground">{field.description}</p>
+      ) : null}
     </div>
   );
 }

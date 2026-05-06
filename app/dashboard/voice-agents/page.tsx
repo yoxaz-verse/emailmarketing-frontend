@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 const statusColors: Record<VoiceAgentStatus, string> = {
@@ -26,12 +26,19 @@ const statusColors: Record<VoiceAgentStatus, string> = {
 export default function VoiceAgentListPage() {
     return (
         <div className="space-y-6">
+            <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4">
+                <p className="text-sm font-semibold text-foreground">Voice AI is not functional yet.</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                    This section is available for preview only and will be enabled in a future update.
+                </p>
+            </div>
+
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight text-foreground">Voice Agents</h2>
-                    <p className="text-muted-foreground">Manage and monitor your AI voice callers.</p>
+                    <h2 className="text-2xl font-bold tracking-tight text-foreground">Voice AI (CS)</h2>
+                    <p className="text-muted-foreground">Preview layout only. Voice automation controls are not active yet.</p>
                 </div>
-                <Button disabled>Add New Agent</Button>
+                <Button disabled>Feature Not Available</Button>
             </div>
 
             <Card className="border border-border shadow-sm bg-card">

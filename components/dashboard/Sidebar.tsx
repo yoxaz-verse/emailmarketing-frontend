@@ -36,17 +36,25 @@ const emailItems = [
 ];
 
 const voiceItems = [
-    { label: 'Voice Agents', href: '/dashboard/voice-agents', icon: Mic },
+    { label: 'Voice Agents', href: '/dashboard/voice-agents', icon: Mic, comingSoon: true },
 ];
 
 const adminItems = [
     { label: 'Users', href: '/dashboard/users', icon: UserCog },
+    { label: 'Sending Limits', href: '/dashboard/admin/sending-limits', icon: UserCog },
 ];
+
+type NavItem = {
+    label: string;
+    href: string;
+    icon: React.ComponentType<{ className?: string }>;
+    comingSoon?: boolean;
+};
 
 export default function Sidebar() {
     const pathname = usePathname();
 
-    const renderNavItem = (item: any, isActive: boolean) => (
+const renderNavItem = (item: NavItem, isActive: boolean) => (
         <li key={item.href}>
             <Link
                 href={item.href}
@@ -63,6 +71,11 @@ export default function Sidebar() {
                         isActive ? "text-accent-foreground" : "text-muted-foreground group-hover:text-foreground"
                     )} />
                     {item.label}
+                    {item.comingSoon && (
+                        <span className="rounded-full border border-yellow-500/40 bg-yellow-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-yellow-300">
+                            CS
+                        </span>
+                    )}
                 </div>
                 {isActive && <ChevronRight className="h-4 w-4" />}
             </Link>
@@ -96,7 +109,7 @@ export default function Sidebar() {
 
                 <div>
                     <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                        Email AI
+                        Email Automation
                     </h3>
                     <ul className="space-y-1">
                         {emailItems.map((item) => renderNavItem(item, pathname === item.href))}
@@ -105,7 +118,7 @@ export default function Sidebar() {
 
                 <div>
                     <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                        Voice AI
+                        Voice AI (CS)
                     </h3>
                     <ul className="space-y-1">
                         {voiceItems.map((item) => renderNavItem(item, pathname.startsWith(item.href)))}

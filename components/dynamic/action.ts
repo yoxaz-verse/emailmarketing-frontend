@@ -10,6 +10,7 @@ export async function createRow(
 ) {
   await crudServer.create(table, payload);
   revalidatePath(`/dashboard/${table}`);
+  return { success: true };
 }
 
 export async function updateRow(
@@ -19,6 +20,7 @@ export async function updateRow(
 ) {
   await crudServer.update(table, id, payload);
   revalidatePath(`/dashboard/${table}`);
+  return { success: true };
 }
 
 export async function deleteRow(
@@ -27,4 +29,5 @@ export async function deleteRow(
   ) {
     await crudServer.delete(table, id);
     revalidatePath(`/dashboard/${table}`);
+    return { success: true };
   }

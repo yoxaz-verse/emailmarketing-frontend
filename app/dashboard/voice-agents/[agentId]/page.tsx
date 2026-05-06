@@ -53,6 +53,13 @@ export default function VoiceAgentDetailPage() {
 
     return (
         <div className="space-y-6">
+            <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4">
+                <p className="text-sm font-semibold text-foreground">Voice AI is not functional yet.</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                    This page is a preview state only. Live voice operations are currently disabled.
+                </p>
+            </div>
+
             <div className="flex items-center gap-4">
                 <Link href="/dashboard/voice-agents">
                     <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
@@ -218,8 +225,8 @@ export default function VoiceAgentDetailPage() {
                 {activeTab === "intelligence" && (
                     <div className="flex flex-col items-center justify-center py-20 bg-muted/40 rounded-lg border-2 border-dashed border-border">
                         <div className="text-4xl mb-4">🧠</div>
-                        <h3 className="text-lg font-semibold text-foreground italic">Conversation Intelligence — Coming Soon</h3>
-                        <p className="text-muted-foreground mt-2">Sentiment analysis and transcriptions will appear here.</p>
+                        <h3 className="text-lg font-semibold text-foreground italic">Voice Intelligence — CS</h3>
+                        <p className="text-muted-foreground mt-2">Insights and transcripts will be available once Voice AI is enabled.</p>
                     </div>
                 )}
             </div>

@@ -11,21 +11,18 @@ import {
 } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
-  Phone,
   Mail,
   Users,
   TrendingUp,
   Clock,
-  ArrowRight,
-  ExternalLink
+  AlertTriangle,
+  CheckCircle2
 } from 'lucide-react';
-import { MOCK_VOICE_AGENTS, MOCK_CALL_HISTORY } from '@/lib/mock-voice-agents';
 
 type OverviewData = {
-  inboxes: { status?: string }[];
-  daily: any[];
+  inboxes: { status?: 'active' | 'paused' | 'disabled' | string }[];
+  daily: unknown[];
 };
 
 export default function OverviewPage() {
@@ -47,18 +44,17 @@ export default function OverviewPage() {
     };
   }, []);
 
-  const inboxes = data?.inboxes ?? [];
-  const activeInboxes = inboxes.filter((i: any) => i.status === 'active').length;
-
-  const totalCalls = useMemo(
-    () => MOCK_VOICE_AGENTS.reduce((acc, agent) => acc + agent.totalCalls, 0),
-    []
+  const inboxes = useMemo(() => data?.inboxes ?? [], [data]);
+  const activeInboxes = inboxes.filter((i) => i.status === 'active').length;
+  const inactiveInboxes = useMemo(
+    () => inboxes.filter((i) => i.status !== 'active').length,
+    [inboxes]
   );
-  const totalAnswered = useMemo(
-    () => MOCK_VOICE_AGENTS.reduce((acc, agent) => acc + agent.answeredCalls, 0),
-    []
+  const estimatedDailyVolume = useMemo(
+    () => activeInboxes * 250,
+    [activeInboxes]
   );
-  const overallAnswerRate = totalCalls > 0 ? ((totalAnswered / totalCalls) * 100).toFixed(1) : "0";
+  const activeCampaigns = 12;
 
   return (
     <div className="space-y-8">
@@ -66,7 +62,7 @@ export default function OverviewPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-foreground">Dashboard</h2>
-          <p className="text-muted-foreground">Welcome back. Here's what's happening today.</p>
+          <p className="text-muted-foreground">Welcome back. Here&apos;s what&apos;s happening today.</p>
         </div>
         <div className="flex gap-3">
           <Link href="/dashboard/leads">
@@ -84,7 +80,6 @@ export default function OverviewPage() {
 
       {/* Main Metrics Grid */}
       <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Email Stats */}
         <Card className="border border-border shadow-sm bg-card overflow-hidden">
           <div className="h-1 bg-blue-500" />
           <CardHeader className="pb-2">
@@ -102,35 +97,36 @@ export default function OverviewPage() {
           </CardContent>
         </Card>
 
-        {/* Voice Stats - Total Calls */}
         <Card className="border border-border shadow-sm bg-card overflow-hidden">
-          <div className="h-1 bg-purple-500" />
+          <div className="h-1 bg-emerald-500" />
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2 uppercase tracking-wider">
-              <Phone className="h-4 w-4 text-purple-500" /> Total AI Calls
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Inbox Health
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground">{totalCalls.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground mt-1">Across {MOCK_VOICE_AGENTS.length} agents</p>
+            <div className="text-3xl font-bold text-foreground">{data ? `${Math.max(0, 100 - inactiveInboxes * 8)}%` : '—'}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {data ? `${inactiveInboxes} inboxes need attention` : 'Checking sending readiness…'}
+            </p>
           </CardContent>
         </Card>
 
-        {/* Voice Stats - Answer Rate */}
         <Card className="border border-border shadow-sm bg-card overflow-hidden">
           <div className="h-1 bg-green-500" />
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2 uppercase tracking-wider">
-              <TrendingUp className="h-4 w-4 text-green-500" /> Answer Rate
+              <TrendingUp className="h-4 w-4 text-green-500" /> Daily Capacity
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-green-600">{overallAnswerRate}%</div>
-            <p className="text-xs text-muted-foreground mt-1">+2.4% from last week</p>
+            <div className="text-3xl font-bold text-green-600">{data ? estimatedDailyVolume.toLocaleString() : '—'}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {data ? 'Estimated emails/day across active inboxes' : 'Calculating capacity…'}
+            </p>
           </CardContent>
         </Card>
 
-        {/* Campaign Health Placeholder */}
         <Card className="border border-border shadow-sm bg-card overflow-hidden">
           <div className="h-1 bg-yellow-500" />
           <CardHeader className="pb-2">
@@ -139,8 +135,8 @@ export default function OverviewPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground">12</div>
-            <p className="text-xs text-muted-foreground mt-1">8 Email, 4 Voice</p>
+            <div className="text-3xl font-bold text-foreground">{activeCampaigns}</div>
+            <p className="text-xs text-muted-foreground mt-1">Cold email campaigns in progress</p>
           </CardContent>
         </Card>
       </div>
@@ -152,91 +148,51 @@ export default function OverviewPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Activity */}
         <Card className="lg:col-span-2 border border-border shadow-sm bg-card">
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader>
             <div>
-              <CardTitle>Recent AI Call Activity</CardTitle>
-              <CardDescription>Latest interactions from your voice agents.</CardDescription>
+              <CardTitle>Cold Email Focus</CardTitle>
+              <CardDescription>Priority checklist for reliable outbound delivery.</CardDescription>
             </div>
-            <Link href="/dashboard/voice-agents">
-              <Button variant="ghost" size="sm" className="text-blue-300">
-                View All <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {MOCK_CALL_HISTORY.slice(0, 5).map((call) => (
-                <div key={call.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors border border-transparent hover:border-border">
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "w-10 h-10 rounded-full flex items-center justify-center",
-                      call.outcome === 'answered' ? "bg-green-500/20 text-green-300" : "bg-muted text-muted-foreground"
-                    )}>
-                      <Phone className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-semibold text-foreground">{call.leadName}</h4>
-                      <p className="text-xs text-muted-foreground" suppressHydrationWarning>{call.campaignName} • {new Date(call.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Badge variant="outline" className={cn(
-                      "capitalize font-normal text-[10px]",
-                      call.outcome === 'answered' ? "text-green-300 border-green-500/30" : "text-muted-foreground"
-                    )}>
-                      {call.outcome}
-                    </Badge>
-                    <span className="text-xs font-mono text-muted-foreground">{call.duration}</span>
-                  </div>
+            <div className="space-y-3">
+              {[
+                'Warm up new inboxes before scaling volume.',
+                'Review bounce trends and pause risky lead segments.',
+                'Rotate sending across active inboxes to avoid rate limits.',
+                'Prioritize campaigns with lower reply rates for copy refresh.',
+                'Keep domain and SMTP health green before launching new sends.'
+              ].map((item) => (
+                <div key={item} className="rounded-lg border border-border bg-muted/20 p-3">
+                  <p className="text-sm text-foreground">{item}</p>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
 
-        {/* Side Widget: Quick Actions / Quick Stats */}
         <div className="space-y-6">
-          <Card className="border border-border shadow-sm bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
-            <CardHeader>
-              <CardTitle className="text-white">Voice Agent Status</CardTitle>
-              <CardDescription className="text-blue-100">Quick overview of your callers.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {MOCK_VOICE_AGENTS.slice(0, 3).map((agent) => (
-                  <div key={agent.id} className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{agent.name}</span>
-                    <Badge className={cn(
-                      "bg-white/20 text-white border-none",
-                      agent.status === 'active' ? "bg-green-400/30" : "bg-white/10"
-                    )}>
-                      {agent.status}
-                    </Badge>
-                  </div>
-                ))}
-                <Link href="/dashboard/voice-agents" className="block pt-2">
-                  <Button variant="secondary" className="w-full bg-white/90 text-blue-700 hover:bg-white">
-                    Manage Agents
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-
           <Card className="border border-border shadow-sm bg-card">
             <CardHeader>
-              <CardTitle>Platform Insights</CardTitle>
+              <CardTitle>Email Automation Status</CardTitle>
+              <CardDescription>Current system readiness for cold outreach.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="border-l-2 border-yellow-400 pl-4 py-1">
-                <p className="text-sm font-medium text-foreground">Cold Email Warning</p>
-                <p className="text-xs text-muted-foreground mt-1">3 inboxes are nearing daily limits.</p>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                <span className="text-sm text-muted-foreground">Active inboxes</span>
+                <span className="text-sm font-semibold text-foreground">{data ? activeInboxes : '—'}</span>
               </div>
-              <div className="border-l-2 border-green-400 pl-4 py-1">
-                <p className="text-sm font-medium text-foreground">Top Performer</p>
-                <p className="text-xs text-muted-foreground mt-1">Alex Rivera reached 85% answer rate today.</p>
+              <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                <span className="text-sm text-muted-foreground">Estimated daily capacity</span>
+                <span className="text-sm font-semibold text-foreground">{data ? estimatedDailyVolume.toLocaleString() : '—'}</span>
+              </div>
+              <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-yellow-300" />
+                  <p className="text-sm font-medium text-foreground">Delivery Watch</p>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">Keep an eye on inboxes nearing daily limits.</p>
               </div>
             </CardContent>
           </Card>
@@ -244,9 +200,4 @@ export default function OverviewPage() {
       </div>
     </div>
   );
-}
-
-// Helper for conditional classes - redefined here briefly just in case lib/utils cn is complex
-function cn(...classes: any[]) {
-  return classes.filter(Boolean).join(' ');
 }

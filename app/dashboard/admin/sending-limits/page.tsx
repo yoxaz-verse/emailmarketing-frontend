@@ -1,0 +1,54 @@
+import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
+import { serverFetch } from '@/lib/server/server-fetch';
+import SendingLimitsClient from './sending-limits-client';
+
+type WarmupStep = {
+  day: number;
+  daily_limit: number;
+  hourly_limit: number;
+};
+
+type SendingLimitsConfig = {
+  min_inbox_health_score: number;
+  min_domain_health_score: number;
+  warmup_advance_min_health_score: number;
+  warmup_advance_max_consecutive_failures: number;
+  warmup_steps: WarmupStep[];
+};
+
+export default async function SendingLimitsPage() {
+  const cookieStore = await cookies();
+  const role = cookieStore.get('user_role')?.value;
+  const isAdmin = role === 'admin' || role === 'superadmin';
+
+  if (!isAdmin) {
+    redirect('/dashboard');
+  }
+
+  const fallbackConfig: SendingLimitsConfig = {
+    min_inbox_health_score: 60,
+    min_domain_health_score: 60,
+    warmup_advance_min_health_score: 70,
+    warmup_advance_max_consecutive_failures: 2,
+    warmup_steps: [
+      { day: 1, daily_limit: 20, hourly_limit: 5 },
+      { day: 2, daily_limit: 30, hourly_limit: 8 },
+      { day: 3, daily_limit: 40, hourly_limit: 10 },
+      { day: 4, daily_limit: 60, hourly_limit: 15 },
+      { day: 5, daily_limit: 80, hourly_limit: 20 },
+    ],
+  };
+
+  let loadError: string | undefined;
+  let config: SendingLimitsConfig = fallbackConfig;
+  try {
+    config = await serverFetch<SendingLimitsConfig>('/admin/sending-limits');
+  } catch (err: any) {
+    loadError =
+      err?.message ||
+      'Could not load sending limits from backend. Showing fallback defaults.';
+  }
+
+  return <SendingLimitsClient initialConfig={config} loadError={loadError} />;
+}

@@ -31,6 +31,18 @@ export async function attachLeadsAction(
   revalidatePath(`/dashboard/campaigns/${campaignId}`);
 }
 
+export async function attachFolderLeadsAction(
+  campaignId: string,
+  folderIds: string[]
+) {
+  await serverFetch(`/campaigns/${campaignId}/leads/attach-folder`, {
+    method: 'POST',
+    body: JSON.stringify({ folder_ids: folderIds }),
+  });
+
+  revalidatePath(`/dashboard/campaign/${campaignId}`);
+}
+
 
 
 import { crudServer } from '@/lib/crud-server';

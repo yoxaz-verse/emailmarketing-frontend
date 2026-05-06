@@ -42,6 +42,9 @@ export default async function CampaignPage({
     const campaignLeads = await serverFetch<any[]>(
       `/crud/campaign_leads?campaign_id=${campaign.id}`
     );
+    const leadFolders = await serverFetch<any>(
+      `/lead-folders`
+    );
 
     /**
      * 4️⃣ Load ALL inboxes
@@ -107,6 +110,7 @@ export default async function CampaignPage({
                 campaign={campaign}
                 leads={leads}
                 campaignLeads={campaignLeads}
+                leadFolders={leadFolders?.folders ?? []}
               />
             </div>
 

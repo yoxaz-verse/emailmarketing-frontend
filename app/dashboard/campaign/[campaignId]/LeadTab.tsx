@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { attachLeadsAction } from './actions';
+import { attachFolderLeadsAction, attachLeadsAction } from './actions';
 
 type Lead = {
   id: string;
@@ -15,10 +15,12 @@ export default function LeadsTab({
   campaign,
   leads,
   campaignLeads,
+  leadFolders,
 }: {
   campaign: any;
   leads: Lead[];
   campaignLeads: { lead_id: string }[];
+  leadFolders: { id: string; name: string; lead_count?: number }[];
 }) {
   /**
    * Leads already attached to this campaign
@@ -53,6 +55,7 @@ export default function LeadsTab({
   const [selected, setSelected] = useState<Set<string>>(
     new Set(attachedLeadIds)
   );
+  const [folderId, setFolderId] = useState('');
 
   /**
    * Toggle checkbox
@@ -87,6 +90,11 @@ export default function LeadsTab({
       campaign.id,
       Array.from(selected)
     );
+  }
+
+  async function attachFromFolder() {
+    if (!folderId) return;
+    await attachFolderLeadsAction(campaign.id, [folderId]);
   }
 
   return (
@@ -194,12 +202,35 @@ export default function LeadsTab({
       )}
 
       {/* Action */}
-      <div className="flex justify-end">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <label className="text-xs text-muted-foreground">Attach from folder snapshot</label>
+            <select
+              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              value={folderId}
+              onChange={(e) => setFolderId(e.target.value)}
+            >
+              <option value="">Select folder</option>
+              {leadFolders.map((folder) => (
+                <option key={folder.id} value={folder.id}>
+                  {folder.name} {folder.lead_count != null ? `(${folder.lead_count})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button variant="outline" onClick={attachFromFolder} disabled={!folderId}>
+            Attach Folder
+          </Button>
+        </div>
+
+        <div className="flex justify-end">
         <form action={submit}>
           <Button disabled={selected.size === 0}>
             Update Campaign Leads
           </Button>
         </form>
+        </div>
       </div>
     </div>
   );

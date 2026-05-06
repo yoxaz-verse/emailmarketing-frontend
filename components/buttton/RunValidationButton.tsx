@@ -2,9 +2,20 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { runEmailValidationAction } from "@/app/dashboard/leads/actions";
 
-export function RunValidationButton() {
+export function RunValidationButton({
+  label = "Run Email Validation",
+  successText = "Email validation started",
+  onRun,
+  disabled = false,
+  disabledText,
+}: {
+  label?: string;
+  successText?: string;
+  onRun: () => Promise<{ queued?: number } | void>;
+  disabled?: boolean;
+  disabledText?: string;
+}) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -13,8 +24,9 @@ export function RunValidationButton() {
     setMessage(null);
 
     try {
-      await runEmailValidationAction();
-      setMessage("Email validation started");
+      const result = await onRun();
+      const queued = typeof result?.queued === "number" ? result.queued : null;
+      setMessage(queued == null ? successText : `${successText} (${queued} queued)`);
     } catch (err: any) {
       setMessage(err.message || "Failed to start validation");
     } finally {
@@ -27,10 +39,16 @@ export function RunValidationButton() {
       <Button
         variant="outline"
         onClick={handleClick}
-        disabled={loading}
+        disabled={loading || disabled}
       >
-        {loading ? "Starting…" : "Run Email Validation"}
+        {loading ? "Starting..." : label}
       </Button>
+
+      {!loading && disabled && disabledText && (
+        <div className="text-xs text-amber-400">
+          {disabledText}
+        </div>
+      )}
 
       {message && (
         <div className="text-xs text-muted-foreground">

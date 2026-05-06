@@ -24,6 +24,8 @@ export type TableField = {
   label: string;
   key: string;
   type: FieldType;
+  placeholder?: string;
+  description?: string;
 
   inForm: boolean;
   inTable: boolean;
@@ -200,12 +202,90 @@ export const tableConfig: Record<string, TableField[]> = {
 
     },
     {
+      label: "Last Name",
+      key: "last_name",
+      type: "text",
+      inForm: true,
+      inTable: false,
+    },
+    {
       label: "Company",
       key: "company",
       type: "text",
       inForm: true,
       inTable: true,
 
+    },
+    {
+      label: "Country",
+      key: "country",
+      type: "text",
+      inForm: true,
+      inTable: true,
+    },
+    {
+      label: "Source",
+      key: "source",
+      type: "text",
+      inForm: true,
+      inTable: true,
+    },
+    {
+      label: "Risk Score",
+      key: "risk_score",
+      type: "number",
+      inForm: false,
+      inTable: true,
+    },
+    {
+      label: "Provider",
+      key: "provider",
+      type: "text",
+      inForm: false,
+      inTable: true,
+    },
+    {
+      label: "Disposable",
+      key: "disposable",
+      type: "boolean",
+      inForm: false,
+      inTable: true,
+      badge: {
+        type: "boolean",
+        truthyLabel: "Yes",
+        falsyLabel: "No",
+      },
+    },
+    {
+      label: "Role Based",
+      key: "role_based",
+      type: "boolean",
+      inForm: false,
+      inTable: true,
+      badge: {
+        type: "boolean",
+        truthyLabel: "Yes",
+        falsyLabel: "No",
+      },
+    },
+    {
+      label: "Free Provider",
+      key: "free_provider",
+      type: "boolean",
+      inForm: false,
+      inTable: true,
+      badge: {
+        type: "boolean",
+        truthyLabel: "Yes",
+        falsyLabel: "No",
+      },
+    },
+    {
+      key: "validation_status",
+      label: "Validation Status",
+      type: "text",
+      inTable: true,
+      inForm: false,
     },
     {
       key: 'operator_id',
@@ -226,7 +306,7 @@ export const tableConfig: Record<string, TableField[]> = {
       key: 'email_eligibility',
       label: 'Email Eligibility',
       type: 'text',
-      inTable: false,
+      inTable: true,
       inForm: false,
       required: true,
     },
@@ -286,6 +366,15 @@ export const tableConfig: Record<string, TableField[]> = {
               type: 'number',
               inTable: true,
               inForm: false,
+     },
+     {
+      key: 'dkim_selector',
+      label: 'DKIM Selector',
+      type: 'text',
+      inTable: false,
+      inForm: true,
+      placeholder: 'x',
+      description: 'MXroute commonly uses "x" as DKIM selector.',
      },
      {
       label: "SPF",
@@ -392,10 +481,15 @@ badge: {
             {
               key: 'provider',
               label: 'Provider',
-              type: 'text',
+              type: 'select',
+              description: 'Selecting provider can auto-fill SMTP settings. MXroute uses provider TLS mapping during validation/sending.',
               inTable: true,
               inForm: true,
               required: true,
+              values: [
+                { key: 'mxroute', value: 'MXroute' },
+                { key: 'google', value: 'Google' },
+              ],
             },
             {
               key: 'host',
@@ -417,9 +511,10 @@ badge: {
               key: 'username',
               label: 'Username',
               type: 'text',
-              inTable: false,
+              inTable: true,
               inForm: true,
               required: true,
+              description: 'You can enter only the local part (e.g. alex). The selected sending domain will be appended automatically.',
             },
 
             {
@@ -433,10 +528,14 @@ badge: {
             {
               key: 'encryption',
               label: 'Encryption',
-              type: 'text',
+              type: 'select',
               inTable: true,
               inForm: true,
               required: true,
+              values: [
+                { key: 'tls', value: 'TLS' },
+                { key: 'ssl', value: 'SSL' },
+              ],
             },
             {
               key: 'sending_domain_id',
@@ -514,6 +613,7 @@ badge: {
               type: 'relation',
               inTable: false,
               inForm: true,
+              description: 'Selecting SMTP Account can auto-fill Email, Provider, and Sending Domain.',
               relation: {
                 table: 'smtp_accounts',
                 labelKey: 'username',

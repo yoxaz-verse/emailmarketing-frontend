@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Table,
   TableBody,
@@ -48,6 +49,21 @@ function truncate(value: any, max = MAX_CHAR_LENGTH) {
   return value.slice(0, max) + '...';
 }
 
+function formatDisplayValue(field: any, rawValue: any): any {
+  if (rawValue == null || rawValue === '') return '—';
+
+  if (field?.type === 'dateTime') {
+    const parsed = new Date(rawValue);
+    if (Number.isNaN(parsed.getTime())) return rawValue;
+    return parsed.toLocaleString(undefined, {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    });
+  }
+
+  return rawValue;
+}
+
 export default function DynamicTable({
   table,
   data,
@@ -64,17 +80,37 @@ export default function DynamicTable({
   const [editingRow, setEditingRow] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const filteredData = useMemo(() => {
-    if (!searchQuery) return data;
-    const lowerQuery = searchQuery.toLowerCase();
-    return data.filter((row) => {
-      return visibleFields.some((f) => {
-        const value = row[f.key];
-        return String(value).toLowerCase().includes(lowerQuery);
+    let result = data;
+    if (searchQuery) {
+      const lowerQuery = searchQuery.toLowerCase();
+      result = data.filter((row) => {
+        return visibleFields.some((f) => {
+          const value = row[f.key];
+          return String(value).toLowerCase().includes(lowerQuery);
+        });
       });
-    });
+    }
+    return result;
   }, [data, searchQuery, visibleFields]);
+
+  // Paginated Data
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredData.slice(start, start + pageSize);
+  }, [filteredData, currentPage]);
+
+  const totalPages = Math.ceil(filteredData.length / pageSize);
 
   function refresh() {
     window.location.reload();
@@ -114,7 +150,10 @@ export default function DynamicTable({
             <Input
               placeholder="Search..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1); // Reset to first page on search
+              }}
               className="pl-9 w-[200px] lg:w-[300px] h-9 bg-card border-border focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-sm"
             />
           </div>
@@ -140,7 +179,7 @@ export default function DynamicTable({
 
       {/* Table Container */}
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto min-h-[400px]">
           <Table>
             <TableHeader className="bg-muted/40">
               <TableRow className="hover:bg-transparent border-b border-border">
@@ -160,11 +199,11 @@ export default function DynamicTable({
             </TableHeader>
 
             <TableBody>
-              {filteredData.length === 0 ? (
+              {paginatedData.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={visibleFields.length + 1}
-                    className="h-32 text-center text-sm text-muted-foreground italic"
+                    className="h-64 text-center text-sm text-muted-foreground italic"
                   >
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Search className="h-8 w-8 text-muted-foreground/40" />
@@ -173,7 +212,7 @@ export default function DynamicTable({
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredData.map((row) => (
+                paginatedData.map((row) => (
                   <TableRow key={row.id} className="group hover:bg-muted/50 transition-colors border-b border-border last:border-none">
                     {visibleFields.map((f) => {
                       let displayValue: React.ReactNode = '—';
@@ -192,7 +231,7 @@ export default function DynamicTable({
                       if (f.type === 'relation') {
                         displayValue = resolveRelationValue(row, f);
                       } else {
-                        displayValue = row[f.key] ?? '—';
+                        displayValue = formatDisplayValue(f, row[f.key]);
                       }
 
                       return (
@@ -249,36 +288,62 @@ export default function DynamicTable({
         </div>
       </div>
 
-      {/* Footer / Pagination Placeholder */}
+      {/* Footer / Pagination */}
       <div className="flex items-center justify-between text-xs text-muted-foreground px-2">
-        <p>Showing {filteredData.length} of {data.length} records</p>
+        <p>
+          Showing <span className="font-bold text-foreground">{(currentPage - 1) * pageSize + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * pageSize, filteredData.length)}</span> of <span className="font-bold text-foreground">{filteredData.length}</span> records
+        </p>
         <div className="flex gap-2">
-          <Button variant="ghost" size="sm" disabled className="h-7 text-[10px] px-2 uppercase font-bold tracking-tight">Previous</Button>
-          <Button variant="ghost" size="sm" disabled className="h-7 text-[10px] px-2 uppercase font-bold tracking-tight">Next</Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+            className="h-8 text-[10px] px-3 uppercase font-bold tracking-tight"
+          >
+            Previous
+          </Button>
+          <div className="flex items-center px-4 bg-muted/30 rounded-lg font-mono text-[10px]">
+            Page {currentPage} of {totalPages || 1}
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages || totalPages === 0}
+            className="h-8 text-[10px] px-3 uppercase font-bold tracking-tight"
+          >
+            Next
+          </Button>
         </div>
       </div>
 
-      {/* Add / Edit */}
-      {showForm && (
-        <AddEditModal
-          table={table}
-          row={editingRow}
-          relations={relations}
-          role={role}
-          onClose={() => setShowForm(false)}
-          onSuccess={refresh}
-          defaultValues={defaultValues}
-        />
-      )}
+      {/* Portals for Modals */}
+      {mounted && typeof document !== 'undefined' && (
+        <>
+          {showForm && createPortal(
+            <AddEditModal
+              table={table}
+              row={editingRow}
+              relations={relations}
+              role={role}
+              onClose={() => setShowForm(false)}
+              onSuccess={refresh}
+              defaultValues={defaultValues}
+            />,
+            document.body
+          )}
 
-      {/* Delete */}
-      {deleteId && (
-        <DeleteModal
-          table={table}
-          id={deleteId}
-          onClose={() => setDeleteId(null)}
-          onSuccess={refresh}
-        />
+          {deleteId && createPortal(
+            <DeleteModal
+              table={table}
+              id={deleteId}
+              onClose={() => setDeleteId(null)}
+              onSuccess={refresh}
+            />,
+            document.body
+          )}
+        </>
       )}
     </div>
   );

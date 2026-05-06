@@ -22,7 +22,7 @@ export async function validateSmtpAccount(row: any) {
 export async function validateSendingDomain(row: any) {
   if (!row?.domain) return;
 
-  await serverFetch(
+  const response = await serverFetch<any>(
     `/validate/domains`,
     {
       method: 'POST',
@@ -31,6 +31,20 @@ export async function validateSendingDomain(row: any) {
   );
   // Refresh domains table
   revalidatePath('/dashboard/sending-domains');
+
+  if (!response?.data?.hasDkim) {
+    const failureReason = response?.data?.dkimFailureReason;
+    const lookupHost = response?.data?.dkimLookupHost;
+    return {
+      error: failureReason
+        ? failureReason
+        : lookupHost
+        ? `DKIM lookup failed: ${lookupHost}`
+        : 'DKIM lookup failed',
+    };
+  }
+
+  return { success: true };
 }
 
 export async function viewSequence(row: any) {
