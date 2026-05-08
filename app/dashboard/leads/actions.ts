@@ -70,8 +70,16 @@ export type ValidationRunStatusResponse = {
     stuckProcessing?: number;
     recentUpdates?: number;
     lastProgressAt?: string | null;
-    staleRecovered?: number;
+    lastProcessedLeadAt?: string | null;
+    runAgeSeconds?: number;
     totalLeads: number;
+    topReasons?: Array<{ reason: string; count: number }>;
+    stepFailureCounts?: Record<string, number>;
+    mostFailedStep?: {
+      key: string;
+      label: string;
+      count: number;
+    } | null;
   };
 };
 
@@ -108,9 +116,15 @@ export async function assignLeadsToFolderAction(folderId: string, leadIds: strin
   });
 }
 
-export async function getFolderMembersAction(folderId: string) {
-  return await serverFetch<{ success: boolean; lead_ids: string[] }>(`/lead-folders/${folderId}/members`, {
-    method: "GET",
+export async function deleteLeadsBulkAction(leadIds: string[]) {
+  const ids = Array.from(new Set((leadIds ?? []).filter((id): id is string => typeof id === 'string' && id.trim().length > 0)));
+  if (ids.length === 0) {
+    throw new Error('No selected leads to delete.');
+  }
+
+  return await serverFetch<{ success: boolean; deletedCount: number }>(`/crud/leads/bulk-delete`, {
+    method: "POST",
+    body: JSON.stringify({ ids }),
   });
 }
 

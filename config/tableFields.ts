@@ -301,6 +301,19 @@ export const tableConfig: Record<string, TableField[]> = {
       adminOnly: true,
       required: true,
     },
+    {
+      key: 'folder_id',
+      label: 'Folder',
+      type: 'relation',
+      relation: {
+        table: 'lead_folders',
+        labelKey: 'name',
+        valueKey: 'id',
+      },
+      inTable: true,
+      inForm: false,
+      required: false,
+    },
 
     {
       key: 'email_eligibility',

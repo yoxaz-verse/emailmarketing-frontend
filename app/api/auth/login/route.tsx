@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 export async function POST(req: Request) {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
   const contentType = req.headers.get('content-type') || '';
 
   let email, password;
@@ -24,11 +24,29 @@ export async function POST(req: Request) {
     return NextResponse.redirect(new URL('/login?error=Email and password are required', req.url));
   }
 
-  const backendRes = await fetch(`${apiBase}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
+  if (!apiBase || apiBase.trim() === '') {
+    const errorMessage = 'NEXT_PUBLIC_API_BASE_URL is missing. Set it in dashboard/.env.local.';
+    if (contentType.includes('application/json')) {
+      return NextResponse.json({ error: errorMessage }, { status: 500 });
+    }
+    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(errorMessage)}`, req.url));
+  }
+
+  let backendRes: Response;
+  try {
+    backendRes = await fetch(`${apiBase}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+  } catch (error) {
+    console.error('[AUTH LOGIN] Backend fetch failed:', error);
+    const errorMessage = 'Backend is unreachable. Please ensure backend server is running.';
+    if (contentType.includes('application/json')) {
+      return NextResponse.json({ error: errorMessage }, { status: 503 });
+    }
+    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(errorMessage)}`, req.url));
+  }
 
   const responseText = await backendRes.text();
   let backendData: any = null;
@@ -43,9 +61,13 @@ export async function POST(req: Request) {
       backendData?.error ||
       backendData?.message ||
       'Login failed. Backend unavailable or returned invalid response.';
+    const status =
+      backendRes.status >= 400 && backendRes.status <= 599
+        ? backendRes.status
+        : 401;
 
     if (contentType.includes('application/json')) {
-      return NextResponse.json({ error: errorMessage }, { status: 401 });
+      return NextResponse.json({ error: errorMessage }, { status });
     }
     return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(errorMessage)}`, req.url));
   }

@@ -31,3 +31,17 @@ export async function deleteRow(
     revalidatePath(`/dashboard/${table}`);
     return { success: true };
   }
+
+export async function bulkDeleteRows(
+  table: string,
+  ids: string[]
+) {
+  const uniqueIds = Array.from(new Set((ids ?? []).filter((id): id is string => typeof id === 'string' && id.trim().length > 0)));
+  if (uniqueIds.length === 0) {
+    throw new Error('No rows selected for bulk delete');
+  }
+
+  const result = await crudServer.bulkDelete(table, uniqueIds);
+  revalidatePath(`/dashboard/${table}`);
+  return result;
+}

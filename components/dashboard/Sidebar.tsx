@@ -26,6 +26,7 @@ const marketingItems = [
     { label: 'Campaigns', href: '/dashboard/campaign', icon: Megaphone },
     { label: 'Campaign Lead', href: '/dashboard/campaign_leads', icon: UserPlus },
     { label: 'Leads', href: '/dashboard/leads', icon: Users },
+    { label: 'Bulk Upload', href: '/dashboard/leads/upload', icon: UserPlus },
     { label: 'Sequences', href: '/dashboard/sequences', icon: Repeat },
 ];
 
@@ -42,6 +43,7 @@ const voiceItems = [
 const adminItems = [
     { label: 'Users', href: '/dashboard/users', icon: UserCog },
     { label: 'Sending Limits', href: '/dashboard/admin/sending-limits', icon: UserCog },
+    { label: 'Validation Monitor', href: '/dashboard/admin/validation-monitor', icon: UserCog },
 ];
 
 type NavItem = {

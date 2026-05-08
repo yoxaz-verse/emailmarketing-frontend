@@ -3,6 +3,16 @@
 import { serverFetch } from '@/lib/server/server-fetch';
 import { revalidatePath } from 'next/cache';
 
+export type CampaignAttachSummary = {
+  success: boolean;
+  requested: number;
+  inserted: number;
+  detached: number;
+  skipped_existing: number;
+  skipped_ineligible: number;
+  skipped_missing: number;
+};
+
 export async function startCampaignAction(campaignId: string) {
   await serverFetch(`/campaigns/${campaignId}/start`, {
     method: 'POST',
@@ -23,24 +33,39 @@ export async function attachLeadsAction(
   campaignId: string,
   leadIds: string[]
 ) {
-  await serverFetch(`/campaigns/${campaignId}/leads/attach`, {
+  const result = await serverFetch<CampaignAttachSummary>(`/campaigns/${campaignId}/leads/attach`, {
     method: 'POST',
     body: JSON.stringify({ lead_ids: leadIds }),
   });
 
-  revalidatePath(`/dashboard/campaigns/${campaignId}`);
+  revalidatePath(`/dashboard/campaign/${campaignId}`);
+  return result;
 }
 
 export async function attachFolderLeadsAction(
   campaignId: string,
   folderIds: string[]
 ) {
-  await serverFetch(`/campaigns/${campaignId}/leads/attach-folder`, {
+  const result = await serverFetch<CampaignAttachSummary>(`/campaigns/${campaignId}/leads/attach-folder`, {
     method: 'POST',
     body: JSON.stringify({ folder_ids: folderIds }),
   });
 
   revalidatePath(`/dashboard/campaign/${campaignId}`);
+  return result;
+}
+
+export async function detachLeadsAction(
+  campaignId: string,
+  leadIds: string[]
+) {
+  const result = await serverFetch<CampaignAttachSummary>(`/campaigns/${campaignId}/leads/detach`, {
+    method: 'POST',
+    body: JSON.stringify({ lead_ids: leadIds }),
+  });
+
+  revalidatePath(`/dashboard/campaign/${campaignId}`);
+  return result;
 }
 
 

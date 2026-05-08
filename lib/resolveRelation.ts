@@ -34,7 +34,12 @@ export async function resolveRelations(
             `/crud/${tableName}?${params.toString()}`
           );
         } catch (error) {
-          console.error('[resolveRelations] Failed to load', tableName, error);
+          console.error('[resolveRelations] Failed to load relation', {
+            sourceTable: table,
+            relationTable: tableName,
+            relationField: field.key,
+            error,
+          });
           relations[tableName] = [];
         }
       }

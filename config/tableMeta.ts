@@ -5,20 +5,28 @@ export type BadgeConfig = {
     falsyLabel: string;
   };
   
-  export type ActionConfig = {
+export type ActionConfig = {
     key: string;
     label: string;
     variant?: 'default' | 'outline' | 'destructive';
     visible?: (row: any) => boolean;
   };
+
+export type BulkActionConfig = {
+  key: 'bulkDelete';
+  label: string;
+  confirmText?: string;
+  variant?: 'default' | 'outline' | 'destructive';
+};
   
   export type TableMeta = {
     allowCreate?: boolean;
     allowEdit?: boolean;
     allowDelete?: boolean;
   
-    badge?: BadgeConfig;
-    actions?: ActionConfig[];
+  badge?: BadgeConfig;
+  actions?: ActionConfig[];
+  bulkActions?: BulkActionConfig[];
   };
   
   export const tableMeta: Record<string, TableMeta> = {
@@ -108,8 +116,14 @@ export type BadgeConfig = {
       allowCreate: false,
       allowEdit: false,
       allowDelete: false,
-  
-   
+      bulkActions: [
+        {
+          key: 'bulkDelete',
+          label: 'Remove Selected From Campaign',
+          confirmText: 'Remove selected rows from this campaign? This will not delete master leads.',
+          variant: 'destructive',
+        },
+      ],
     },
     
   };

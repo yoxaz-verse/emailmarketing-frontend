@@ -1,236 +1,506 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
-import { attachFolderLeadsAction, attachLeadsAction } from './actions';
+import { attachFolderLeadsAction, attachLeadsAction, detachLeadsAction } from './actions';
 
 type Lead = {
   id: string;
-  email: string;
+  email?: string | null;
+  folder_id?: string | null;
   is_used?: boolean;
   is_blocked?: boolean;
+  free_provider?: boolean | null;
+  is_free_provider?: boolean | null;
+  email_eligibility?: string | null;
+  email_eligibility_reason?: string | null;
 };
+
+type LeadBucket = 'valid' | 'risky' | 'pending' | 'invalid' | 'blocked' | 'used';
+
+type AttachedLeadRow = {
+  id: string;
+  email: string;
+  source: 'known' | 'orphan';
+  bucket: LeadBucket;
+  freeProvider: boolean;
+};
+
+function bucketLabel(bucket: LeadBucket): string {
+  if (bucket === 'valid') return 'eligible';
+  if (bucket === 'risky') return 'risky';
+  if (bucket === 'used') return 'used';
+  if (bucket === 'pending') return 'pending';
+  if (bucket === 'blocked') return 'blocked';
+  return 'invalid';
+}
+
+function classifyLead(lead: Lead): LeadBucket {
+  if (lead.is_used === true) return 'used';
+  if (lead.is_blocked === true) return 'blocked';
+
+  const eligibility = String(lead.email_eligibility ?? '').toLowerCase();
+  if (eligibility === 'eligible' || eligibility === 'valid' || eligibility === 'validated') return 'valid';
+  if (eligibility === 'risky') return 'risky';
+  if (eligibility === 'pending') return 'pending';
+
+  return 'invalid';
+}
+
+function matchesQuery(value: string, query: string) {
+  if (!query.trim()) return true;
+  return value.toLowerCase().includes(query.trim().toLowerCase());
+}
+
+function isFreeProvider(lead: Lead): boolean {
+  return lead.free_provider === true || lead.is_free_provider === true;
+}
+
+function getMutationErrorMessage(error: unknown): string {
+  const raw = error instanceof Error ? error.message : 'Unknown error';
+  if (raw.includes('Cannot POST') && raw.includes('/campaigns/') && raw.includes('/leads/detach')) {
+    return 'Detach route is unavailable on backend. Please restart/deploy backend and retry.';
+  }
+  if (raw.toLowerCase().includes('backend unavailable')) {
+    return 'Backend unavailable. Please ensure API server is running.';
+  }
+  return raw;
+}
 
 export default function LeadsTab({
   campaign,
   leads,
+  allLeads,
   campaignLeads,
   leadFolders,
 }: {
-  campaign: any;
+  campaign: { id: string };
   leads: Lead[];
+  allLeads: Lead[];
   campaignLeads: { lead_id: string }[];
   leadFolders: { id: string; name: string; lead_count?: number }[];
 }) {
-  /**
-   * Leads already attached to this campaign
-   */
-  const attachedLeadIds = new Set(
-    campaignLeads.map((cl) => cl.lead_id)
-  );
+  const router = useRouter();
 
-  /**
-   * ✅ Only FREE-TO-USE leads
-   * - not used in any campaign
-   * - not blocked
-   */
-  const freeLeads = leads.filter((lead) => {
-    return (
-      lead.is_used !== true &&
-      lead.is_blocked !== true
-    );
+  const attachedLeadIds = useMemo(
+    () => Array.from(new Set(campaignLeads.map((cl) => String(cl.lead_id)))),
+    [campaignLeads]
+  );
+  const attachedLeadIdSet = useMemo(() => new Set(attachedLeadIds), [attachedLeadIds]);
+
+  const allLeadMap = useMemo(() => {
+    const map = new Map<string, Lead>();
+    for (const lead of allLeads) {
+      map.set(String(lead.id), lead);
+    }
+    return map;
+  }, [allLeads]);
+
+  const attachedRows = useMemo<AttachedLeadRow[]>(() => {
+    return Array.from(attachedLeadIdSet).map((leadId) => {
+      const lead = allLeadMap.get(leadId);
+      if (!lead) {
+        return {
+          id: leadId,
+          email: `Unknown lead ${leadId}`,
+          source: 'orphan',
+          bucket: 'invalid',
+          freeProvider: false,
+        };
+      }
+      if (classifyLead(lead) === 'blocked') {
+        return null;
+      }
+      return {
+        id: leadId,
+        email: String(lead.email ?? `Unknown lead ${leadId}`),
+        source: 'known',
+        bucket: classifyLead(lead),
+        freeProvider: isFreeProvider(lead),
+      };
+    }).filter((row): row is AttachedLeadRow => row != null);
+  }, [allLeadMap, attachedLeadIdSet]);
+
+  const [sourceId, setSourceId] = useState<string>('all');
+  const selectedFolderId = sourceId.startsWith('folder:') ? sourceId.slice('folder:'.length) : '';
+
+  const candidateScopeLeads = useMemo(() => {
+    const base = leads.filter((lead) => classifyLead(lead) !== 'blocked');
+    if (selectedFolderId) {
+      return base.filter((lead) => String(lead.folder_id ?? '') === selectedFolderId);
+    }
+    return base;
+  }, [leads, selectedFolderId]);
+
+  const validCandidates = candidateScopeLeads.filter((lead) => classifyLead(lead) === 'valid');
+  const riskyCandidates = candidateScopeLeads.filter((lead) => classifyLead(lead) === 'risky');
+
+  const unassignedRows = candidateScopeLeads.filter((lead) => {
+    const bucket = classifyLead(lead);
+    return !attachedLeadIdSet.has(String(lead.id)) && (bucket === 'valid' || bucket === 'risky');
   });
 
-  const invalidLeads = leads.filter((lead) => {
-    return (
-      lead.is_used === true ||
-      lead.is_blocked === true
-    );
+  const excludedRows = candidateScopeLeads.filter((lead) => {
+    const bucket = classifyLead(lead);
+    return !attachedLeadIdSet.has(String(lead.id)) && bucket !== 'valid' && bucket !== 'risky' && bucket !== 'blocked';
   });
 
-  /**
-   * Local selection state (UI intent)
-   * Default: already attached leads
-   */
-  const [selected, setSelected] = useState<Set<string>>(
-    new Set(attachedLeadIds)
-  );
-  const [folderId, setFolderId] = useState('');
+  const [selectedAttachedIds, setSelectedAttachedIds] = useState<Set<string>>(new Set());
+  const [selectedUnassignedIds, setSelectedUnassignedIds] = useState<Set<string>>(new Set());
 
-  /**
-   * Toggle checkbox
-   */
-  function toggle(leadId: string) {
-    setSelected((prev) => {
+  const [attachedSearch, setAttachedSearch] = useState('');
+  const [unassignedSearch, setUnassignedSearch] = useState('');
+  const [excludedSearch, setExcludedSearch] = useState('');
+  const [showExcluded, setShowExcluded] = useState(false);
+  const [draggingLeadId, setDraggingLeadId] = useState<string | null>(null);
+  const [dragSource, setDragSource] = useState<'attached' | 'unassigned' | null>(null);
+
+  const attachedVisible = attachedRows.filter((row) => matchesQuery(row.email, attachedSearch));
+  const unassignedVisible = unassignedRows.filter((row) => matchesQuery(String(row.email ?? ''), unassignedSearch));
+  const excludedVisible = excludedRows.filter((row) => matchesQuery(String(row.email ?? ''), excludedSearch));
+
+  function toggleSelected(
+    setState: (updater: (prev: Set<string>) => Set<string>) => void,
+    leadId: string
+  ) {
+    setState((prev) => {
       const next = new Set(prev);
-      next.has(leadId) ? next.delete(leadId) : next.add(leadId);
+      if (next.has(leadId)) next.delete(leadId);
+      else next.add(leadId);
       return next;
     });
   }
 
-  /**
-   * Select all FREE leads
-   */
-  function selectAll() {
-    setSelected(new Set(freeLeads.map((l) => l.id)));
+  async function attachSelected() {
+    const leadIds = Array.from(selectedUnassignedIds);
+    if (leadIds.length === 0) return;
+
+    try {
+      const result = await attachLeadsAction(campaign.id, leadIds);
+      if (result.inserted > 0) {
+        toast.success(
+          `Attached ${result.inserted}. Existing: ${result.skipped_existing}, ineligible: ${result.skipped_ineligible}, missing: ${result.skipped_missing}.`
+        );
+      } else {
+        toast(
+          `No new leads attached. Existing: ${result.skipped_existing}, ineligible: ${result.skipped_ineligible}, missing: ${result.skipped_missing}.`,
+          { icon: 'ℹ️' }
+        );
+      }
+      setSelectedUnassignedIds(new Set());
+      router.refresh();
+    } catch (error) {
+      toast.error(getMutationErrorMessage(error));
+    }
   }
 
-  /**
-   * Clear selection
-   */
-  function clearAll() {
-    setSelected(new Set());
+  async function removeSelected() {
+    const leadIds = Array.from(selectedAttachedIds);
+    if (leadIds.length === 0) return;
+
+    const confirmed = window.confirm(`Remove ${leadIds.length} attached lead(s) from this campaign?`);
+    if (!confirmed) return;
+
+    try {
+      const result = await detachLeadsAction(campaign.id, leadIds);
+      if (result.detached > 0) {
+        toast.success(`Removed ${result.detached}. Missing: ${result.skipped_missing}.`);
+      } else {
+        toast(`No leads removed. Missing: ${result.skipped_missing}.`, { icon: 'ℹ️' });
+      }
+      setSelectedAttachedIds(new Set());
+      router.refresh();
+    } catch (error) {
+      toast.error(getMutationErrorMessage(error));
+    }
   }
 
-  /**
-   * Submit only selected IDs
-   */
-  async function submit() {
-    await attachLeadsAction(
-      campaign.id,
-      Array.from(selected)
-    );
+  async function attachFromSource() {
+    if (sourceId === 'all') {
+      await attachSelected();
+      return;
+    }
+
+    if (!selectedFolderId) return;
+    try {
+      const result = await attachFolderLeadsAction(campaign.id, [selectedFolderId]);
+      if (result.inserted > 0) {
+        toast.success(
+          `Folder attached: ${result.inserted}. Existing: ${result.skipped_existing}, skipped non-sendable: ${result.skipped_ineligible}, missing: ${result.skipped_missing}.`
+        );
+      } else {
+        toast(
+          '0 sendable leads attached from this folder. Only eligible/risky and not blocked/used leads are attachable.',
+          { icon: '⚠️' }
+        );
+      }
+      router.refresh();
+    } catch (error) {
+      toast.error(getMutationErrorMessage(error));
+    }
   }
 
-  async function attachFromFolder() {
-    if (!folderId) return;
-    await attachFolderLeadsAction(campaign.id, [folderId]);
+  async function attachSingleLead(leadId: string) {
+    try {
+      await attachLeadsAction(campaign.id, [leadId]);
+      router.refresh();
+    } catch (error) {
+      toast.error(getMutationErrorMessage(error));
+    }
   }
+
+  async function detachSingleLead(leadId: string) {
+    try {
+      await detachLeadsAction(campaign.id, [leadId]);
+      router.refresh();
+    } catch (error) {
+      toast.error(getMutationErrorMessage(error));
+    }
+  }
+
+  function onDragStart(leadId: string, source: 'attached' | 'unassigned') {
+    setDraggingLeadId(leadId);
+    setDragSource(source);
+  }
+
+  async function onDropToColumn(target: 'attached' | 'unassigned') {
+    if (!draggingLeadId || !dragSource || dragSource === target) return;
+    if (dragSource === 'unassigned' && target === 'attached') {
+      await attachSingleLead(draggingLeadId);
+    }
+    if (dragSource === 'attached' && target === 'unassigned') {
+      await detachSingleLead(draggingLeadId);
+    }
+    setDraggingLeadId(null);
+    setDragSource(null);
+  }
+
+  const attachedCount = attachedRows.length;
+  const canLaunchLeads = attachedCount > 0;
 
   return (
     <div className="border border-border rounded p-4 space-y-4 bg-card">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="font-semibold">
-          Campaign Leads
-        </h2>
-
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={selectAll}
-            disabled={freeLeads.length === 0}
-          >
-            Select all
-          </Button>
-
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={clearAll}
-          >
-            Clear
-          </Button>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-semibold">Campaign Leads</h2>
+        <div className="text-xs text-muted-foreground">
+          {canLaunchLeads ? 'Ready: campaign leads attached.' : 'Blocked: no attached campaign leads.'}
         </div>
       </div>
 
-      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-        <span>Valid: {freeLeads.length}</span>
-        <span>Invalid: {invalidLeads.length}</span>
+      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+        <span>Attached: {attachedCount}</span>
+        <span>Unassigned (Valid): {validCandidates.length}</span>
+        <span>Unassigned (Risky): {riskyCandidates.length}</span>
+        <span>Excluded: {excludedRows.length}</span>
       </div>
 
-      {/* Lead list (FREE ONLY) */}
-      <div className="space-y-2 max-h-[420px] overflow-auto border border-border rounded p-2 bg-background">
-        {freeLeads.length === 0 && (
-          <div className="text-sm text-muted-foreground text-center py-6">
-            No free leads available
-          </div>
-        )}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          variant={showExcluded ? 'default' : 'outline'}
+          onClick={() => setShowExcluded((prev) => !prev)}
+        >
+          {showExcluded ? 'Hide Excluded' : 'Show Excluded'}
+        </Button>
+      </div>
 
-        {freeLeads.map((lead) => {
-          const isAttached = attachedLeadIds.has(lead.id);
-          const isSelected = selected.has(lead.id);
-
-          return (
-            <label
-              key={lead.id}
-              className={`flex items-center gap-2 text-sm p-1 rounded cursor-pointer ${
-                isAttached
-                  ? 'bg-emerald-500/10'
-                  : isSelected
-                  ? 'bg-blue-500/10'
-                  : ''
-              }`}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <section
+          className="rounded border border-border/60 p-3 bg-background/30 space-y-3"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={() => void onDropToColumn('attached')}
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Attached ({attachedRows.length})</h3>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={removeSelected}
+              disabled={selectedAttachedIds.size === 0}
             >
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={() => toggle(lead.id)}
-              />
-
-              <span className="flex-1">
-                {lead.email}
-              </span>
-
-              {isAttached && (
-                <span className="text-xs text-emerald-300">
-                  Attached
+              Remove Selected
+            </Button>
+          </div>
+          <input
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            placeholder="Search attached..."
+            value={attachedSearch}
+            onChange={(e) => setAttachedSearch(e.target.value)}
+          />
+          <div className="max-h-[360px] overflow-auto space-y-2">
+            {attachedVisible.length === 0 && (
+              <div className="text-xs text-muted-foreground py-4 text-center">No attached leads in this view.</div>
+            )}
+            {attachedVisible.map((row) => (
+              <label
+                key={row.id}
+                draggable
+                onDragStart={() => onDragStart(row.id, 'attached')}
+                className="flex items-center gap-2 rounded p-2 bg-muted/20 text-sm cursor-grab"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedAttachedIds.has(row.id)}
+                  onChange={() => toggleSelected(setSelectedAttachedIds, row.id)}
+                />
+                  <span className="flex-1 truncate">{row.email}</span>
+                <span className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                  {row.freeProvider ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-blue-400/40 bg-blue-500/10 px-1.5 py-0.5 text-blue-300">
+                      <span className="h-2 w-2 rounded-full bg-blue-400" title="Free provider" />
+                      free
+                    </span>
+                  ) : null}
+                  {row.bucket === 'valid' ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-1.5 py-0.5 text-emerald-300">
+                      <span className="h-2 w-2 rounded-full bg-emerald-400" title="Eligible" />
+                      eligible
+                    </span>
+                  ) : null}
+                  {row.bucket === 'risky' ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-300">
+                      <span className="h-2 w-2 rounded-full bg-amber-400" title="Risky" />
+                      risky
+                    </span>
+                  ) : null}
+                  {row.bucket !== 'valid' && row.bucket !== 'risky' ? bucketLabel(row.bucket) : null}
+                  {row.source === 'orphan' ? ' · orphan' : null}
                 </span>
-              )}
-            </label>
-          );
-        })}
-      </div>
+              </label>
+            ))}
+          </div>
+        </section>
 
-      {invalidLeads.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold">Invalid Leads</h3>
-          <div className="space-y-2 max-h-[240px] overflow-auto border border-border rounded p-2 bg-background">
-            {invalidLeads.map((lead) => {
-              const status = lead.is_blocked
-                ? 'Blocked'
-                : lead.is_used
-                ? 'Used'
-                : 'Invalid';
+        <section
+          className="rounded border border-border/60 p-3 bg-background/30 space-y-3"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={() => void onDropToColumn('unassigned')}
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Unassigned ({unassignedRows.length})</h3>
+            <Button
+              size="sm"
+              onClick={attachSelected}
+              disabled={selectedUnassignedIds.size === 0}
+            >
+              Attach Selected
+            </Button>
+          </div>
+          <input
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            placeholder="Search unassigned..."
+            value={unassignedSearch}
+            onChange={(e) => setUnassignedSearch(e.target.value)}
+          />
+          <div className="max-h-[360px] overflow-auto space-y-2">
+            {unassignedVisible.length === 0 && (
+              <div className="text-xs text-muted-foreground py-4 text-center">No valid/risky unassigned leads.</div>
+            )}
+            {unassignedVisible.map((lead) => {
+              const bucket = classifyLead(lead);
+              const id = String(lead.id);
               return (
-                <div
-                  key={lead.id}
-                  className="flex items-center gap-2 text-sm p-1 rounded bg-muted/30"
+                <label
+                  key={id}
+                  draggable
+                  onDragStart={() => onDragStart(id, 'unassigned')}
+                  className="flex items-center gap-2 rounded p-2 bg-muted/20 text-sm cursor-grab"
                 >
-                  <span className="flex-1 text-muted-foreground">
-                    {lead.email}
+                  <input
+                    type="checkbox"
+                    checked={selectedUnassignedIds.has(id)}
+                    onChange={() => toggleSelected(setSelectedUnassignedIds, id)}
+                  />
+                  <span className="flex-1 truncate">{String(lead.email ?? `Unknown lead ${id}`)}</span>
+                  <span className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                    {isFreeProvider(lead) ? (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-blue-400/40 bg-blue-500/10 px-1.5 py-0.5 text-blue-300">
+                        <span className="h-2 w-2 rounded-full bg-blue-400" title="Free provider" />
+                        free
+                      </span>
+                    ) : null}
+                    {bucket === 'valid' ? (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-1.5 py-0.5 text-emerald-300">
+                        <span className="h-2 w-2 rounded-full bg-emerald-400" title="Eligible" />
+                        eligible
+                      </span>
+                    ) : null}
+                    {bucket === 'risky' ? (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-300">
+                        <span className="h-2 w-2 rounded-full bg-amber-400" title="Risky" />
+                        risky
+                      </span>
+                    ) : null}
                   </span>
-                  <span className="text-xs rounded-full border border-border px-2 py-0.5 text-muted-foreground">
-                    {status}
-                  </span>
-                </div>
+                </label>
               );
             })}
           </div>
-        </div>
-      )}
+        </section>
 
-      {/* Action */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <label className="text-xs text-muted-foreground">Attach from folder snapshot</label>
-            <select
-              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              value={folderId}
-              onChange={(e) => setFolderId(e.target.value)}
-            >
-              <option value="">Select folder</option>
-              {leadFolders.map((folder) => (
-                <option key={folder.id} value={folder.id}>
-                  {folder.name} {folder.lead_count != null ? `(${folder.lead_count})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Button variant="outline" onClick={attachFromFolder} disabled={!folderId}>
-            Attach Folder
-          </Button>
-        </div>
+        <section className={`rounded border border-border/60 p-3 bg-background/30 space-y-3 ${showExcluded ? '' : 'opacity-70'}`}>
+          <h3 className="text-sm font-semibold">Excluded ({excludedRows.length})</h3>
+          {showExcluded ? (
+            <>
+              <input
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                placeholder="Search excluded..."
+                value={excludedSearch}
+                onChange={(e) => setExcludedSearch(e.target.value)}
+              />
+              <div className="max-h-[360px] overflow-auto space-y-2">
+                {excludedVisible.length === 0 && (
+                  <div className="text-xs text-muted-foreground py-4 text-center">No excluded leads.</div>
+                )}
+                {excludedVisible.map((lead) => {
+                  const bucket = classifyLead(lead);
+                  const reason = String(lead.email_eligibility_reason ?? '').trim();
+                  return (
+                    <div key={String(lead.id)} className="rounded p-2 bg-muted/20 text-sm space-y-1">
+                      <div className="truncate">{String(lead.email ?? `Unknown lead ${lead.id}`)}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {bucket}{reason ? ` · ${reason}` : ''}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="text-xs text-muted-foreground py-8 text-center">
+              Excluded list hidden. Enable “Show Excluded” to inspect pending/invalid/used leads.
+            </div>
+          )}
+        </section>
+      </div>
 
-        <div className="flex justify-end">
-        <form action={submit}>
-          <Button disabled={selected.size === 0}>
-            Update Campaign Leads
-          </Button>
-        </form>
+      <div className="flex items-end gap-2">
+        <div className="flex-1">
+          <label className="text-xs text-muted-foreground">
+            Lead source
+          </label>
+          <select
+            className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            value={sourceId}
+            onChange={(e) => setSourceId(e.target.value)}
+          >
+            <option value="all">Global (All Leads)</option>
+            {leadFolders.map((folder) => (
+              <option key={folder.id} value={`folder:${folder.id}`}>
+                Folder: {folder.name} {folder.lead_count != null ? `(${folder.lead_count})` : ''}
+              </option>
+            ))}
+          </select>
         </div>
+        <Button
+          variant="outline"
+          onClick={attachFromSource}
+          disabled={sourceId === 'all' ? selectedUnassignedIds.size === 0 : !selectedFolderId}
+        >
+          Attach Source
+        </Button>
       </div>
     </div>
   );

@@ -21,5 +21,11 @@ export const crudServer = {
   delete: (table: string, id: string) =>
     serverFetch(`/crud/${table}/${id}`, {
       method: 'DELETE'
+    }),
+
+  bulkDelete: (table: string, ids: string[]) =>
+    serverFetch<{ success: boolean; deletedCount: number }>(`/crud/${table}/bulk-delete`, {
+      method: 'POST',
+      body: JSON.stringify({ ids })
     })
 };

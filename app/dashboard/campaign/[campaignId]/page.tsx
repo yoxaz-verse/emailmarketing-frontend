@@ -1,6 +1,6 @@
 import CampaignHeader from './CampaignHeader';
-import AnalyticsTab from './AnalyticsTab';
 import LeadsTab from './LeadTab';
+import CampaignJourneyMap from './CampaignJourneyMap';
 import { serverFetch } from '@/lib/server/server-fetch';
 
 export default async function CampaignPage({
@@ -30,11 +30,12 @@ export default async function CampaignPage({
     }
 
     /**
-     * 2️⃣ Load operator leads
+     * 2️⃣ Load lead pool (operator + global shared)
      */
-    const leads = await serverFetch<any[]>(
-      `/crud/leads?operator_id=${campaign.operator_id}`
+    const allLeads = await serverFetch<any[]>(
+      `/crud/leads`
     );
+    const leads = allLeads;
 
     /**
      * 3️⃣ Load campaign ↔ lead mappings
@@ -103,53 +104,20 @@ export default async function CampaignPage({
           />
 
           {/* Main layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Leads */}
-            <div className="lg:col-span-2">
-              <LeadsTab
-                campaign={campaign}
-                leads={leads}
-                campaignLeads={campaignLeads}
-                leadFolders={leadFolders?.folders ?? []}
-              />
-            </div>
-
-            {/* Sequence + Analytics */}
-            <div className="space-y-6">
-              <div className="rounded-lg border border-border bg-card p-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold">Sequence Steps</h3>
-                  <span className="text-xs text-muted-foreground">
-                    {sequenceName}
-                  </span>
-                </div>
-                {sequenceSteps.length === 0 ? (
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    No sequence steps yet.
-                  </p>
-                ) : (
-                  <ol className="mt-3 space-y-2 text-sm">
-                    {sequenceSteps.map((step, index) => {
-                      return (
-                        <li key={step.id ?? index} className="rounded-md border border-border bg-muted/40 p-2">
-                          <div className="text-xs text-muted-foreground">
-                            Step {step.step_number ?? index + 1}
-                          </div>
-                          <div className="font-medium">
-                            {step.subject?.trim() ? step.subject : 'Untitled Email'}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Delay: {step.delay_days ?? 0} day(s)
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                )}
-              </div>
-
-              <AnalyticsTab campaignId={campaign.id} />
-            </div>
+          <div className="space-y-6">
+            <LeadsTab
+              campaign={campaign}
+              leads={leads}
+              allLeads={allLeads}
+              campaignLeads={campaignLeads}
+              leadFolders={leadFolders?.folders ?? []}
+            />
+            <CampaignJourneyMap
+              campaign={campaign}
+              sequenceName={sequenceName}
+              sequenceSteps={sequenceSteps}
+              campaignLeads={campaignLeads}
+            />
           </div>
         </div>
       </div>

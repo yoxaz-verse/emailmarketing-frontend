@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useTransition } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Table,
@@ -22,6 +22,7 @@ import {
   Filter,
   Download
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 import { tableConfig } from '@/config/tableFields';
 import { tableMeta } from '@/config/tableMeta';
@@ -30,6 +31,7 @@ import ActionRenderer from './ActionRenderer';
 import BadgeRenderer from './elements/badgeRenderer';
 import AddEditModal from './AddEditModal';
 import DeleteModal from './DeleteModal';
+import { bulkDeleteRows } from './action';
 import { RelationMap } from '@/lib/resolveRelation';
 import { cn } from '@/lib/utils';
 
@@ -38,7 +40,11 @@ type Props = {
   data: any[];
   relations?: RelationMap;
   role?: string;
-  defaultValues?: Record<string, any>
+  defaultValues?: Record<string, any>;
+  onSelectionChange?: (ids: string[]) => void;
+  onFilterToggle?: () => void;
+  showFilterButton?: boolean;
+  exportFilename?: string;
 };
 
 const MAX_CHAR_LENGTH = 40;
@@ -70,16 +76,24 @@ export default function DynamicTable({
   relations = {},
   role,
   defaultValues = {},
+  onSelectionChange,
+  onFilterToggle,
+  showFilterButton = false,
+  exportFilename,
 }: Props) {
   const fields = tableConfig[table] ?? [];
   const meta = tableMeta[table] ?? {};
   const actions = meta.actions ?? [];
+  const bulkActions = meta.bulkActions ?? [];
+  const hasActionColumn = actions.length > 0 || meta.allowEdit !== false || meta.allowDelete !== false;
   const visibleFields = fields.filter((f) => f.inTable);
 
   const [showForm, setShowForm] = useState(false);
   const [editingRow, setEditingRow] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBulkPending, startBulkTransition] = useTransition();
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -104,6 +118,31 @@ export default function DynamicTable({
     return result;
   }, [data, searchQuery, visibleFields]);
 
+  const selectableIds = useMemo(
+    () =>
+      filteredData
+        .map((row) => row?.id)
+        .filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
+    [filteredData]
+  );
+
+  const selectionEnabled = selectableIds.length === filteredData.length && filteredData.length > 0;
+
+  useEffect(() => {
+    if (!selectionEnabled) {
+      setSelectedIds(new Set());
+      return;
+    }
+    const validIds = new Set(selectableIds);
+    setSelectedIds((prev) => {
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (validIds.has(id)) next.add(id);
+      }
+      return next;
+    });
+  }, [selectableIds, selectionEnabled]);
+
   // Paginated Data
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
@@ -111,9 +150,60 @@ export default function DynamicTable({
   }, [filteredData, currentPage]);
 
   const totalPages = Math.ceil(filteredData.length / pageSize);
+  const selectedCount = selectedIds.size;
+  const allSelected = selectionEnabled && selectableIds.length > 0 && selectedCount === selectableIds.length;
+  const partiallySelected = selectionEnabled && selectedCount > 0 && selectedCount < selectableIds.length;
+
+  const headerCheckboxRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    onSelectionChange?.(Array.from(selectedIds));
+  }, [onSelectionChange, selectedIds]);
+
+  useEffect(() => {
+    if (headerCheckboxRef.current) {
+      headerCheckboxRef.current.indeterminate = partiallySelected;
+    }
+  }, [partiallySelected]);
+
+  function toggleRowSelection(id: string, checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll(checked: boolean) {
+    if (!selectionEnabled) return;
+    if (checked) {
+      setSelectedIds(new Set(selectableIds));
+      return;
+    }
+    setSelectedIds(new Set());
+  }
 
   function refresh() {
     window.location.reload();
+  }
+
+  function handleBulkDelete(confirmText?: string) {
+    if (selectedCount === 0) return;
+    const shouldProceed = window.confirm(
+      confirmText ?? `Delete ${selectedCount} selected record(s)? This action cannot be undone.`
+    );
+    if (!shouldProceed) return;
+
+    startBulkTransition(async () => {
+      try {
+        const result = await bulkDeleteRows(table, Array.from(selectedIds));
+        toast.success(`Deleted ${result.deletedCount} record(s).`);
+        setSelectedIds(new Set());
+        refresh();
+      } catch (error: any) {
+        toast.error(error?.message || 'Bulk delete failed');
+      }
+    });
   }
 
   function resolveRelationValue(row: any, field: any) {
@@ -130,67 +220,179 @@ export default function DynamicTable({
     return match?.[field.relation.labelKey] ?? '—';
   }
 
+  function escapeCsv(value: unknown): string {
+    if (value == null) return '';
+    const text = String(value);
+    if (/[",\n]/.test(text)) {
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+    return text;
+  }
+
+  function buildCsvRows(rows: any[]): string {
+    const headers = visibleFields.map((f) => escapeCsv(f.label)).join(',');
+    const body = rows
+      .map((row) =>
+        visibleFields
+          .map((f) => {
+            if (f.badge) return escapeCsv(Boolean(row[f.key]));
+            if (f.type === 'relation') return escapeCsv(resolveRelationValue(row, f));
+            return escapeCsv(formatDisplayValue(f, row[f.key]));
+          })
+          .join(',')
+      )
+      .join('\n');
+    return `${headers}\n${body}`;
+  }
+
+  function handleExportCsv() {
+    const csv = buildCsvRows(filteredData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 10);
+    const base = exportFilename || `${table}-export`;
+    link.href = url;
+    link.setAttribute('download', `${base}-${stamp}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Header & Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-foreground capitalize flex items-center gap-2">
-            {table.replace('_', ' ')}
-            <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-bold">
-              {data.length}
-            </Badge>
-          </h2>
-          <p className="text-sm text-muted-foreground">Manage {table.replace('_', ' ')} records and data.</p>
+    <div className="space-y-4">
+      {/* Header & Controls Redesign */}
+      <div className="flex flex-col gap-3 mb-3">
+        {/* Top Tier: Title & Primary Actions */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <h2 className="text-3xl font-black tracking-tighter text-foreground capitalize">
+                {table.replace('_', ' ')}
+              </h2>
+              <div className="px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest shadow-sm">
+                {data.length} {data.length === 1 ? 'Record' : 'Records'}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {bulkActions.length > 0 && selectedCount > 0 && (
+              <div className="flex items-center gap-2 animate-in slide-in-from-right-4 duration-300">
+                {bulkActions.map((bulkAction) => (
+                  <Button
+                    key={bulkAction.key}
+                    variant={bulkAction.variant ?? 'outline'}
+                    size="sm"
+                    className="h-10 font-bold text-xs px-4 rounded-xl shadow-lg shadow-destructive/10"
+                    disabled={isBulkPending}
+                    onClick={() => {
+                      if (bulkAction.key === 'bulkDelete') {
+                        handleBulkDelete(bulkAction.confirmText);
+                      }
+                    }}
+                  >
+                    {bulkAction.label} ({selectedCount})
+                  </Button>
+                ))}
+              </div>
+            )}
+            
+            {meta.allowCreate !== false && (
+              <Button
+                size="sm"
+                className="h-10 gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs px-5 rounded-xl shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                onClick={() => {
+                  setEditingRow(null);
+                  setShowForm(true);
+                }}
+              >
+                <Plus className="h-4 w-4" /> Add Record
+              </Button>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="relative group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-blue-400 transition-colors" />
+        {/* Bottom Tier: Toolbar & Search */}
+        <div className="flex flex-col md:flex-row items-center gap-4 bg-card/30 backdrop-blur-xl border border-border/40 p-2 rounded-2xl shadow-inner">
+          <div className="relative flex-1 group w-full">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input
-              placeholder="Search..."
+              placeholder={`Search ${table.replace('_', ' ')}...`}
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
-                setCurrentPage(1); // Reset to first page on search
+                setCurrentPage(1);
               }}
-              className="pl-9 w-[200px] lg:w-[300px] h-9 bg-card border-border focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-sm"
+              className="pl-11 w-full h-11 bg-transparent border-none focus-visible:ring-0 text-sm font-medium placeholder:text-muted-foreground/60"
             />
           </div>
 
-          <Button variant="outline" size="sm" className="h-9 gap-2 hidden lg:flex border-border hover:bg-muted">
-            <Filter className="h-4 w-4" /> Filter
-          </Button>
+          <div className="flex items-center gap-2 pr-2 w-full md:w-auto">
+            {selectedCount > 0 && (
+              <div className="h-9 flex items-center gap-3 px-3 rounded-xl bg-primary/10 border border-primary/20 animate-in fade-in zoom-in-95 duration-300">
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">
+                  {selectedCount} Selected
+                </span>
+                <div className="w-px h-3 bg-primary/20" />
+                <button 
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-white transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+            
+            <div className="h-6 w-px bg-border/40 hidden md:block" />
 
-          {meta.allowCreate !== false && (
-            <Button
-              size="sm"
-              className="h-9 gap-2 bg-blue-600 hover:bg-blue-700 shadow-sm"
-              onClick={() => {
-                setEditingRow(null);
-                setShowForm(true);
-              }}
+            {showFilterButton && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-9 gap-2 text-xs font-bold uppercase tracking-wider hover:bg-primary/10 hover:text-primary transition-all rounded-xl"
+                onClick={onFilterToggle}
+              >
+                <Filter className="h-3.5 w-3.5" /> Filter
+              </Button>
+            )}
+            
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-9 gap-2 text-xs font-bold uppercase tracking-wider hover:bg-primary/10 hover:text-primary transition-all rounded-xl hidden lg:flex"
+              onClick={handleExportCsv}
             >
-              <Plus className="h-4 w-4" /> Add Record
+              <Download className="h-3.5 w-3.5" /> Export
             </Button>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* Table Container */}
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-        <div className="overflow-x-auto min-h-[400px]">
+      {/* Table Container Redesign */}
+      <div className="rounded-3xl border border-border/40 bg-card/20 backdrop-blur-md shadow-2xl overflow-hidden transition-all duration-500">
+        <div className="overflow-x-auto min-h-[400px] custom-scrollbar">
           <Table>
-            <TableHeader className="bg-muted/40">
-              <TableRow className="hover:bg-transparent border-b border-border">
+            <TableHeader className="bg-muted/30">
+              <TableRow className="hover:bg-transparent border-b border-border/40">
+                <TableHead className="h-11 text-xs font-bold text-muted-foreground uppercase tracking-wider py-3 px-4 w-12">
+                  <input
+                    ref={headerCheckboxRef}
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={(e) => toggleSelectAll(e.target.checked)}
+                    disabled={!selectionEnabled}
+                    aria-label="Select all rows"
+                    className="h-4 w-4 rounded border-border bg-card accent-blue-500 disabled:opacity-40"
+                  />
+                </TableHead>
                 {visibleFields.map((f) => (
                   <TableHead key={f.key} className="h-11 text-xs font-bold text-muted-foreground uppercase tracking-wider py-3 px-4">
                     {f.label}
                   </TableHead>
                 ))}
-                {(actions.length > 0 ||
-                  meta.allowEdit !== false ||
-                  meta.allowDelete !== false) && (
+                {hasActionColumn && (
                     <TableHead className="h-11 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider py-3 px-4">
                       Actions
                     </TableHead>
@@ -202,7 +404,7 @@ export default function DynamicTable({
               {paginatedData.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={visibleFields.length + 1}
+                    colSpan={visibleFields.length + 1 + (hasActionColumn ? 1 : 0)}
                     className="h-64 text-center text-sm text-muted-foreground italic"
                   >
                     <div className="flex flex-col items-center justify-center gap-2">
@@ -214,6 +416,20 @@ export default function DynamicTable({
               ) : (
                 paginatedData.map((row) => (
                   <TableRow key={row.id} className="group hover:bg-muted/50 transition-colors border-b border-border last:border-none">
+                    <TableCell className="py-3 px-4">
+                      <input
+                        type="checkbox"
+                        checked={typeof row?.id === 'string' ? selectedIds.has(row.id) : false}
+                        onChange={(e) => {
+                          if (typeof row?.id === 'string') {
+                            toggleRowSelection(row.id, e.target.checked);
+                          }
+                        }}
+                        disabled={typeof row?.id !== 'string' || !selectionEnabled}
+                        aria-label={`Select row ${row?.id ?? ''}`}
+                        className="h-4 w-4 rounded border-border bg-card accent-blue-500 disabled:opacity-40"
+                      />
+                    </TableCell>
                     {visibleFields.map((f) => {
                       let displayValue: React.ReactNode = '—';
 
@@ -246,40 +462,42 @@ export default function DynamicTable({
                       );
                     })}
 
-                    <TableCell className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {meta.allowEdit !== false && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-muted-foreground hover:text-blue-300 hover:bg-blue-500/10"
-                            onClick={() => {
-                              setEditingRow(row);
-                              setShowForm(true);
-                            }}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                    {hasActionColumn && (
+                      <TableCell className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {meta.allowEdit !== false && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-muted-foreground hover:text-blue-300 hover:bg-blue-500/10"
+                              onClick={() => {
+                                setEditingRow(row);
+                                setShowForm(true);
+                              }}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          )}
 
-                        {meta.allowDelete !== false && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
-                            onClick={() => setDeleteId(row.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                          {meta.allowDelete !== false && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                              onClick={() => setDeleteId(row.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
 
-                        {actions.length > 0 && (
-                          <div className="pl-1 border-l ml-1 border-border">
-                            <ActionRenderer actions={actions} row={row} />
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
+                          {actions.length > 0 && (
+                            <div className="pl-1 border-l ml-1 border-border">
+                              <ActionRenderer actions={actions} row={row} />
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
@@ -288,30 +506,41 @@ export default function DynamicTable({
         </div>
       </div>
 
-      {/* Footer / Pagination */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground px-2">
-        <p>
-          Showing <span className="font-bold text-foreground">{(currentPage - 1) * pageSize + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * pageSize, filteredData.length)}</span> of <span className="font-bold text-foreground">{filteredData.length}</span> records
-        </p>
-        <div className="flex gap-2">
+      {/* Footer / Pagination Redesign */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-4 px-2 border-t border-border/40">
+        <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+          <div>
+            Showing <span className="text-foreground">{(currentPage - 1) * pageSize + 1}</span> to <span className="text-foreground">{Math.min(currentPage * pageSize, filteredData.length)}</span>
+          </div>
+          <div className="w-1 h-1 rounded-full bg-border" />
+          <div>
+            <span className="text-foreground">{filteredData.length}</span> Total Records
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
           <Button 
-            variant="outline" 
+            variant="ghost" 
             size="sm" 
             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
-            className="h-8 text-[10px] px-3 uppercase font-bold tracking-tight"
+            className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] hover:bg-primary/10 hover:text-primary disabled:opacity-30 transition-all"
           >
             Previous
           </Button>
-          <div className="flex items-center px-4 bg-muted/30 rounded-lg font-mono text-[10px]">
-            Page {currentPage} of {totalPages || 1}
+          
+          <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-background/40 border border-border/40 shadow-inner font-mono text-[10px] font-bold">
+            <span className="text-primary">{currentPage}</span>
+            <span className="text-muted-foreground/40 mx-1">/</span>
+            <span className="text-muted-foreground">{totalPages || 1}</span>
           </div>
+
           <Button 
-            variant="outline" 
+            variant="ghost" 
             size="sm" 
             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
             disabled={currentPage === totalPages || totalPages === 0}
-            className="h-8 text-[10px] px-3 uppercase font-bold tracking-tight"
+            className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] hover:bg-primary/10 hover:text-primary disabled:opacity-30 transition-all"
           >
             Next
           </Button>
