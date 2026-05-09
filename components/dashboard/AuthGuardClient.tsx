@@ -9,7 +9,9 @@ export default function AuthGuardClient() {
     clientFetch('/auth/me')
       .catch(() => {
         if (active) {
-          window.location.href = '/api/auth/logout';
+          // Non-destructive in production: do not force logout on transient
+          // backend/network/auth-me failures. Server-side guards remain source of truth.
+          console.warn('[AuthGuardClient] /auth/me check failed; keeping current session.');
         }
       });
 
