@@ -1,21 +1,42 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { updateCampaignInboxes } from './actions';
 import { Check, Mail, Server } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'react-hot-toast';
+import { clientFetch } from '@/lib/client-fetch';
 
 type Props = {
-  campaign: any;
-  inboxes: any[];           // all allowed inboxes
-  campaignInboxes: any[];   // rows from campaign_inboxes (with id)
+  campaign: {
+    id: string;
+    name: string;
+    status: string;
+  };
+  inboxes: Array<{
+    id: string;
+    email_address: string;
+    operator_id?: string | null;
+  }>;
+  campaignInboxes: Array<{
+    inbox_id: string;
+  }>;
+  lockedInboxes?: Array<{
+    inbox_id: string;
+    blocking_campaign_id: string;
+    blocking_campaign_name: string;
+    blocking_status: string;
+  }>;
 };
+
+type BackendHealth = 'checking' | 'online' | 'offline';
 
 export default function CampaignHeader({
   campaign,
   inboxes,
-  campaignInboxes
+  campaignInboxes,
+  lockedInboxes = []
 }: Props) {
 
   /**
@@ -31,29 +52,92 @@ export default function CampaignHeader({
   const [selected, setSelected] = useState<Set<string>>(
     new Set(attachedInboxIds)
   );
+  const [saving, setSaving] = useState(false);
+  const [backendHealth, setBackendHealth] = useState<BackendHealth>('checking');
+  const [lockConflicts, setLockConflicts] = useState<Array<{
+    inbox_id: string;
+    email_address: string;
+    blocking_campaign_id: string;
+    blocking_campaign_name: string;
+    blocking_status: string;
+  }>>([]);
+
+  const lockMap = useMemo(() => {
+    const map = new Map<string, {
+      inbox_id: string;
+      blocking_campaign_id: string;
+      blocking_campaign_name: string;
+      blocking_status: string;
+    }>();
+    for (const row of lockedInboxes) {
+      if (row?.inbox_id) map.set(String(row.inbox_id), row);
+    }
+    return map;
+  }, [lockedInboxes]);
 
   function toggle(inboxId: string) {
+    if (lockMap.has(inboxId)) return;
     setSelected(prev => {
       const next = new Set(prev);
-      next.has(inboxId) ? next.delete(inboxId) : next.add(inboxId);
+      if (next.has(inboxId)) next.delete(inboxId);
+      else next.add(inboxId);
       return next;
     });
   }
 
+  async function checkBackendHealth() {
+    try {
+      await clientFetch<{ ok: boolean }>('/ping');
+      setBackendHealth('online');
+    } catch {
+      setBackendHealth('offline');
+    }
+  }
+
+  useEffect(() => {
+    void checkBackendHealth();
+  }, []);
+
   async function applyChanges() {
-    const toAttach = [...selected].filter(
-      id => !attachedInboxIds.has(id)
-    );
+    if (saving) return;
+    if (backendHealth !== 'online') {
+      toast.error('Backend offline. Start backend and retry.');
+      return;
+    }
 
-    const toDetach = campaignInboxes
-      .filter(ci => !selected.has(ci.inbox_id))
-      .map(ci => ci.id);
+    const selectedInboxIds = [...selected];
 
-    await updateCampaignInboxes(
-      campaign.id,
-      toAttach,
-      toDetach
-    );
+    try {
+      setSaving(true);
+      setLockConflicts([]);
+      const result = await updateCampaignInboxes(
+        campaign.id,
+        selectedInboxIds
+      );
+      if (!result.success) {
+        if (Array.isArray(result.conflicts) && result.conflicts.length > 0) {
+          setLockConflicts(result.conflicts);
+          toast.error('Some inboxes are locked by other active campaigns.');
+          return;
+        }
+        throw new Error(result.errors?.[0] ?? 'Failed to save campaign inboxes');
+      }
+      toast.success(
+        `Saved inboxes. Attached: ${result.attached}, removed: ${result.detached}, unchanged: ${result.unchanged}.`
+      );
+      setBackendHealth('online');
+    } catch (error) {
+      const raw = error instanceof Error ? error.message : 'Unknown error';
+      const lower = raw.toLowerCase();
+      if (lower.includes('backend unavailable') || lower.includes('fetch failed')) {
+        setBackendHealth('offline');
+        toast.error('Backend unavailable while saving inboxes. Please retry in a moment.');
+      } else {
+        toast.error(raw);
+      }
+    } finally {
+      setSaving(false);
+    }
   }
 
   const unchanged =
@@ -96,11 +180,30 @@ export default function CampaignHeader({
         <div className="flex flex-col items-end gap-2">
           <Button
             onClick={applyChanges}
-            disabled={unchanged}
+            disabled={unchanged || saving || backendHealth !== 'online'}
             className="transition-all"
           >
-            Save Configuration
+            {saving ? 'Saving...' : 'Save Configuration'}
           </Button>
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                'text-xs px-2 py-1 rounded-md border',
+                backendHealth === 'online' && 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10',
+                backendHealth === 'offline' && 'text-rose-400 border-rose-500/30 bg-rose-500/10',
+                backendHealth === 'checking' && 'text-amber-300 border-amber-400/30 bg-amber-500/10'
+              )}
+            >
+              {backendHealth === 'online' && 'Backend online'}
+              {backendHealth === 'offline' && 'Backend offline'}
+              {backendHealth === 'checking' && 'Checking backend...'}
+            </span>
+            {backendHealth !== 'online' && (
+              <Button size="sm" variant="outline" onClick={() => void checkBackendHealth()}>
+                Retry
+              </Button>
+            )}
+          </div>
           {canStart && selected.size === 0 && (
             <span className="text-xs font-medium text-red-500 bg-red-500/10 px-2 py-1 rounded-md">
               At least one inbox required
@@ -131,12 +234,15 @@ export default function CampaignHeader({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
             {sortedInboxes.map(inbox => {
               const isSelected = selected.has(inbox.id);
+              const lockInfo = lockMap.get(String(inbox.id));
+              const isLocked = Boolean(lockInfo);
               return (
                 <div
                   key={inbox.id}
                   onClick={() => toggle(inbox.id)}
                   className={cn(
                     "group relative flex flex-col gap-3 p-4 rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden",
+                    isLocked && "opacity-70 cursor-not-allowed",
                     isSelected 
                       ? "border-primary bg-primary/5 shadow-[0_0_15px_rgba(var(--primary),0.15)]" 
                       : "border-border bg-background hover:border-primary/50 hover:bg-accent/50 hover:shadow-md"
@@ -158,6 +264,11 @@ export default function CampaignHeader({
                       )} title={inbox.email_address}>
                         {inbox.email_address}
                       </p>
+                      {isLocked ? (
+                        <p className="mt-1 text-[11px] text-amber-300">
+                          Locked by: {lockInfo?.blocking_campaign_name} ({lockInfo?.blocking_status})
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                   
@@ -165,6 +276,11 @@ export default function CampaignHeader({
                     {inbox.operator_id == null && (
                       <span className="px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-semibold tracking-widest uppercase">
                         Public
+                      </span>
+                    )}
+                    {isLocked && (
+                      <span className="px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-semibold tracking-widest uppercase">
+                        Locked
                       </span>
                     )}
                   </div>
@@ -179,6 +295,19 @@ export default function CampaignHeader({
           </div>
         )}
       </div>
+
+      {lockConflicts.length > 0 ? (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">
+          <p className="font-semibold">Inbox lock conflicts</p>
+          <div className="mt-2 space-y-1">
+            {lockConflicts.map((row, idx) => (
+              <p key={`${row.inbox_id}-${idx}`}>
+                {row.email_address} is locked by {row.blocking_campaign_name} ({row.blocking_status}).
+              </p>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

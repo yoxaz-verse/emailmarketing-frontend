@@ -13,6 +13,24 @@ export type CampaignAttachSummary = {
   skipped_missing: number;
 };
 
+export type CampaignInboxSyncSummary = {
+  success: boolean;
+  campaign_id: string;
+  selected: number;
+  attached: number;
+  detached: number;
+  unchanged: number;
+  errors: string[];
+  code?: string;
+  conflicts?: Array<{
+    inbox_id: string;
+    email_address: string;
+    blocking_campaign_id: string;
+    blocking_campaign_name: string;
+    blocking_status: string;
+  }>;
+};
+
 export async function startCampaignAction(campaignId: string) {
   await serverFetch(`/campaigns/${campaignId}/start`, {
     method: 'POST',
@@ -68,27 +86,40 @@ export async function detachLeadsAction(
   return result;
 }
 
-
-
-import { crudServer } from '@/lib/crud-server';
-
 export async function updateCampaignInboxes(
   campaignId: string,
-  toAttach: string[],
-  toDetach: string[]
+  selectedInboxIds: string[]
 ) {
-  // Attach new inboxes
-  for (const inboxId of toAttach) {
-    await crudServer.create('campaign_inboxes', {
+  let result: CampaignInboxSyncSummary;
+  try {
+    result = await serverFetch<CampaignInboxSyncSummary>(
+      `/campaigns/${campaignId}/inboxes/sync`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ selected_inbox_ids: selectedInboxIds }),
+      }
+    );
+  } catch (err: unknown) {
+    const typedErr = err as { raw?: string; message?: string };
+    let parsed: { error?: string; code?: string; conflicts?: unknown } | null = null;
+    try {
+      parsed = typedErr?.raw ? JSON.parse(String(typedErr.raw)) : null;
+    } catch {
+      parsed = null;
+    }
+    return {
+      success: false,
       campaign_id: campaignId,
-      inbox_id: inboxId
-    });
-  }
-
-  // Detach removed inboxes
-  for (const campaignInboxId of toDetach) {
-    await crudServer.delete('campaign_inboxes', campaignInboxId);
+      selected: selectedInboxIds.length,
+      attached: 0,
+      detached: 0,
+      unchanged: 0,
+      errors: [String(parsed?.error ?? typedErr?.message ?? 'Failed to sync campaign inboxes')],
+      code: parsed?.code,
+      conflicts: Array.isArray(parsed?.conflicts) ? parsed.conflicts : [],
+    };
   }
 
   revalidatePath(`/dashboard/campaign/${campaignId}`);
+  return result;
 }

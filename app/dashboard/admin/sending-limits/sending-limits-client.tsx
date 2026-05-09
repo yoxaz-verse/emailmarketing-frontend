@@ -14,6 +14,7 @@ type SendingLimitsConfig = {
   min_domain_health_score: number;
   warmup_advance_min_health_score: number;
   warmup_advance_max_consecutive_failures: number;
+  risky_daily_percent_limit: number;
   warmup_steps: WarmupStep[];
 };
 
@@ -93,8 +94,8 @@ export default function SendingLimitsClient({
         warmup_steps: normalizeSteps(updated.warmup_steps ?? []),
       });
       setMessage('Saved successfully. New limits are active immediately.');
-    } catch (err: any) {
-      setMessage(err?.message ?? 'Failed to save');
+    } catch (err: unknown) {
+      setMessage(err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setSaving(false);
     }
@@ -162,6 +163,21 @@ export default function SendingLimitsClient({
                 updateTopLevel('warmup_advance_max_consecutive_failures', Number(e.target.value))
               }
             />
+          </label>
+
+          <label className="text-sm space-y-1">
+            <span>Risky Daily Percent Limit</span>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              className="w-full border border-border bg-background rounded px-3 py-2"
+              value={config.risky_daily_percent_limit}
+              onChange={(e) => updateTopLevel('risky_daily_percent_limit', Number(e.target.value))}
+            />
+            <span className="text-xs text-muted-foreground">
+              Per inbox/day cap for risky sends. Example: 10 daily limit + 20% = 2 risky max.
+            </span>
           </label>
         </div>
       </div>

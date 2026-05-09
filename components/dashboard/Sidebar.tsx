@@ -43,6 +43,7 @@ const voiceItems = [
 const adminItems = [
     { label: 'Users', href: '/dashboard/users', icon: UserCog },
     { label: 'Sending Limits', href: '/dashboard/admin/sending-limits', icon: UserCog },
+    { label: 'Campaign Rules', href: '/dashboard/admin/campaign-rules', icon: UserCog },
     { label: 'Validation Monitor', href: '/dashboard/admin/validation-monitor', icon: UserCog },
 ];
 

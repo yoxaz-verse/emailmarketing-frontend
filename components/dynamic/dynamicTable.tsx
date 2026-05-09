@@ -464,12 +464,12 @@ export default function DynamicTable({
 
                     {hasActionColumn && (
                       <TableCell className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center justify-end gap-1 opacity-100">
                           {meta.allowEdit !== false && (
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-8 w-8 text-muted-foreground hover:text-blue-300 hover:bg-blue-500/10"
+                              className="h-8 w-8 text-muted-foreground/70 hover:text-blue-300 hover:bg-blue-500/10"
                               onClick={() => {
                                 setEditingRow(row);
                                 setShowForm(true);
@@ -483,7 +483,7 @@ export default function DynamicTable({
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-8 w-8 text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                              className="h-8 w-8 text-muted-foreground/70 hover:text-red-400 hover:bg-red-500/10"
                               onClick={() => setDeleteId(row.id)}
                             >
                               <Trash2 className="h-4 w-4" />

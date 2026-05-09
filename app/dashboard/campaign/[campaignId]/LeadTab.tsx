@@ -10,7 +10,6 @@ type Lead = {
   id: string;
   email?: string | null;
   folder_id?: string | null;
-  is_used?: boolean;
   is_blocked?: boolean;
   free_provider?: boolean | null;
   is_free_provider?: boolean | null;
@@ -38,7 +37,6 @@ function bucketLabel(bucket: LeadBucket): string {
 }
 
 function classifyLead(lead: Lead): LeadBucket {
-  if (lead.is_used === true) return 'used';
   if (lead.is_blocked === true) return 'blocked';
 
   const eligibility = String(lead.email_eligibility ?? '').toLowerCase();
@@ -60,10 +58,14 @@ function isFreeProvider(lead: Lead): boolean {
 
 function getMutationErrorMessage(error: unknown): string {
   const raw = error instanceof Error ? error.message : 'Unknown error';
+  const lower = raw.toLowerCase();
   if (raw.includes('Cannot POST') && raw.includes('/campaigns/') && raw.includes('/leads/detach')) {
     return 'Detach route is unavailable on backend. Please restart/deploy backend and retry.';
   }
-  if (raw.toLowerCase().includes('backend unavailable')) {
+  if (lower.includes('column') && lower.includes('is_blocked') && lower.includes('does not exist')) {
+    return 'Backend schema mismatch: leads.is_blocked is missing. Deploy/restart patched backend and verify NEXT_PUBLIC_API_BASE_URL points to it.';
+  }
+  if (lower.includes('backend unavailable')) {
     return 'Backend unavailable. Please ensure API server is running.';
   }
   return raw;
@@ -470,7 +472,7 @@ export default function LeadsTab({
             </>
           ) : (
             <div className="text-xs text-muted-foreground py-8 text-center">
-              Excluded list hidden. Enable “Show Excluded” to inspect pending/invalid/used leads.
+              Excluded list hidden. Enable “Show Excluded” to inspect pending/invalid/non-sendable leads.
             </div>
           )}
         </section>

@@ -14,6 +14,7 @@ type SendingLimitsConfig = {
   min_domain_health_score: number;
   warmup_advance_min_health_score: number;
   warmup_advance_max_consecutive_failures: number;
+  risky_daily_percent_limit: number;
   warmup_steps: WarmupStep[];
 };
 
@@ -31,6 +32,7 @@ export default async function SendingLimitsPage() {
     min_domain_health_score: 60,
     warmup_advance_min_health_score: 70,
     warmup_advance_max_consecutive_failures: 2,
+    risky_daily_percent_limit: 20,
     warmup_steps: [
       { day: 1, daily_limit: 20, hourly_limit: 5 },
       { day: 2, daily_limit: 30, hourly_limit: 8 },
@@ -44,9 +46,10 @@ export default async function SendingLimitsPage() {
   let config: SendingLimitsConfig = fallbackConfig;
   try {
     config = await serverFetch<SendingLimitsConfig>('/admin/sending-limits');
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : '';
     loadError =
-      err?.message ||
+      message ||
       'Could not load sending limits from backend. Showing fallback defaults.';
   }
 
