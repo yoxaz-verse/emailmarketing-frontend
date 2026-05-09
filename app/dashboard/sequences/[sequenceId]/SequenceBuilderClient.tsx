@@ -205,9 +205,10 @@ export default function SequenceBuilderClient({ sequenceId }: Props) {
 
   const onDrop = (event: React.DragEvent) => {
     event.preventDefault();
-    const type = event.dataTransfer.getData('application/reactflow');
-    if (!type || !reactFlowInstance.current || !reactFlowWrapper.current) return;
-    if (!NODE_TYPES.includes(type as NodeType)) return;
+    const droppedType = event.dataTransfer.getData('application/reactflow');
+    if (!droppedType || !reactFlowInstance.current || !reactFlowWrapper.current) return;
+    if (!NODE_TYPES.includes(droppedType as NodeType)) return;
+    const type = droppedType as NodeType;
 
     const bounds = reactFlowWrapper.current.getBoundingClientRect();
     const clientPosition = {
@@ -226,7 +227,7 @@ export default function SequenceBuilderClient({ sequenceId }: Props) {
       position,
       data: {
         label: type,
-        nodeType: type as NodeType,
+        nodeType: type,
         ...(defaultNodeData[type] ?? {}),
       },
     };

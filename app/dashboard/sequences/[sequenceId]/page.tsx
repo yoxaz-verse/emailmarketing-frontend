@@ -4,7 +4,7 @@ import { serverFetch } from '@/lib/server/server-fetch';
 export default async function SequenceDetailPage({
   params,
 }: {
-  params: { sequenceId: string };
+  params: Promise<{ sequenceId: string }>;
 }) {
   const { sequenceId } = await params;
 
