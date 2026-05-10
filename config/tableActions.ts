@@ -54,7 +54,7 @@ export async function viewSequence(row: any) {
 
 export async function enableSequence(row: any) {
   await serverFetch(
-    `/admin/sequence/${row.sequence_id}/enable`,
+    `/admin/sequence/${row.id}/enable`,
     { method: 'POST' }
   );
   revalidatePath('/dashboard/sequences');
@@ -62,7 +62,7 @@ export async function enableSequence(row: any) {
 
 export async function disableSequence(row: any) {
   await serverFetch(
-    `/admin/sequence/${row.sequence_id}/disable`,
+    `/admin/sequence/${row.id}/disable`,
     { method: 'POST' }
   );
   revalidatePath('/dashboard/sequences');

@@ -55,16 +55,23 @@ function truncate(value: any, max = MAX_CHAR_LENGTH) {
   return value.slice(0, max) + '...';
 }
 
+function formatUtcDateTime(date: Date): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const hour = String(date.getUTCHours()).padStart(2, '0');
+  const minute = String(date.getUTCMinutes()).padStart(2, '0');
+
+  return `${year}-${month}-${day} ${hour}:${minute} UTC`;
+}
+
 function formatDisplayValue(field: any, rawValue: any): any {
   if (rawValue == null || rawValue === '') return '—';
 
   if (field?.type === 'dateTime') {
     const parsed = new Date(rawValue);
     if (Number.isNaN(parsed.getTime())) return rawValue;
-    return parsed.toLocaleString(undefined, {
-      dateStyle: 'short',
-      timeStyle: 'short',
-    });
+    return formatUtcDateTime(parsed);
   }
 
   return rawValue;

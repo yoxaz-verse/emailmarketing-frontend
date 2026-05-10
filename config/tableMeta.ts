@@ -33,7 +33,7 @@ export type BulkActionConfig = {
     sequences: {
       allowCreate: true,
       allowEdit: false,
-      allowDelete: false,
+      allowDelete: true,
   
  
   
@@ -64,7 +64,7 @@ export type BulkActionConfig = {
     campaigns: {
       allowCreate: true,
       allowEdit: true,
-      allowDelete: false,
+      allowDelete: true,
   
       actions: [
         {

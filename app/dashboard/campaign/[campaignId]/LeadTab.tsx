@@ -158,10 +158,24 @@ export default function LeadsTab({
   const [showExcluded, setShowExcluded] = useState(false);
   const [draggingLeadId, setDraggingLeadId] = useState<string | null>(null);
   const [dragSource, setDragSource] = useState<'attached' | 'unassigned' | null>(null);
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
+  const [removeTargetCount, setRemoveTargetCount] = useState(0);
+  const [removePending, setRemovePending] = useState(false);
 
   const attachedVisible = attachedRows.filter((row) => matchesQuery(row.email, attachedSearch));
   const unassignedVisible = unassignedRows.filter((row) => matchesQuery(String(row.email ?? ''), unassignedSearch));
   const excludedVisible = excludedRows.filter((row) => matchesQuery(String(row.email ?? ''), excludedSearch));
+  const attachedVisibleIds = useMemo(() => attachedVisible.map((row) => row.id), [attachedVisible]);
+  const unassignedVisibleIds = useMemo(() => unassignedVisible.map((lead) => String(lead.id)), [unassignedVisible]);
+
+  const allAttachedVisibleSelected =
+    attachedVisibleIds.length > 0 && attachedVisibleIds.every((id) => selectedAttachedIds.has(id));
+  const someAttachedVisibleSelected =
+    attachedVisibleIds.length > 0 && attachedVisibleIds.some((id) => selectedAttachedIds.has(id));
+  const allUnassignedVisibleSelected =
+    unassignedVisibleIds.length > 0 && unassignedVisibleIds.every((id) => selectedUnassignedIds.has(id));
+  const someUnassignedVisibleSelected =
+    unassignedVisibleIds.length > 0 && unassignedVisibleIds.some((id) => selectedUnassignedIds.has(id));
 
   function toggleSelected(
     setState: (updater: (prev: Set<string>) => Set<string>) => void,
@@ -171,6 +185,50 @@ export default function LeadsTab({
       const next = new Set(prev);
       if (next.has(leadId)) next.delete(leadId);
       else next.add(leadId);
+      return next;
+    });
+  }
+
+  function selectAllAttachedVisible() {
+    if (attachedVisibleIds.length === 0) return;
+    setSelectedAttachedIds((prev) => {
+      const next = new Set(prev);
+      for (const id of attachedVisibleIds) {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function clearAllAttachedVisible() {
+    if (attachedVisibleIds.length === 0) return;
+    setSelectedAttachedIds((prev) => {
+      const next = new Set(prev);
+      for (const id of attachedVisibleIds) {
+        next.delete(id);
+      }
+      return next;
+    });
+  }
+
+  function selectAllUnassignedVisible() {
+    if (unassignedVisibleIds.length === 0) return;
+    setSelectedUnassignedIds((prev) => {
+      const next = new Set(prev);
+      for (const id of unassignedVisibleIds) {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function clearAllUnassignedVisible() {
+    if (unassignedVisibleIds.length === 0) return;
+    setSelectedUnassignedIds((prev) => {
+      const next = new Set(prev);
+      for (const id of unassignedVisibleIds) {
+        next.delete(id);
+      }
       return next;
     });
   }
@@ -198,12 +256,21 @@ export default function LeadsTab({
     }
   }
 
-  async function removeSelected() {
+  function requestRemoveSelected() {
     const leadIds = Array.from(selectedAttachedIds);
     if (leadIds.length === 0) return;
+    setRemoveTargetCount(leadIds.length);
+    setRemoveConfirmOpen(true);
+  }
 
-    const confirmed = window.confirm(`Remove ${leadIds.length} attached lead(s) from this campaign?`);
-    if (!confirmed) return;
+  async function removeSelected() {
+    const leadIds = Array.from(selectedAttachedIds);
+    if (leadIds.length === 0) {
+      setRemoveConfirmOpen(false);
+      return;
+    }
+
+    setRemovePending(true);
 
     try {
       const result = await detachLeadsAction(campaign.id, leadIds);
@@ -213,9 +280,12 @@ export default function LeadsTab({
         toast(`No leads removed. Missing: ${result.skipped_missing}.`, { icon: 'ℹ️' });
       }
       setSelectedAttachedIds(new Set());
+      setRemoveConfirmOpen(false);
       router.refresh();
     } catch (error) {
       toast.error(getMutationErrorMessage(error));
+    } finally {
+      setRemovePending(false);
     }
   }
 
@@ -316,15 +386,28 @@ export default function LeadsTab({
         >
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold">Attached ({attachedRows.length})</h3>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={removeSelected}
-              disabled={selectedAttachedIds.size === 0}
-            >
-              Remove Selected
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={allAttachedVisibleSelected ? clearAllAttachedVisible : selectAllAttachedVisible}
+                disabled={attachedVisibleIds.length === 0}
+              >
+                {allAttachedVisibleSelected ? 'Clear all' : 'Select all'}
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={requestRemoveSelected}
+                disabled={selectedAttachedIds.size === 0}
+              >
+                Remove Selected
+              </Button>
+            </div>
           </div>
+          {someAttachedVisibleSelected && !allAttachedVisibleSelected ? (
+            <div className="text-[11px] text-muted-foreground">Some visible leads selected.</div>
+          ) : null}
           <input
             className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
             placeholder="Search attached..."
@@ -382,14 +465,27 @@ export default function LeadsTab({
         >
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold">Unassigned ({unassignedRows.length})</h3>
-            <Button
-              size="sm"
-              onClick={attachSelected}
-              disabled={selectedUnassignedIds.size === 0}
-            >
-              Attach Selected
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={allUnassignedVisibleSelected ? clearAllUnassignedVisible : selectAllUnassignedVisible}
+                disabled={unassignedVisibleIds.length === 0}
+              >
+                {allUnassignedVisibleSelected ? 'Clear all' : 'Select all'}
+              </Button>
+              <Button
+                size="sm"
+                onClick={attachSelected}
+                disabled={selectedUnassignedIds.size === 0}
+              >
+                Attach Selected
+              </Button>
+            </div>
           </div>
+          {someUnassignedVisibleSelected && !allUnassignedVisibleSelected ? (
+            <div className="text-[11px] text-muted-foreground">Some visible leads selected.</div>
+          ) : null}
           <input
             className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
             placeholder="Search unassigned..."
@@ -504,6 +600,40 @@ export default function LeadsTab({
           Attach Source
         </Button>
       </div>
+
+      {removeConfirmOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="remove-attached-leads-title"
+        >
+          <div className="w-full max-w-md rounded-lg border border-border bg-card p-5 shadow-xl space-y-4">
+            <h3 id="remove-attached-leads-title" className="text-base font-semibold">
+              Confirm removal
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Remove {removeTargetCount} attached lead(s) from this campaign?
+            </p>
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setRemoveConfirmOpen(false)}
+                disabled={removePending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => void removeSelected()}
+                disabled={removePending}
+              >
+                {removePending ? 'Removing...' : 'Remove'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

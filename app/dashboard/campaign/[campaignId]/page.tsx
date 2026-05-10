@@ -11,6 +11,8 @@ type SendingLimitsConfig = {
   }>;
 };
 
+type InterestStatus = 'unreviewed' | 'interested' | 'not_interested';
+
 export default async function CampaignPage({
   params
 }: {
@@ -141,6 +143,24 @@ export default async function CampaignPage({
       sendingLimitsConfig = null;
     }
 
+    const leadById = new Map<string, any>();
+    for (const lead of allLeads) {
+      if (lead?.id) leadById.set(String(lead.id), lead);
+    }
+    const attachedLeadIds = campaignLeads.map((row) => String(row?.lead_id ?? '')).filter(Boolean);
+    const attachedLeadRows = attachedLeadIds
+      .map((id) => leadById.get(id))
+      .filter(Boolean);
+    const totalReplies = attachedLeadRows.filter((lead) => String(lead?.status ?? '').toLowerCase() === 'replied').length;
+    const unreviewedReplies = attachedLeadRows.filter((lead) => (
+      String(lead?.status ?? '').toLowerCase() === 'replied' &&
+      String((lead?.interest_status ?? 'unreviewed') as InterestStatus).toLowerCase() === 'unreviewed'
+    )).length;
+    const interestedReplies = attachedLeadRows.filter((lead) => (
+      String(lead?.status ?? '').toLowerCase() === 'replied' &&
+      String((lead?.interest_status ?? '') as InterestStatus).toLowerCase() === 'interested'
+    )).length;
+
     return (
       <div className="-mx-8 -my-8">
         <div className="px-8 py-8 space-y-6">
@@ -154,6 +174,23 @@ export default async function CampaignPage({
 
           {/* Main layout */}
           <div className="space-y-6">
+            <section className="rounded-xl border border-border bg-card/50 p-4">
+              <div className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Reply Summary</div>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                <div className="rounded-lg border border-border px-3 py-2">
+                  <div className="text-muted-foreground text-xs">Total Replies</div>
+                  <div className="mt-1 text-base font-semibold text-foreground">{totalReplies}</div>
+                </div>
+                <div className="rounded-lg border border-border px-3 py-2">
+                  <div className="text-muted-foreground text-xs">Unreviewed</div>
+                  <div className="mt-1 text-base font-semibold text-amber-300">{unreviewedReplies}</div>
+                </div>
+                <div className="rounded-lg border border-border px-3 py-2">
+                  <div className="text-muted-foreground text-xs">Interested</div>
+                  <div className="mt-1 text-base font-semibold text-emerald-300">{interestedReplies}</div>
+                </div>
+              </div>
+            </section>
             <LeadsTab
               campaign={campaign}
               leads={leads}

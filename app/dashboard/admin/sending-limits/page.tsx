@@ -15,6 +15,11 @@ type SendingLimitsConfig = {
   warmup_advance_min_health_score: number;
   warmup_advance_max_consecutive_failures: number;
   risky_daily_percent_limit: number;
+  schedule_enabled: boolean;
+  schedule_timezone: string;
+  allowed_weekdays: number[];
+  send_window_start: string;
+  send_window_end: string;
   warmup_steps: WarmupStep[];
 };
 
@@ -33,6 +38,11 @@ export default async function SendingLimitsPage() {
     warmup_advance_min_health_score: 70,
     warmup_advance_max_consecutive_failures: 2,
     risky_daily_percent_limit: 20,
+    schedule_enabled: true,
+    schedule_timezone: 'Asia/Kolkata',
+    allowed_weekdays: [0, 1, 2, 3, 4, 5, 6],
+    send_window_start: '00:00',
+    send_window_end: '23:59',
     warmup_steps: [
       { day: 1, daily_limit: 20, hourly_limit: 5 },
       { day: 2, daily_limit: 30, hourly_limit: 8 },

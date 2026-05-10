@@ -18,6 +18,7 @@ type Campaign = {
 
 type Lead = {
   id?: string | null;
+  email?: string | null;
   email_eligibility?: string | null;
   is_blocked?: boolean | null;
   permanently_failed?: boolean | null;
@@ -43,6 +44,7 @@ type SendingLimitsConfig = {
 } | null;
 
 type NodeState = 'completed' | 'active' | 'failed' | 'pending' | 'not_started';
+type StepProgressState = 'sent' | 'in_progress' | 'failed' | 'pending';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -83,6 +85,27 @@ function formatDateFromAnchor(anchor: Date, days: number): string {
   const date = new Date(anchor);
   date.setDate(date.getDate() + Math.max(0, days));
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function getLeadStepState(
+  leadStatus: string,
+  currentStep: number,
+  stepIndex: number,
+  stepCount: number
+): StepProgressState {
+  const sentSteps = clamp(currentStep - 1, 0, stepCount);
+  const currentIndex = sentSteps;
+
+  if (stepIndex < sentSteps) return 'sent';
+  if (stepIndex > currentIndex) return 'pending';
+
+  if (leadStatus === 'processing') return 'in_progress';
+  if (leadStatus === 'failed') return 'failed';
+  if (leadStatus === 'completed' || leadStatus === 'replied') {
+    return currentStep > stepCount ? 'sent' : 'pending';
+  }
+
+  return 'pending';
 }
 
 export default function CampaignJourneyMap({
@@ -314,34 +337,56 @@ export default function CampaignJourneyMap({
     failed: 0,
     pending: 0
   }));
+  const stepProgressSummary = Array.from({ length: stepCount }, () => ({
+    sent: 0,
+    in_progress: 0,
+    failed: 0,
+    pending: 0
+  }));
 
-  for (const lead of campaignLeads) {
-    const status = String(lead.status ?? '').toLowerCase();
-    const currentStep = Number(lead.current_step ?? 1);
-    const targetIndex = clamp(currentStep - 1, 0, Math.max(stepCount - 1, 0));
-
-    if (status === 'completed' || status === 'replied') {
-      for (let i = 0; i < stepCount; i += 1) stepMetrics[i].completed += 1;
-      continue;
-    }
-
-    if (status === 'failed') {
-      for (let i = 0; i < targetIndex; i += 1) stepMetrics[i].completed += 1;
-      stepMetrics[targetIndex].failed += 1;
-      continue;
-    }
-
-    if (status === 'processing') {
-      for (let i = 0; i < targetIndex; i += 1) stepMetrics[i].completed += 1;
-      stepMetrics[targetIndex].active += 1;
-      for (let i = targetIndex + 1; i < stepCount; i += 1) stepMetrics[i].pending += 1;
-      continue;
-    }
-
-    for (let i = 0; i < targetIndex; i += 1) stepMetrics[i].completed += 1;
-    stepMetrics[targetIndex].pending += 1;
-    for (let i = targetIndex + 1; i < stepCount; i += 1) stepMetrics[i].pending += 1;
+  const leadById = new Map<string, Lead>();
+  for (const lead of allLeads) {
+    if (lead.id) leadById.set(String(lead.id), lead);
   }
+
+  const leadProgressRows = campaignLeads.map((row, rowIndex) => {
+    const status = String(row.status ?? '').toLowerCase();
+    const currentStep = Number(row.current_step ?? 1);
+    const lead = leadById.get(String(row.lead_id ?? ''));
+    const stepStates = Array.from({ length: stepCount }, (_, stepIndex) =>
+      getLeadStepState(status, currentStep, stepIndex, stepCount)
+    );
+
+    for (let i = 0; i < stepCount; i += 1) {
+      const stepState = stepStates[i];
+      if (stepState === 'sent') {
+        stepMetrics[i].completed += 1;
+        stepProgressSummary[i].sent += 1;
+      } else if (stepState === 'in_progress') {
+        stepMetrics[i].active += 1;
+        stepProgressSummary[i].in_progress += 1;
+      } else if (stepState === 'failed') {
+        stepMetrics[i].failed += 1;
+        stepProgressSummary[i].failed += 1;
+      } else {
+        stepMetrics[i].pending += 1;
+        stepProgressSummary[i].pending += 1;
+      }
+    }
+
+    const stepsDone = stepStates.filter((state) => state === 'sent').length;
+    const hasProgressMismatch = (status === 'completed' || status === 'replied') && currentStep <= stepCount;
+    const fallbackLeadId = String(row.lead_id ?? `row-${rowIndex + 1}`);
+    return {
+      key: `${fallbackLeadId}-${rowIndex}`,
+      leadLabel: lead?.email || fallbackLeadId,
+      leadId: fallbackLeadId,
+      rawStatus: status || 'pending',
+      stepsDone,
+      hasProgressMismatch,
+      stepStates
+    };
+  });
 
   const stepStates = stepMetrics.map((metrics) =>
     getNodeStateFromMetrics(metrics, isStarted)
@@ -383,6 +428,18 @@ export default function CampaignJourneyMap({
     failed: 'fill-rose-400 stroke-rose-200/90',
     pending: 'fill-slate-600 stroke-slate-400/60',
     not_started: 'fill-slate-500/80 stroke-slate-300/70'
+  };
+  const stepStatusChipClasses: Record<StepProgressState, string> = {
+    sent: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200',
+    in_progress: 'border-cyan-500/30 bg-cyan-500/15 text-cyan-200',
+    failed: 'border-rose-500/30 bg-rose-500/15 text-rose-200',
+    pending: 'border-slate-500/30 bg-slate-500/15 text-slate-200'
+  };
+  const stepStatusLabel: Record<StepProgressState, string> = {
+    sent: 'Sent',
+    in_progress: 'In Progress',
+    failed: 'Failed',
+    pending: 'Pending'
   };
 
   return (
@@ -488,6 +545,93 @@ export default function CampaignJourneyMap({
           className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-teal-300 transition-all duration-500"
           style={{ width: `${overallProgress * 100}%` }}
         />
+      </div>
+
+      <div className="mt-5 rounded-lg border border-white/10 bg-slate-950/35 p-4 space-y-4">
+        <div className="text-xs text-muted-foreground">
+          Step Progress Details
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[680px] text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-[0.08em] text-slate-400 border-b border-white/10">
+                <th className="py-2 pr-4 font-medium">Step</th>
+                <th className="py-2 pr-4 font-medium">Sent</th>
+                <th className="py-2 pr-4 font-medium">Pending</th>
+                <th className="py-2 pr-4 font-medium">Failed</th>
+                <th className="py-2 pr-4 font-medium">In Progress</th>
+                <th className="py-2 font-medium">Total Leads</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedSteps.map((step, index) => {
+                const summary = stepProgressSummary[index];
+                return (
+                  <tr key={`step-progress-summary-${step.id ?? index}`} className="border-b border-white/5">
+                    <td className="py-2 pr-4 text-slate-100">S{step.step_number ?? index + 1}</td>
+                    <td className="py-2 pr-4 text-emerald-200">{summary.sent}</td>
+                    <td className="py-2 pr-4 text-slate-200">{summary.pending}</td>
+                    <td className="py-2 pr-4 text-rose-200">{summary.failed}</td>
+                    <td className="py-2 pr-4 text-cyan-200">{summary.in_progress}</td>
+                    <td className="py-2 text-slate-100">{campaignLeads.length}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <details open className="rounded-md border border-white/10 bg-slate-900/35">
+          <summary className="cursor-pointer list-none px-3 py-2 text-sm text-slate-200 flex items-center justify-between">
+            <span>Lead-Level Step Status ({leadProgressRows.length})</span>
+            <span className="text-xs text-slate-400">Expand/Collapse</span>
+          </summary>
+          <div className="px-3 pb-3">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[980px] text-sm">
+                <thead>
+                  <tr className="text-left text-xs uppercase tracking-[0.08em] text-slate-400 border-b border-white/10">
+                    <th className="py-2 pr-3 font-medium">Lead</th>
+                    <th className="py-2 pr-3 font-medium">Steps Done</th>
+                    <th className="py-2 pr-3 font-medium">Data Check</th>
+                    {sortedSteps.map((step, index) => (
+                      <th key={`lead-header-step-${step.id ?? index}`} className="py-2 pr-3 font-medium">
+                        S{step.step_number ?? index + 1}
+                      </th>
+                    ))}
+                    <th className="py-2 font-medium">Current Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leadProgressRows.map((row) => (
+                    <tr key={row.key} className="border-b border-white/5">
+                      <td className="py-2 pr-3 text-slate-100">{row.leadLabel}</td>
+                      <td className="py-2 pr-3 text-slate-200">{row.stepsDone}/{stepCount}</td>
+                      <td className="py-2 pr-3">
+                        {row.hasProgressMismatch ? (
+                          <span className="inline-flex rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-200">
+                            Status/Step mismatch
+                          </span>
+                        ) : (
+                          <span className="text-slate-500 text-[11px]">OK</span>
+                        )}
+                      </td>
+                      {row.stepStates.map((state, idx) => (
+                        <td key={`${row.key}-state-${idx}`} className="py-2 pr-3">
+                          <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] ${stepStatusChipClasses[state]}`}>
+                            {stepStatusLabel[state]}
+                          </span>
+                        </td>
+                      ))}
+                      <td className="py-2 text-slate-300">{row.rawStatus}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
       </div>
 
       <style>{`

@@ -1,6 +1,7 @@
 'use server';
 
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 export async function serverFetch<T>(
   path: string,
@@ -26,8 +27,9 @@ export async function serverFetch<T>(
         cache: 'no-store',
       }
     );
-  } catch (err: any) {
-    const message = String(err?.message ?? '').toLowerCase();
+  } catch (err: unknown) {
+    const typedErr = err as { message?: string };
+    const message = String(typedErr?.message ?? '').toLowerCase();
     if (
       message.includes('fetch failed') ||
       message.includes('econnrefused') ||
@@ -41,21 +43,24 @@ export async function serverFetch<T>(
   console.log('[serverFetch] status:', res.status);
 
   if (res.status === 401 || res.status === 403) {
-    throw new Error('UNAUTHORIZED');
+    redirect('/api/auth/logout');
   }
 
   if (!res.ok) {
     const raw = await res.text();
-    let parsed: any = null;
+    let parsed: unknown = null;
     try {
       parsed = raw ? JSON.parse(raw) : null;
     } catch {
       parsed = null;
     }
 
+    const parsedObj = (typeof parsed === 'object' && parsed !== null)
+      ? (parsed as { error?: string; message?: string })
+      : null;
     const message =
-      parsed?.error ||
-      parsed?.message ||
+      parsedObj?.error ||
+      parsedObj?.message ||
       (typeof parsed === 'string' ? parsed : null) ||
       raw ||
       `Request failed with status ${res.status}`;
