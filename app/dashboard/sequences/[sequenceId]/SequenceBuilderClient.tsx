@@ -60,8 +60,16 @@ type Agent = {
   id: string;
   name: string;
   provider: string;
-  endpoint: string;
+  endpoint: string | null;
+  base_url?: string | null;
+  provider_type?: 'preset' | 'custom';
+  auth_type?: 'none' | 'api_key' | 'bearer' | 'custom_header';
+  auth_header_name?: string | null;
   headers_config?: Record<string, string>;
+  default_model?: string | null;
+  default_path?: string | null;
+  status?: string;
+  has_secret?: boolean;
 };
 
 type ValidationError = {
@@ -113,7 +121,7 @@ export default function SequenceBuilderClient({ sequenceId }: Props) {
   const [jsonDrafts, setJsonDrafts] = useState<Record<string, string>>({});
   const [agentForm, setAgentForm] = useState({
     name: '',
-    provider: 'openflow',
+    provider: 'openclaw',
     endpoint: '',
     headers: '{}',
   });
@@ -286,12 +294,15 @@ export default function SequenceBuilderClient({ sequenceId }: Props) {
       body: JSON.stringify({
         name: agentForm.name,
         provider: agentForm.provider,
+        base_url: agentForm.endpoint,
         endpoint: agentForm.endpoint,
+        provider_type: 'custom',
+        auth_type: 'none',
         headers_config: headersConfig,
       }),
     });
 
-    setAgentForm({ name: '', provider: 'openflow', endpoint: '', headers: '{}' });
+    setAgentForm({ name: '', provider: 'openclaw', endpoint: '', headers: '{}' });
     const updated = await clientFetch<Agent[]>('/agents');
     setAgents(updated);
   };

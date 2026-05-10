@@ -15,7 +15,8 @@ import {
     Megaphone,
     UserCog,
     Mic,
-    ChevronRight
+    ChevronRight,
+    Bot
 } from 'lucide-react';
 
 const mainItems = [
@@ -38,6 +39,7 @@ const emailItems = [
 
 const voiceItems = [
     { label: 'Voice Agents', href: '/dashboard/voice-agents', icon: Mic, comingSoon: true },
+    { label: 'Agent Integrations', href: '/dashboard/agent-integrations', icon: Bot },
 ];
 
 const adminItems = [
