@@ -16,7 +16,9 @@ import {
     UserCog,
     Mic,
     ChevronRight,
-    Bot
+    Bot,
+    CalendarClock,
+    Newspaper
 } from 'lucide-react';
 
 const mainItems = [
@@ -29,6 +31,13 @@ const marketingItems = [
     { label: 'Leads', href: '/dashboard/leads', icon: Users },
     { label: 'Bulk Upload', href: '/dashboard/leads/upload', icon: UserPlus },
     { label: 'Sequences', href: '/dashboard/sequences', icon: Repeat },
+    { label: 'Newsletter Subscribers', href: '/dashboard/newsletter_subscribers', icon: Users },
+    { label: 'Newsletter Issues', href: '/dashboard/newsletter_issues', icon: Megaphone },
+    { label: 'Newsletter Preferences', href: '/dashboard/newsletter_preferences', icon: Repeat },
+    { label: 'Newsletter Jobs', href: '/dashboard/newsletter_send_jobs', icon: Mail },
+    { label: 'Newsletter Logs', href: '/dashboard/newsletter_send_logs', icon: Mail },
+    { label: 'Social Scheduling', href: '/dashboard/social-scheduling', icon: CalendarClock },
+    { label: 'Blog Distribution', href: '/dashboard/blog-distribution', icon: Newspaper },
 ];
 
 const emailItems = [
@@ -40,6 +49,7 @@ const emailItems = [
 const voiceItems = [
     { label: 'Voice Agents', href: '/dashboard/voice-agents', icon: Mic, comingSoon: true },
     { label: 'Agent Integrations', href: '/dashboard/agent-integrations', icon: Bot },
+    { label: 'Marketplace Publishing', href: '/dashboard/marketplace-publishing', icon: Bot },
 ];
 
 const adminItems = [

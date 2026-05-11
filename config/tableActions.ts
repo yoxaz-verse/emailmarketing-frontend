@@ -67,3 +67,24 @@ export async function disableSequence(row: any) {
   );
   revalidatePath('/dashboard/sequences');
 }
+
+export async function publishNewsletterIssue(row: any) {
+  await serverFetch(`/newsletter/issues/${row.id}/publish`, { method: 'POST' });
+  revalidatePath('/dashboard/newsletter_issues');
+}
+
+export async function runNewsletterIssueNow(row: any) {
+  await serverFetch(`/newsletter/issues/${row.id}/run-now`, { method: 'POST' });
+  revalidatePath('/dashboard/newsletter_issues');
+  revalidatePath('/dashboard/newsletter_send_jobs');
+}
+
+export async function pauseNewsletterIssue(row: any) {
+  await serverFetch(`/newsletter/issues/${row.id}/pause`, { method: 'POST' });
+  revalidatePath('/dashboard/newsletter_issues');
+}
+
+export async function resumeNewsletterIssue(row: any) {
+  await serverFetch(`/newsletter/issues/${row.id}/resume`, { method: 'POST' });
+  revalidatePath('/dashboard/newsletter_issues');
+}

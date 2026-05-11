@@ -34,7 +34,7 @@ export async function resolveRelations(
             `/crud/${tableName}?${params.toString()}`
           );
         } catch (error) {
-          console.error('[resolveRelations] Failed to load relation', {
+          console.warn('[resolveRelations] Failed to load relation, using [] fallback', {
             sourceTable: table,
             relationTable: tableName,
             relationField: field.key,

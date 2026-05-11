@@ -125,6 +125,56 @@ export type BulkActionConfig = {
         },
       ],
     },
+    newsletter_subscribers: {
+      allowCreate: true,
+      allowEdit: true,
+      allowDelete: false,
+    },
+    newsletter_preferences: {
+      allowCreate: true,
+      allowEdit: true,
+      allowDelete: true,
+    },
+    newsletter_issues: {
+      allowCreate: true,
+      allowEdit: true,
+      allowDelete: false,
+      actions: [
+        {
+          key: 'publishNewsletterIssue',
+          label: 'Publish',
+          visible: (row: any) => row.status === 'draft' || row.status === 'scheduled',
+        },
+        {
+          key: 'runNewsletterIssueNow',
+          label: 'Run Now',
+          variant: 'outline',
+          visible: (row: any) => row.status === 'draft' || row.status === 'scheduled' || row.status === 'published',
+        },
+        {
+          key: 'pauseNewsletterIssue',
+          label: 'Pause',
+          variant: 'destructive',
+          visible: (row: any) => row.status === 'scheduled' || row.status === 'published',
+        },
+        {
+          key: 'resumeNewsletterIssue',
+          label: 'Resume',
+          variant: 'outline',
+          visible: (row: any) => row.status === 'paused' && row.recurring_enabled === true,
+        },
+      ],
+    },
+    newsletter_send_jobs: {
+      allowCreate: false,
+      allowEdit: false,
+      allowDelete: false,
+    },
+    newsletter_send_logs: {
+      allowCreate: false,
+      allowEdit: false,
+      allowDelete: false,
+    },
     
   };
   

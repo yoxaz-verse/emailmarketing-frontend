@@ -1,7 +1,18 @@
 // config/actionRegistry.ts
 
 import { pauseCampaign, startCampaign } from "@/app/dashboard/campaign/actions";
-import { disableSequence, enableSequence, validateSendingDomain, validateSmtpAccount, viewCampaign, viewSequence } from "./tableActions";
+import {
+  disableSequence,
+  enableSequence,
+  pauseNewsletterIssue,
+  publishNewsletterIssue,
+  resumeNewsletterIssue,
+  runNewsletterIssueNow,
+  validateSendingDomain,
+  validateSmtpAccount,
+  viewCampaign,
+  viewSequence,
+} from "./tableActions";
 
   
   export const actionRegistry: Record<string, Function> = {
@@ -14,5 +25,9 @@ import { disableSequence, enableSequence, validateSendingDomain, validateSmtpAcc
     disableSequence,
     startCampaign,
     pauseCampaign,
+    publishNewsletterIssue,
+    runNewsletterIssueNow,
+    pauseNewsletterIssue,
+    resumeNewsletterIssue,
   };
   
