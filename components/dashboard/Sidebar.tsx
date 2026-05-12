@@ -31,11 +31,17 @@ const marketingItems = [
     { label: 'Leads', href: '/dashboard/leads', icon: Users },
     { label: 'Bulk Upload', href: '/dashboard/leads/upload', icon: UserPlus },
     { label: 'Sequences', href: '/dashboard/sequences', icon: Repeat },
+];
+
+const newsletterItems = [
     { label: 'Newsletter Subscribers', href: '/dashboard/newsletter_subscribers', icon: Users },
     { label: 'Newsletter Issues', href: '/dashboard/newsletter_issues', icon: Megaphone },
     { label: 'Newsletter Preferences', href: '/dashboard/newsletter_preferences', icon: Repeat },
     { label: 'Newsletter Jobs', href: '/dashboard/newsletter_send_jobs', icon: Mail },
     { label: 'Newsletter Logs', href: '/dashboard/newsletter_send_logs', icon: Mail },
+];
+
+const contentItems = [
     { label: 'Social Scheduling', href: '/dashboard/social-scheduling', icon: CalendarClock },
     { label: 'Blog Distribution', href: '/dashboard/blog-distribution', icon: Newspaper },
 ];
@@ -119,6 +125,24 @@ const renderNavItem = (item: NavItem, isActive: boolean) => (
                     </h3>
                     <ul className="space-y-1">
                         {marketingItems.map((item) => renderNavItem(item, pathname === item.href))}
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+                        Newsletter
+                    </h3>
+                    <ul className="space-y-1">
+                        {newsletterItems.map((item) => renderNavItem(item, pathname === item.href))}
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+                        Content
+                    </h3>
+                    <ul className="space-y-1">
+                        {contentItems.map((item) => renderNavItem(item, pathname === item.href))}
                     </ul>
                 </div>
 
