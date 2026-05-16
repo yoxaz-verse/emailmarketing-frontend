@@ -18,10 +18,20 @@ export async function clientFetch<T>(
   });
 
   if (res.status === 401 || res.status === 403) {
-    if (typeof window !== 'undefined') {
+    const raw = await res.text();
+    const lower = raw.toLowerCase();
+    const isConfirmedAuthFailure =
+      lower.includes('unauthorized') ||
+      lower.includes('invalid token') ||
+      lower.includes('authentication required') ||
+      lower.includes('user disabled');
+
+    if (isConfirmedAuthFailure && typeof window !== 'undefined') {
       window.location.href = '/api/auth/logout';
+      throw new Error('UNAUTHORIZED');
     }
-    throw new Error('UNAUTHORIZED');
+
+    throw new Error(raw || `Request failed with status ${res.status}`);
   }
 
   if (!res.ok) {

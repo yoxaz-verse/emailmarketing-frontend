@@ -94,6 +94,7 @@ export async function POST(req: Request) {
   const cookieStore = await cookies();
   const isSecureRequest = new URL(req.url).protocol === 'https:';
   const shouldUseSecureCookies = process.env.NODE_ENV === 'production' || isSecureRequest;
+  const requestHost = req.headers.get('host') || 'unknown-host';
 
   // ✅ MODERN COOKIE SETTING (Next.js 15 compatible)
   cookieStore.set('auth_token', data.token, {
@@ -123,8 +124,22 @@ export async function POST(req: Request) {
   }
 
   if (contentType.includes('application/json')) {
+    console.info('[AUTH_LOGIN_COOKIE_SET]', {
+      host: requestHost,
+      isSecureRequest,
+      shouldUseSecureCookies,
+      sameSite: 'lax',
+      hasOperatorId: Boolean(data.user.operator_id),
+    });
     return NextResponse.json({ success: true, user: data.user });
   }
 
+  console.info('[AUTH_LOGIN_COOKIE_SET]', {
+    host: requestHost,
+    isSecureRequest,
+    shouldUseSecureCookies,
+    sameSite: 'lax',
+    hasOperatorId: Boolean(data.user.operator_id),
+  });
   return NextResponse.redirect(new URL('/dashboard', req.url), { status: 303 });
 }

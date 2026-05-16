@@ -44,15 +44,32 @@ async function proxy(req: NextRequest, path: string[]) {
 
     const raw = await upstream.text();
     const contentType = upstream.headers.get('content-type') || '';
+    const status = upstream.status;
+    const shouldLog =
+      backendPath === 'auth/me' ||
+      status >= 400;
+
+    if (shouldLog) {
+      console.info('[API_PROXY_TRACE]', {
+        method: req.method,
+        backendPath: `/${backendPath}`,
+        status,
+      });
+    }
 
     if (contentType.includes('application/json')) {
       const parsed = raw ? JSON.parse(raw) : {};
-      return NextResponse.json(parsed, { status: upstream.status });
+      return NextResponse.json(parsed, { status });
     }
 
-    return new NextResponse(raw, { status: upstream.status });
+    return new NextResponse(raw, { status });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Proxy error';
+    console.error('[API_PROXY_ERROR]', {
+      method: req.method,
+      backendPath: `/${backendPath}`,
+      message,
+    });
     return NextResponse.json(
       { ok: false, error: 'Backend unavailable', detail: message },
       { status: 503 }
