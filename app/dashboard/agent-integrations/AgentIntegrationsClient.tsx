@@ -187,23 +187,15 @@ export default function AgentIntegrationsClient() {
     [agents, selectedAgentId]
   );
 
-  const appFetch = useCallback(async <T,>(url: string, options: RequestInit = {}): Promise<T> => {
-    const res = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(options.headers || {}),
-      },
-      credentials: 'include',
-      cache: 'no-store',
-    });
-
-    if (!res.ok) {
-      throw new Error(await res.text());
-    }
-
-    return res.json();
-  }, []);
+  const apiAgentFetch = useCallback(
+    async <T,>(path: string, options: RequestInit = {}): Promise<T> => {
+      return clientFetch<T>(path, {
+        ...options,
+        cache: 'no-store',
+      });
+    },
+    []
+  );
 
   const loadAgents = useCallback(async () => {
     setLoading(true);
@@ -221,12 +213,12 @@ export default function AgentIntegrationsClient() {
 
   const loadQueueIntegrations = useCallback(async () => {
     try {
-      const data = await appFetch<{ ok: boolean; integrations: QueueIntegration[] }>('/api/agent/integrations');
+      const data = await apiAgentFetch<{ ok: boolean; integrations: QueueIntegration[] }>('/api/agent/integrations');
       setIntegrations(data.integrations ?? []);
     } catch (err) {
       setError(messageFromUnknown(err, 'Failed to load queue integrations'));
     }
-  }, [appFetch]);
+  }, [apiAgentFetch]);
 
   const loadTaskHistory = useCallback(async () => {
     const query = new URLSearchParams();
@@ -236,12 +228,12 @@ export default function AgentIntegrationsClient() {
     query.set('limit', '20');
 
     try {
-      const data = await appFetch<{ ok: boolean; tasks: AgentTask[] }>(`/api/agent/tasks?${query.toString()}`);
+      const data = await apiAgentFetch<{ ok: boolean; tasks: AgentTask[] }>(`/api/agent/tasks?${query.toString()}`);
       setTaskHistory(data.tasks ?? []);
     } catch (err) {
       setError(messageFromUnknown(err, 'Failed to load task history'));
     }
-  }, [appFetch, historyRole, historyStatus, historyTaskType]);
+  }, [apiAgentFetch, historyRole, historyStatus, historyTaskType]);
 
   useEffect(() => {
     void loadAgents();
@@ -255,7 +247,7 @@ export default function AgentIntegrationsClient() {
 
     const timer = window.setInterval(async () => {
       try {
-        const data = await appFetch<{ ok: boolean; task: AgentTask }>(`/api/agent/tasks/${createdTask.id}`);
+        const data = await apiAgentFetch<{ ok: boolean; task: AgentTask }>(`/api/agent/tasks/${createdTask.id}`);
         setCreatedTask(data.task);
         if (data.task.status === 'completed' || data.task.status === 'failed' || data.task.status === 'cancelled') {
           window.clearInterval(timer);
@@ -267,7 +259,7 @@ export default function AgentIntegrationsClient() {
     }, 4000);
 
     return () => window.clearInterval(timer);
-  }, [appFetch, createdTask?.id, createdTask?.status, loadTaskHistory]);
+  }, [apiAgentFetch, createdTask?.id, createdTask?.status, loadTaskHistory]);
 
   const openCreateModal = () => {
     setEditingAgent(null);
@@ -452,7 +444,7 @@ export default function AgentIntegrationsClient() {
     setSavingIntegration(true);
     try {
       const config = JSON.parse(integrationForm.config || '{}');
-      await appFetch('/api/agent/integrations', {
+      await apiAgentFetch('/api/agent/integrations', {
         method: 'POST',
         body: JSON.stringify({
           name: integrationForm.name,
@@ -476,7 +468,7 @@ export default function AgentIntegrationsClient() {
     setCreatingTask(true);
     try {
       const metadata = JSON.parse(taskMetadataText || '{}');
-      const data = await appFetch<{ ok: boolean; task: { id: string; status: string } }>('/api/agent/tasks', {
+      const data = await apiAgentFetch<{ ok: boolean; task: { id: string; status: string } }>('/api/agent/tasks', {
         method: 'POST',
         body: JSON.stringify({
           role_key: taskRole,
@@ -488,7 +480,7 @@ export default function AgentIntegrationsClient() {
         }),
       });
 
-      const full = await appFetch<{ ok: boolean; task: AgentTask }>(`/api/agent/tasks/${data.task.id}`);
+      const full = await apiAgentFetch<{ ok: boolean; task: AgentTask }>(`/api/agent/tasks/${data.task.id}`);
       setCreatedTask(full.task);
       await loadTaskHistory();
     } catch (err) {
@@ -778,4 +770,28 @@ export default function AgentIntegrationsClient() {
 }
 
 const messageFromUnknown = (err: unknown, fallback: string) =>
-  err instanceof Error ? err.message : fallback;
+  formatErrorMessage(err, fallback);
+
+function formatErrorMessage(err: unknown, fallback: string): string {
+  if (!(err instanceof Error)) return fallback;
+
+  if (err.message === 'UNAUTHORIZED') {
+    return 'Session expired. Redirecting to login...';
+  }
+
+  const raw = err.message?.trim();
+  if (!raw) return fallback;
+
+  if (raw.startsWith('{') || raw.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(raw) as { error?: unknown; message?: unknown };
+      if (typeof parsed?.error === 'string' && parsed.error.trim()) return parsed.error;
+      if (typeof parsed?.message === 'string' && parsed.message.trim()) return parsed.message;
+      return fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  return raw;
+}

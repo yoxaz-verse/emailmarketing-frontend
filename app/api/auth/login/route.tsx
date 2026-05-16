@@ -1,6 +1,16 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
+type LoginBackendResponse = {
+  token?: string;
+  user?: {
+    role?: string;
+    operator_id?: string | null;
+  };
+  error?: string;
+  message?: string;
+};
+
 export async function POST(req: Request) {
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
   const contentType = req.headers.get('content-type') || '';
@@ -49,7 +59,7 @@ export async function POST(req: Request) {
   }
 
   const responseText = await backendRes.text();
-  let backendData: any = null;
+  let backendData: LoginBackendResponse | null = null;
   try {
     backendData = responseText ? JSON.parse(responseText) : null;
   } catch (e) {
@@ -82,13 +92,15 @@ export async function POST(req: Request) {
 
   const data = backendData;
   const cookieStore = await cookies();
+  const isSecureRequest = new URL(req.url).protocol === 'https:';
+  const shouldUseSecureCookies = process.env.NODE_ENV === 'production' || isSecureRequest;
 
   // ✅ MODERN COOKIE SETTING (Next.js 15 compatible)
   cookieStore.set('auth_token', data.token, {
     httpOnly: true,
     path: '/',
     sameSite: 'lax',
-    secure: false, // Set to true for production HTTPS
+    secure: shouldUseSecureCookies,
     maxAge: 60 * 60 * 24 * 7, // 1 week
   });
 
@@ -96,7 +108,7 @@ export async function POST(req: Request) {
     httpOnly: true,
     path: '/',
     sameSite: 'lax',
-    secure: false,
+    secure: shouldUseSecureCookies,
     maxAge: 60 * 60 * 24 * 7,
   });
 
@@ -105,7 +117,7 @@ export async function POST(req: Request) {
       httpOnly: true,
       path: '/',
       sameSite: 'lax',
-      secure: false,
+      secure: shouldUseSecureCookies,
       maxAge: 60 * 60 * 24 * 7,
     });
   }
