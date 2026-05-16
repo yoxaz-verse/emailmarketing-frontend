@@ -16,7 +16,9 @@ export async function clientFetch<T>(
     );
   
     if (res.status === 401 || res.status === 403) {
-      window.location.href = '/api/auth/logout';
+      if (typeof window !== 'undefined') {
+        window.location.href = '/api/auth/logout';
+      }
       throw new Error('UNAUTHORIZED');
     }
 

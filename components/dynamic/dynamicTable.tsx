@@ -157,6 +157,8 @@ export default function DynamicTable({
   }, [filteredData, currentPage]);
 
   const totalPages = Math.ceil(filteredData.length / pageSize);
+  const startRecord = filteredData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endRecord = filteredData.length === 0 ? 0 : Math.min(currentPage * pageSize, filteredData.length);
   const selectedCount = selectedIds.size;
   const allSelected = selectionEnabled && selectableIds.length > 0 && selectedCount === selectableIds.length;
   const partiallySelected = selectionEnabled && selectedCount > 0 && selectedCount < selectableIds.length;
@@ -517,7 +519,7 @@ export default function DynamicTable({
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-4 px-2 border-t border-border/40">
         <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
           <div>
-            Showing <span className="text-foreground">{(currentPage - 1) * pageSize + 1}</span> to <span className="text-foreground">{Math.min(currentPage * pageSize, filteredData.length)}</span>
+            Showing <span className="text-foreground">{startRecord}</span> to <span className="text-foreground">{endRecord}</span>
           </div>
           <div className="w-1 h-1 rounded-full bg-border" />
           <div>

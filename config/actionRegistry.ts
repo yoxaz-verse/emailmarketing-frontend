@@ -1,5 +1,4 @@
 // config/actionRegistry.ts
-
 import { pauseCampaign, startCampaign } from "@/app/dashboard/campaign/actions";
 import {
   disableSequence,
@@ -10,9 +9,8 @@ import {
   runNewsletterIssueNow,
   validateSendingDomain,
   validateSmtpAccount,
-  viewCampaign,
-  viewSequence,
 } from "./tableActions";
+import { viewCampaign, viewSequence } from "./clientTableActions";
 
   
   export const actionRegistry: Record<string, Function> = {

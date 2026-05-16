@@ -1,14 +1,8 @@
-// config/serverActions.ts
+// config/tableActions.ts
 'use server';
 
 import { serverFetch } from '@/lib/server/server-fetch';
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
-
-
-export async function viewCampaign(row: any) {
-  redirect(`/dashboard/campaign/${row.id}`);
-}
 
 
 export async function validateSmtpAccount(row: any) {
@@ -45,11 +39,6 @@ export async function validateSendingDomain(row: any) {
   }
 
   return { success: true };
-}
-
-export async function viewSequence(row: any) {
-  // ✅ FIX: use row.id
-  redirect(`/dashboard/sequences/${row.id}`);
 }
 
 export async function enableSequence(row: any) {

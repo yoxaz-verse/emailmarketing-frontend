@@ -437,7 +437,7 @@ badge: {
           sequences: [
             {
               key: 'name',
-              label: 'Campaign Name',
+              label: 'Sequence Name',
               type: 'text',
               inTable: true,
               inForm: true,

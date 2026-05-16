@@ -1,8 +1,12 @@
 // app/dashboard/[table]/page.tsx
 import DynamicTable from '@/components/dynamic/dynamicTable';
+import { tableConfig } from '@/config/tableFields';
 import { crudServer } from '@/lib/crud-server';
 import { resolveRelations } from '@/lib/resolveRelation';
 import { cookies } from 'next/headers';
+import { notFound } from 'next/navigation';
+
+export const dynamic = 'force-dynamic';
 
 export default async function Page({
   params
@@ -10,9 +14,12 @@ export default async function Page({
   params: Promise<{ table: string }>;
 }) {
   const { table } = await params;
+  if (!tableConfig[table]) {
+    notFound();
+  }
   const cookieStore = await cookies(); // ✅ FIX
   const role = cookieStore.get('user_role')?.value;
-const relations = await resolveRelations(table, role);
+  const relations = await resolveRelations(table, role);
   const data = await crudServer.list(table);
 
   return (
