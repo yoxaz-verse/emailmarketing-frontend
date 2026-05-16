@@ -2,39 +2,14 @@
 
 import { useState } from 'react';
 import { updateSendingLimits } from './actions';
+import type {
+  SendingLimitsApiWarmupStep,
+  SendingLimitsConfig,
+  SendingLimitsPayload,
+  UiWarmupStep,
+} from './types';
 
-type WarmupStep = {
-  id: string;
-  day: number;
-  daily_limit: number;
-  hourly_limit: number;
-};
-
-type SendingLimitsConfig = {
-  min_inbox_health_score: number;
-  min_domain_health_score: number;
-  warmup_advance_min_health_score: number;
-  warmup_advance_max_consecutive_failures: number;
-  risky_daily_percent_limit: number;
-  schedule_enabled: boolean;
-  schedule_timezone: string;
-  allowed_weekdays: number[];
-  send_window_start: string;
-  send_window_end: string;
-  warmup_steps: WarmupStep[];
-};
-
-type WarmupStepPayload = {
-  day: number;
-  daily_limit: number;
-  hourly_limit: number;
-};
-
-type SendingLimitsPayload = Omit<SendingLimitsConfig, 'warmup_steps'> & {
-  warmup_steps: WarmupStepPayload[];
-};
-
-function normalizeSteps(steps: Array<Partial<WarmupStep>>): WarmupStep[] {
+function normalizeSteps(steps: Array<Partial<UiWarmupStep>>): UiWarmupStep[] {
   return [...steps].map((s, index) => ({
     id: String(s.id ?? `warmup-step-${Date.now()}-${index}`),
     day: Number(s.day ?? 0),
@@ -43,7 +18,7 @@ function normalizeSteps(steps: Array<Partial<WarmupStep>>): WarmupStep[] {
   }));
 }
 
-function sortStepsByDay(steps: WarmupStep[]): WarmupStep[] {
+function sortStepsByDay(steps: UiWarmupStep[]): UiWarmupStep[] {
   return [...steps].sort((a, b) => a.day - b.day);
 }
 
@@ -73,7 +48,7 @@ export default function SendingLimitsClient({
   loadError?: string;
 }) {
   const defaultWeekdays = [0, 1, 2, 3, 4, 5, 6];
-  const [config, setConfig] = useState<SendingLimitsConfig>({
+  const [config, setConfig] = useState<Omit<SendingLimitsConfig, 'warmup_steps'> & { warmup_steps: UiWarmupStep[] }>({
     ...initialConfig,
     schedule_enabled: initialConfig.schedule_enabled ?? true,
     schedule_timezone: initialConfig.schedule_timezone ?? 'Asia/Kolkata',
@@ -103,7 +78,7 @@ export default function SendingLimitsClient({
     setConfig((prev) => ({ ...prev, [key]: value }));
   }
 
-  function updateStep(stepId: string, key: keyof Omit<WarmupStep, 'id'>, value: number) {
+  function updateStep(stepId: string, key: keyof SendingLimitsApiWarmupStep, value: number) {
     setConfig((prev) => {
       const next = prev.warmup_steps.map((step) =>
         step.id === stepId ? { ...step, [key]: value } : step

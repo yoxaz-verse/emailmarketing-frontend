@@ -44,6 +44,14 @@ type AgentTestResult = {
   error?: string;
 };
 
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
 type QueueIntegration = {
   id: string;
   name: string;
@@ -156,7 +164,7 @@ export default function AgentIntegrationsClient() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<AgentTestResult | null>(null);
   const [memoryUserId, setMemoryUserId] = useState('');
-  const [memoryView, setMemoryView] = useState<unknown>(null);
+  const [memoryView, setMemoryView] = useState<JsonValue | null>(null);
   const [memoryLoading, setMemoryLoading] = useState(false);
 
   const [integrations, setIntegrations] = useState<QueueIntegration[]>([]);
@@ -358,7 +366,7 @@ export default function AgentIntegrationsClient() {
       const data = await clientFetch<unknown>(
         `/agents/memory?user_id=${encodeURIComponent(memoryUserId)}&role_key=${encodeURIComponent(selectedAgent.role_key)}`
       );
-      setMemoryView(data);
+      setMemoryView(data as JsonValue);
     } catch (err: unknown) {
       setError(messageFromUnknown(err, 'Failed to load memory'));
     } finally {
