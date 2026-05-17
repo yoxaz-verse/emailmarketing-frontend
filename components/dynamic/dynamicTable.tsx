@@ -226,6 +226,11 @@ export default function DynamicTable({
       (r: any) => r[field.relation.valueKey] === foreignKeyValue
     );
 
+    if (!match && field.relation.table === 'sequences') {
+      const fallbackId = String(foreignKeyValue);
+      return `Sequence ${fallbackId.slice(0, 8)}`;
+    }
+
     return match?.[field.relation.labelKey] ?? '—';
   }
 

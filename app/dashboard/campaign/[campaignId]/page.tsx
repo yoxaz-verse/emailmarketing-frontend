@@ -121,17 +121,57 @@ export default async function CampaignPage({
      */
     let sequenceName = 'Sequence';
     let sequenceSteps: any[] = [];
-    if (campaign.sequence_id) {
-      const sequences = await serverFetch<any[]>(
-        `/crud/sequences?id=${campaign.sequence_id}`
-      );
-      const sequence = sequences?.[0];
-      if (sequence) {
-        sequenceName = sequence.name ?? sequenceName;
+    const hasSequenceId = Boolean(campaign.sequence_id);
+    let sequenceResolved = false;
+
+    if (hasSequenceId) {
+      const sequenceId = String(campaign.sequence_id);
+      const shortSequenceId = sequenceId.slice(0, 8);
+      sequenceName = `Sequence ${shortSequenceId}`;
+
+      try {
         sequenceSteps = await serverFetch<any[]>(
-          `/crud/sequence_steps?sequence_id=${campaign.sequence_id}`
+          `/crud/sequence_steps?sequence_id=${sequenceId}`
         );
-        sequenceSteps.sort((a, b) => (a.step_number ?? 0) - (b.step_number ?? 0));
+      } catch (error) {
+        console.warn('[CampaignPage] Failed to load sequence_steps for campaign', {
+          campaignId: campaign.id,
+          sequenceId,
+          error,
+        });
+        sequenceSteps = [];
+      }
+      sequenceSteps.sort((a, b) => (a.step_number ?? 0) - (b.step_number ?? 0));
+
+      try {
+        let sequence: any = null;
+        const sequences = await serverFetch<any[]>(
+          `/crud/sequences?id=${sequenceId}`
+        );
+        sequence = sequences?.[0] ?? null;
+
+        if (!sequence) {
+          try {
+            sequence = await serverFetch<any>(`/sequences/${sequenceId}`);
+          } catch (fallbackError) {
+            console.warn('[CampaignPage] /sequences/:id fallback failed', {
+              campaignId: campaign.id,
+              sequenceId,
+              fallbackError,
+            });
+          }
+        }
+
+        if (sequence) {
+          sequenceResolved = true;
+          sequenceName = sequence.name ?? sequenceName;
+        }
+      } catch (error) {
+        console.warn('[CampaignPage] Failed to resolve sequence metadata', {
+          campaignId: campaign.id,
+          sequenceId,
+          error,
+        });
       }
     }
     let sendingLimitsConfig: SendingLimitsConfig | null = null;
@@ -200,6 +240,9 @@ export default async function CampaignPage({
             />
             <CampaignJourneyMap
               campaign={campaign}
+              sequenceId={campaign.sequence_id ?? null}
+              hasSequenceId={hasSequenceId}
+              sequenceResolved={sequenceResolved}
               sequenceName={sequenceName}
               sequenceSteps={sequenceSteps}
               campaignLeads={campaignLeads}

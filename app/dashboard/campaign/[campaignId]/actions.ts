@@ -36,7 +36,7 @@ export async function startCampaignAction(campaignId: string) {
     method: 'POST',
   });
 
-  revalidatePath(`/dashboard/campaigns/${campaignId}`);
+  revalidatePath(`/dashboard/campaign/${campaignId}`);
 }
 
 export async function pauseCampaignAction(campaignId: string) {
@@ -44,7 +44,7 @@ export async function pauseCampaignAction(campaignId: string) {
     method: 'POST',
   });
 
-  revalidatePath(`/dashboard/campaigns/${campaignId}`);
+  revalidatePath(`/dashboard/campaign/${campaignId}`);
 }
 
 export async function attachLeadsAction(

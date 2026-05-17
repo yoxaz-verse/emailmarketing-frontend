@@ -6,6 +6,8 @@ import { tableConfig } from '@/config/tableFields';
 import { createRow, updateRow } from './action';
 import { RelationMap } from '@/lib/resolveRelation';
 import { executeAction } from '@/lib/action-executor';
+import { clientFetch } from '@/lib/client-fetch';
+import { cn } from '@/lib/utils';
 
 type Props = {
   table: string;
@@ -29,9 +31,12 @@ export default function AddEditModal({
 }: Props) {
   const config = tableConfig[table];
   const isEdit = !!row;
+  const isCampaignModal = table === 'campaigns';
 
   const [form, setForm] = useState<any>({});
+  const [relationData, setRelationData] = useState<RelationMap>(relations);
   const previousProviderRef = useRef<string>('');
+  const sequenceFallbackAttemptedRef = useRef(false);
 
   const SMTP_PROVIDER_PRESETS: Record<
     string,
@@ -48,6 +53,69 @@ export default function AddEditModal({
       encryption: 'tls',
     },
   };
+
+  useEffect(() => {
+    setRelationData(relations);
+    sequenceFallbackAttemptedRef.current = false;
+  }, [relations]);
+
+  function parseSequenceActiveFlag(value: unknown): boolean {
+    if (value === true || value === 1) return true;
+    const normalized = String(value ?? '').trim().toLowerCase();
+    return normalized === 'true' || normalized === '1';
+  }
+
+  function normalizeSequenceOptions(items: any[]): any[] {
+    const seen = new Set<string>();
+    const merged: any[] = [];
+
+    for (const item of items) {
+      const id = String(item?.id ?? '').trim();
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      merged.push({
+        ...item,
+        is_active: parseSequenceActiveFlag(item?.is_active),
+      });
+    }
+
+    merged.sort((a, b) => {
+      const activeA = parseSequenceActiveFlag(a?.is_active);
+      const activeB = parseSequenceActiveFlag(b?.is_active);
+      if (activeA !== activeB) return activeA ? -1 : 1;
+      return String(a?.name ?? '').localeCompare(String(b?.name ?? ''));
+    });
+
+    return merged;
+  }
+
+  function areSequenceListsEquivalent(left: any[], right: any[]): boolean {
+    if (left.length !== right.length) return false;
+    return left.every((item, index) => {
+      const other = right[index];
+      return (
+        String(item?.id ?? '') === String(other?.id ?? '') &&
+        parseSequenceActiveFlag(item?.is_active) === parseSequenceActiveFlag(other?.is_active) &&
+        String(item?.name ?? '') === String(other?.name ?? '')
+      );
+    });
+  }
+
+  async function fetchSequenceCandidates(): Promise<any[]> {
+    const requests = await Promise.allSettled([
+      clientFetch<any[]>('/crud/sequences'),
+      clientFetch<any[]>('/sequences'),
+    ]);
+
+    const collected: any[] = [];
+    for (const request of requests) {
+      if (request.status === 'fulfilled' && Array.isArray(request.value)) {
+        collected.push(...request.value);
+      }
+    }
+
+    return collected;
+  }
 
   useEffect(() => {
     const initial: any = {};
@@ -78,6 +146,87 @@ export default function AddEditModal({
 
     setForm(initial);
   }, [row, table, defaultValues, config, isEdit]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function ensureSequenceOptions() {
+      if (!isCampaignModal) return;
+
+      const current = normalizeSequenceOptions(relationData?.sequences ?? []);
+      const hasActiveSequence = current.some((item: any) => item.is_active === true);
+
+      if (!areSequenceListsEquivalent(relationData?.sequences ?? [], current)) {
+        setRelationData((prev) => ({
+          ...prev,
+          sequences: current,
+        }));
+      }
+
+      if ((current.length > 0 && hasActiveSequence) || sequenceFallbackAttemptedRef.current) return;
+      sequenceFallbackAttemptedRef.current = true;
+
+      try {
+        const rows = await fetchSequenceCandidates();
+        if (cancelled) return;
+
+        const fallback = normalizeSequenceOptions([
+          ...(relationData?.sequences ?? []),
+          ...rows,
+        ]);
+
+        setRelationData((prev) => ({
+          ...prev,
+          sequences: fallback,
+        }));
+      } catch (error) {
+        console.warn('[AddEditModal] Unable to load fallback sequence options', { error });
+      }
+    }
+
+    ensureSequenceOptions();
+    return () => {
+      cancelled = true;
+    };
+  }, [isCampaignModal, relationData?.sequences]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function ensureAssignedSequenceOption() {
+      if (!isEdit || table !== 'campaigns') return;
+
+      const sequenceId = String(form.sequence_id ?? '').trim();
+      if (!sequenceId) return;
+
+      const existing = relationData?.sequences ?? [];
+      const alreadyPresent = existing.some(
+        (item: any) => String(item?.id ?? '') === sequenceId
+      );
+      if (alreadyPresent) return;
+
+      try {
+        const rows = await clientFetch<any[]>(`/crud/sequences?id=${encodeURIComponent(sequenceId)}`);
+        const selected = Array.isArray(rows) ? rows[0] : null;
+        if (!selected || cancelled) return;
+
+        setRelationData((prev) => ({
+          ...prev,
+          sequences: normalizeSequenceOptions([...(prev?.sequences ?? []), selected]),
+        }));
+      } catch (error) {
+        console.warn('[AddEditModal] Unable to hydrate assigned sequence option', {
+          sequenceId,
+          error,
+        });
+      }
+    }
+
+    ensureAssignedSequenceOption();
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit, table, form.sequence_id, relationData]);
 
   useEffect(() => {
     if (table !== 'smtp_accounts') return;
@@ -172,35 +321,70 @@ export default function AddEditModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
-      <div className="bg-card text-card-foreground border border-border p-6 rounded w-[520px] space-y-4 max-h-[90vh] overflow-auto">
-        <h2 className="text-lg font-semibold">
-          {isEdit ? 'Edit' : 'Add'}           {table.replace('_', ' ')}
-        </h2>
+    <div
+      className={cn(
+        'fixed inset-0 flex items-center justify-center px-4 py-6',
+        isCampaignModal ? 'bg-slate-950/80 backdrop-blur-sm' : 'bg-black/50'
+      )}
+    >
+      <div
+        className={cn(
+          'w-full max-h-[90vh] overflow-auto',
+          isCampaignModal
+            ? 'max-w-2xl rounded-2xl border border-slate-700/70 bg-gradient-to-b from-slate-900 to-slate-950 p-6 shadow-2xl shadow-slate-950/80 sm:p-8'
+            : 'w-[520px] rounded border border-border bg-card p-6 text-card-foreground'
+        )}
+      >
+        <div className={cn(isCampaignModal ? 'space-y-1 pb-3' : 'space-y-0')}>
+          <h2 className={cn('font-semibold', isCampaignModal ? 'text-2xl text-slate-100' : 'text-lg')}>
+            {isEdit ? 'Edit' : 'Add'} {table.replace('_', ' ')}
+          </h2>
+          {isCampaignModal ? (
+            <p className="text-sm text-slate-400">
+              Set the campaign name, assign a sequence, and choose the operator to start automation.
+            </p>
+          ) : null}
+        </div>
 
-        {config.map((field) => {
-          if (!field.inForm) return null;
-          if (isEdit && field.inEdit === false) return null;
+        <div className={cn('space-y-4', isCampaignModal ? 'pt-2 space-y-5' : 'pt-0')}>
+          {config.map((field) => {
+            if (!field.inForm) return null;
+            if (isEdit && field.inEdit === false) return null;
 
-          return (
-            <FieldRenderer
-              key={field.key}
-              field={field}
-              value={form[field.key]}
-              onChange={(val: any) => update(field.key, val)}
-              form={form}
-              relations={relations}
-              role={role}
-            />
-          );
-        })}
+            return (
+              <FieldRenderer
+                key={field.key}
+                field={field}
+                value={form[field.key]}
+                onChange={(val: any) => update(field.key, val)}
+                form={form}
+                relations={relationData}
+                role={role}
+                uiVariant={isCampaignModal ? 'campaign' : 'default'}
+              />
+            );
+          })}
+        </div>
 
-        <div className="flex justify-end gap-2 pt-4">
-          <button className="text-muted-foreground hover:text-foreground" onClick={onClose}>
+        <div className={cn('flex justify-end gap-2 pt-4', isCampaignModal ? 'pt-6' : '')}>
+          <button
+            className={cn(
+              'transition-colors',
+              isCampaignModal
+                ? 'rounded-md px-4 py-2 text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+            onClick={onClose}
+          >
             Cancel
           </button>
           <button
-            className="bg-primary text-primary-foreground px-4 py-1 rounded"
+            className={cn(
+              'rounded px-4 transition-colors',
+              isCampaignModal
+                ? 'bg-blue-500 px-5 py-2 font-semibold text-white hover:bg-blue-400'
+                : 'bg-primary py-1 text-primary-foreground'
+            )}
             onClick={submit}
           >
             {isEdit ? 'Save' : 'Create'}

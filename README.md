@@ -1,5 +1,22 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Backend Target And Agent Route Smoke Checks
+
+Before QA on Running Agents:
+
+1. Confirm `NEXT_PUBLIC_API_BASE_URL` in `dashboard/.env.local` points to your active backend.
+2. Restart backend and dashboard after env changes.
+3. Run smoke checks against the backend target:
+
+```bash
+curl -sS "$NEXT_PUBLIC_API_BASE_URL/ping"
+curl -sS -H "Authorization: Bearer <auth_token>" "$NEXT_PUBLIC_API_BASE_URL/agents/runtime"
+```
+
+Expected:
+- `/ping` returns `{"ok":true,...}`
+- `/agents/runtime` returns JSON (not HTML `Cannot GET/POST ...`)
+
 ## Getting Started
 
 First, run the development server:

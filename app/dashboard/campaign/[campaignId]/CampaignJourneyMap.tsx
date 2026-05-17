@@ -110,6 +110,9 @@ function getLeadStepState(
 
 export default function CampaignJourneyMap({
   campaign,
+  sequenceId,
+  hasSequenceId,
+  sequenceResolved,
   sequenceName,
   sequenceSteps,
   campaignLeads,
@@ -119,6 +122,9 @@ export default function CampaignJourneyMap({
   sendingLimitsConfig
 }: {
   campaign: Campaign;
+  sequenceId?: string | null;
+  hasSequenceId: boolean;
+  sequenceResolved: boolean;
   sequenceName: string;
   sequenceSteps: SequenceStep[];
   campaignLeads: CampaignLead[];
@@ -130,22 +136,51 @@ export default function CampaignJourneyMap({
   const sortedSteps = [...sequenceSteps].sort(
     (a, b) => (a.step_number ?? 0) - (b.step_number ?? 0)
   );
+  const delayDays = sortedSteps.map((step) => Math.max(0, Number(step.delay_days ?? 0)));
+  const totalPlannedDays = delayDays.reduce((sum, d) => sum + d, 0);
   const stepCount = sortedSteps.length;
 
   if (stepCount === 0) {
+    let emptyMessage = 'Add sequence steps to render the journey map.';
+    if (!hasSequenceId) {
+      emptyMessage = 'No sequence linked to this campaign yet.';
+    } else if (!sequenceResolved) {
+      emptyMessage = 'Sequence is linked, but metadata is unavailable right now.';
+    } else {
+      emptyMessage = 'Sequence is linked, but no steps are configured yet.';
+    }
+
+    const compactSequenceId = sequenceId ? String(sequenceId) : '—';
+
     return (
       <section className="rounded-xl border border-border bg-card/70 p-5">
         <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
           Campaign Journey
         </div>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
+          <div className="rounded-lg border border-border px-3 py-2">
+            <div className="text-muted-foreground">Sequence Name</div>
+            <div className="mt-1 font-medium text-foreground">{sequenceName || '—'}</div>
+          </div>
+          <div className="rounded-lg border border-border px-3 py-2">
+            <div className="text-muted-foreground">Sequence ID</div>
+            <div className="mt-1 font-mono text-[11px] text-foreground break-all">{compactSequenceId}</div>
+          </div>
+          <div className="rounded-lg border border-border px-3 py-2">
+            <div className="text-muted-foreground">Total Steps</div>
+            <div className="mt-1 font-medium text-foreground">{stepCount}</div>
+          </div>
+          <div className="rounded-lg border border-border px-3 py-2">
+            <div className="text-muted-foreground">Total Delay</div>
+            <div className="mt-1 font-medium text-foreground">{totalPlannedDays}d</div>
+          </div>
+        </div>
         <div className="mt-4 h-40 rounded-lg border border-dashed border-border/70 bg-muted/20 flex items-center justify-center text-sm text-muted-foreground">
-          Add sequence steps to render the journey map.
+          {emptyMessage}
         </div>
       </section>
     );
   }
-
-  const delayDays = sortedSteps.map((step) => Math.max(0, Number(step.delay_days ?? 0)));
   const cumulativeDays = delayDays.reduce<number[]>(
     (acc, delay, index) => {
       if (index === 0) return [delay];
@@ -154,7 +189,6 @@ export default function CampaignJourneyMap({
     },
     []
   );
-  const totalPlannedDays = delayDays.reduce((sum, d) => sum + d, 0);
 
   const isStarted = Boolean(
     campaign.started_at ||

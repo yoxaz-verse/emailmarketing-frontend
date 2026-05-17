@@ -18,7 +18,9 @@ import {
     ChevronRight,
     Bot,
     CalendarClock,
-    Newspaper
+    Newspaper,
+    Cpu,
+    Link2
 } from 'lucide-react';
 
 const mainItems = [
@@ -43,6 +45,7 @@ const newsletterItems = [
 
 const contentItems = [
     { label: 'Social Scheduling', href: '/dashboard/social-scheduling', icon: CalendarClock },
+    { label: 'Social Connectors', href: '/dashboard/social-connectors', icon: Link2 },
     { label: 'Blog Distribution', href: '/dashboard/blog-distribution', icon: Newspaper },
 ];
 
@@ -54,12 +57,22 @@ const emailItems = [
 
 const voiceItems = [
     { label: 'Voice Agents', href: '/dashboard/voice-agents', icon: Mic, comingSoon: true },
-    { label: 'Agent Integrations', href: '/dashboard/agent-integrations', icon: Bot },
+];
+
+const openFlowItems = [
+    { label: 'Task Center', href: '/dashboard/agent-integrations', icon: Bot },
+    { label: 'Running Agents', href: '/dashboard/agents', icon: Cpu },
     { label: 'Marketplace Publishing', href: '/dashboard/marketplace-publishing', icon: Bot },
+];
+
+const inquiryItems = [
+    { label: 'Inquiry Fetching', href: '/dashboard/inquiry-fetching', icon: Bot },
+    { label: 'Inquiry Quoting', href: '/dashboard/inquiry-quoting', icon: Bot },
 ];
 
 const adminItems = [
     { label: 'Users', href: '/dashboard/users', icon: UserCog },
+    { label: 'Social App Settings', href: '/dashboard/admin/social-apps', icon: UserCog },
     { label: 'Sending Limits', href: '/dashboard/admin/sending-limits', icon: UserCog },
     { label: 'Campaign Rules', href: '/dashboard/admin/campaign-rules', icon: UserCog },
     { label: 'Validation Monitor', href: '/dashboard/admin/validation-monitor', icon: UserCog },
@@ -161,6 +174,24 @@ const renderNavItem = (item: NavItem, isActive: boolean) => (
                     </h3>
                     <ul className="space-y-1">
                         {voiceItems.map((item) => renderNavItem(item, pathname.startsWith(item.href)))}
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+                        OpenFlow AI
+                    </h3>
+                    <ul className="space-y-1">
+                        {openFlowItems.map((item) => renderNavItem(item, pathname.startsWith(item.href)))}
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+                        Inquiry
+                    </h3>
+                    <ul className="space-y-1">
+                        {inquiryItems.map((item) => renderNavItem(item, pathname.startsWith(item.href)))}
                     </ul>
                 </div>
 

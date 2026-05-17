@@ -2,9 +2,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
 
-export default function SelectField({ field, value, onChange, form }: any) {
+export default function SelectField({ field, value, onChange, form, uiVariant = 'default' }: any) {
   const [options, setOptions] = useState<any[]>([]);
+  const campaignUi = uiVariant === 'campaign';
 
   useEffect(() => {
     async function load() {
@@ -22,10 +24,15 @@ export default function SelectField({ field, value, onChange, form }: any) {
   }, [form[field.dependsOn]]);
 
   return (
-    <div className="space-y-1">
-      <label className="text-sm font-medium">{field.label}</label>
+    <div className={cn(campaignUi ? 'space-y-2' : 'space-y-1')}>
+      <label className={cn('text-sm font-medium', campaignUi ? 'text-slate-100' : '')}>{field.label}</label>
       <select
-        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+        className={cn(
+          'w-full rounded-md border px-3 py-2 text-sm',
+          campaignUi
+            ? 'h-11 border-slate-700 bg-slate-900/70 text-slate-100 shadow-inner shadow-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/70'
+            : 'border-input bg-background'
+        )}
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
       >

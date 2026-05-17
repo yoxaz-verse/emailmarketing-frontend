@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-type Method = 'GET' | 'POST';
+type Method = 'GET' | 'POST' | 'PATCH';
 
 export async function proxyAgentRequest(req: Request, backendPath: string, method: Method) {
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -26,12 +26,28 @@ export async function proxyAgentRequest(req: Request, backendPath: string, metho
 
   const query = new URL(req.url).search;
   const url = `${apiBase}${backendPath}${query}`;
+  const isDev = process.env.NODE_ENV !== 'production';
+  const preview = (text: string, max = 200) => text.slice(0, max).replace(/\s+/g, ' ').trim();
+
+  try {
+    const parsed = new URL(url);
+    console.info('[AGENT_PROXY_REQUEST]', {
+      method,
+      upstreamHost: parsed.host,
+      upstreamPath: `${parsed.pathname}${parsed.search}`,
+    });
+  } catch {
+    console.info('[AGENT_PROXY_REQUEST]', {
+      method,
+      upstreamPath: `${backendPath}${query}`,
+    });
+  }
 
   try {
     const upstream = await fetch(url, {
       method,
       headers,
-      body: method === 'POST' ? await req.text() : undefined,
+      body: method === 'POST' || method === 'PATCH' ? await req.text() : undefined,
       cache: 'no-store',
     });
 
@@ -41,6 +57,19 @@ export async function proxyAgentRequest(req: Request, backendPath: string, metho
     if (contentType.includes('application/json')) {
       const parsed = raw ? JSON.parse(raw) : {};
       return NextResponse.json(parsed, { status: upstream.status });
+    }
+
+    if (isDev) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Upstream returned non-JSON response',
+          status: upstream.status,
+          upstreamContentType: contentType || 'unknown',
+          upstreamBodyPreview: preview(raw),
+        },
+        { status: upstream.status }
+      );
     }
 
     return new NextResponse(raw, { status: upstream.status });

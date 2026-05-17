@@ -709,9 +709,6 @@ badge: {
                 table: 'sequences',
                 labelKey: 'name',
                 valueKey: 'id',
-                filters: {
-                  is_active: true,
-                },
               },
               inTable: true,
               inForm: true,

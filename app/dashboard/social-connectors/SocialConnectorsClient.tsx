@@ -1,0 +1,537 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { clientFetch } from '@/lib/client-fetch';
+
+type SocialConnectionStatus = 'connected' | 'expired' | 'missing_scope' | 'disconnected';
+
+type SocialConnection = {
+  platform_code: string;
+  status: SocialConnectionStatus;
+  reason: string | null;
+  scopes: string[];
+  expires_at: string | null;
+  metadata: Record<string, unknown>;
+};
+
+type SocialConnector = {
+  code: string;
+  name: string;
+  status: 'manual_assisted' | 'api_enabled';
+  auth_type: 'none' | 'oauth2';
+  can_schedule: boolean;
+  can_publish: boolean;
+  credentials_active: boolean;
+  deep_link_url: string | null;
+  metadata: Record<string, unknown>;
+};
+type Operator = {
+  id: string;
+  name: string;
+  region?: string | null;
+};
+type OperatorLoadErrorKind = 'backend_unavailable' | 'unauthorized' | 'unknown';
+
+const PLATFORM_ORDER = ['linkedin', 'meta', 'reddit', 'telegram', 'whatsapp'];
+type UiStatus = SocialConnectionStatus | 'not_connected';
+type GuideContent = {
+  intro: string;
+  support: string;
+  requiresOauth: boolean;
+  steps: string[];
+  requiredValues: string[];
+  verifySteps: string[];
+};
+
+const PLATFORM_GUIDES: Record<string, GuideContent> = {
+  linkedin: {
+    intro: 'Use OAuth to connect your LinkedIn account for direct API publishing.',
+    support: 'Direct OAuth/API publishing is available now.',
+    requiresOauth: true,
+    steps: [
+      'Click Connect to start LinkedIn OAuth.',
+      'Approve the requested permissions in LinkedIn.',
+      'Return to this page and click Refresh to sync the latest status.',
+    ],
+    requiredValues: [
+      'No manual keys required here.',
+      'OAuth grants are stored after approval.',
+    ],
+    verifySteps: [
+      'Status badge should show Connected and ready.',
+      'Auth should show oauth2 in capabilities.',
+      'You should be able to publish LinkedIn posts without manual fallback.',
+    ],
+  },
+  meta: {
+    intro: 'Meta currently works in manual-assisted mode. API connect will be enabled later.',
+    support: 'Manual-assisted publishing only. Direct OAuth/API connect is coming soon.',
+    requiresOauth: false,
+    steps: [
+      'Create a Meta app in Facebook Developers.',
+      'Collect your app credentials and page/business access token.',
+      'Paste these values in your secure connector config once API flow is enabled.',
+    ],
+    requiredValues: [
+      'META_APP_ID',
+      'META_APP_SECRET',
+      'META_PAGE_ACCESS_TOKEN',
+      'META_BUSINESS_ACCOUNT_ID',
+    ],
+    verifySteps: [
+      'Keep badge as Not connected until OAuth/API release for Meta.',
+      'Use manual-assisted posting flow for now.',
+      'After API release, status should move to Connected and ready.',
+    ],
+  },
+  reddit: {
+    intro: 'Reddit is currently manual-assisted and will support direct OAuth/API later.',
+    support: 'Manual-assisted publishing only. Direct OAuth/API connect is coming soon.',
+    requiresOauth: false,
+    steps: [
+      'Create a Reddit app from your Reddit developer account.',
+      'Collect client id, client secret, and redirect URL details.',
+      'Store these values in connector config once Reddit API flow is released.',
+    ],
+    requiredValues: [
+      'REDDIT_CLIENT_ID',
+      'REDDIT_CLIENT_SECRET',
+      'REDDIT_REDIRECT_URI',
+      'REDDIT_USER_AGENT',
+    ],
+    verifySteps: [
+      'Badge remains Not connected until direct API support is live.',
+      'Manual-assisted publish tasks should continue to work.',
+      'On API release, run connect flow and verify Connected and ready.',
+    ],
+  },
+  telegram: {
+    intro: 'Telegram is currently manual-assisted and will support direct bot/API linking later.',
+    support: 'Manual-assisted publishing only. Direct OAuth/API connect is coming soon.',
+    requiresOauth: false,
+    steps: [
+      'Create a bot using BotFather.',
+      'Collect bot token and target channel/group id.',
+      'Keep these values ready for future connector input.',
+    ],
+    requiredValues: [
+      'TELEGRAM_BOT_TOKEN',
+      'TELEGRAM_CHAT_ID',
+      'TELEGRAM_PARSE_MODE',
+    ],
+    verifySteps: [
+      'Status shows Not connected until bot/API connect is added in product.',
+      'Use manual-assisted publishing in the meantime.',
+      'After API support lands, reconnect and verify Connected and ready.',
+    ],
+  },
+  whatsapp: {
+    intro: 'WhatsApp is currently manual-assisted and will support direct API integration later.',
+    support: 'Manual-assisted publishing only. Direct OAuth/API connect is coming soon.',
+    requiresOauth: false,
+    steps: [
+      'Set up a WhatsApp Business account and Meta app.',
+      'Collect phone number id, business account id, and access token.',
+      'Keep values ready for future direct connector setup.',
+    ],
+    requiredValues: [
+      'WHATSAPP_PHONE_NUMBER_ID',
+      'WHATSAPP_BUSINESS_ACCOUNT_ID',
+      'WHATSAPP_ACCESS_TOKEN',
+    ],
+    verifySteps: [
+      'Status remains Not connected until direct WhatsApp API flow is released.',
+      'Use manual-assisted flow until then.',
+      'After release, connect and verify Connected and ready.',
+    ],
+  },
+};
+
+function toTitle(value: string): string {
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function sortConnectors(connectors: SocialConnector[]): SocialConnector[] {
+  return [...connectors].sort((a, b) => {
+    const ai = PLATFORM_ORDER.indexOf(a.code);
+    const bi = PLATFORM_ORDER.indexOf(b.code);
+    if (ai === -1 && bi === -1) return a.name.localeCompare(b.name);
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+}
+
+function statusBadge(status: SocialConnectionStatus | 'manual_assisted' | 'api_enabled' | 'not_connected') {
+  if (status === 'connected' || status === 'api_enabled') return 'bg-green-600 text-white';
+  if (status === 'expired') return 'bg-amber-600 text-white';
+  if (status === 'missing_scope') return 'bg-orange-600 text-white';
+  if (status === 'manual_assisted') return 'bg-blue-600 text-white';
+  return 'bg-slate-600 text-white';
+}
+
+function statusLabel(status: UiStatus): string {
+  if (status === 'connected') return 'Connected and ready';
+  if (status === 'expired') return 'Connection expired';
+  if (status === 'missing_scope') return 'Missing permission';
+  return 'Not connected';
+}
+
+function mapSocialConnectorError(message: string): {
+  userMessage: string;
+  technicalHint?: string;
+} {
+  const input = String(message || '').trim();
+  const lower = input.toLowerCase();
+
+  if (lower.includes('backend unavailable') || lower.includes('fetch failed') || lower.includes('503')) {
+    return {
+      userMessage: 'Backend is currently unavailable. Please ensure the backend service is running, then click Refresh.',
+      technicalHint: input,
+    };
+  }
+
+  if (lower.includes('next_public_api_base_url')) {
+    return {
+      userMessage: 'API base URL is not configured correctly for this dashboard.',
+      technicalHint: input,
+    };
+  }
+
+  return { userMessage: input || 'Failed to load social connectors' };
+}
+
+function asMissingFields(metadata: Record<string, unknown> | undefined): string[] {
+  const raw = metadata?.missing_fields;
+  if (!Array.isArray(raw)) return [];
+  return raw.map((v) => String(v ?? '').trim()).filter(Boolean);
+}
+
+export default function SocialConnectorsClient({
+  role,
+  operators = [],
+  operatorLoadError,
+  operatorLoadErrorKind,
+}: {
+  role?: string;
+  operators?: Operator[];
+  operatorLoadError?: string;
+  operatorLoadErrorKind?: OperatorLoadErrorKind;
+}) {
+  const [connectors, setConnectors] = useState<SocialConnector[]>([]);
+  const [connections, setConnections] = useState<SocialConnection[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [errorHint, setErrorHint] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [expandedPlatform, setExpandedPlatform] = useState<string | null>(null);
+  const [selectedOperatorId, setSelectedOperatorId] = useState('');
+  const searchParams = useSearchParams();
+
+  const isAdmin = role === 'admin' || role === 'superadmin';
+  const hasOperators = operators.length > 0;
+  const hasOperatorLoadFailure = Boolean(operatorLoadError);
+  const canRunAdminScopedRead = !isAdmin || Boolean(selectedOperatorId);
+
+  const connectionByPlatform = useMemo(
+    () => new Map(connections.map((c) => [c.platform_code, c])),
+    [connections]
+  );
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    setErrorHint(null);
+    try {
+      if (isAdmin && !selectedOperatorId) {
+        const connectorData = await clientFetch<SocialConnector[]>('/social/connectors');
+        setConnectors(sortConnectors(connectorData ?? []));
+        setConnections([]);
+        return;
+      }
+
+      const query = isAdmin && selectedOperatorId
+        ? `?operator_id=${encodeURIComponent(selectedOperatorId)}`
+        : '';
+      const [connectorData, connectionData] = await Promise.all([
+        clientFetch<SocialConnector[]>(`/social/connectors${query}`),
+        clientFetch<SocialConnection[]>(`/social/connections${query}`),
+      ]);
+      setConnectors(sortConnectors(connectorData ?? []));
+      setConnections(connectionData ?? []);
+    } catch (err: unknown) {
+      const rawMessage = err instanceof Error ? err.message : 'Failed to load social connectors';
+      const mapped = mapSocialConnectorError(rawMessage);
+      setError(mapped.userMessage);
+      setErrorHint(mapped.technicalHint ?? null);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAdmin, selectedOperatorId]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    const connectError = searchParams.get('social_connect_error');
+    const connectedPlatform = searchParams.get('social_connected');
+
+    if (connectError) {
+      const mapped = mapSocialConnectorError(connectError);
+      setError(`LinkedIn OAuth start failed: ${mapped.userMessage}`);
+      setErrorHint(mapped.technicalHint ?? null);
+    } else if (connectedPlatform) {
+      setSuccessMessage(`${toTitle(connectedPlatform)} connected successfully.`);
+    }
+  }, [searchParams]);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">Social Connectors</h2>
+        <p className="text-sm text-muted-foreground">Manage platform integrations for LinkedIn, Meta, Reddit, Telegram, and WhatsApp.</p>
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
+          <CardTitle>Platform Integrations</CardTitle>
+          <Button size="sm" variant="outline" onClick={() => void loadData()} disabled={loading}>
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {isAdmin && (
+            <div className="mb-4 space-y-2">
+              <label className="block text-xs font-medium text-muted-foreground">Operator Context (required for connect)</label>
+              <select
+                className="w-full rounded-md border border-white/15 bg-black/20 px-3 py-2 text-sm outline-none focus:border-white/40"
+                value={selectedOperatorId}
+                onChange={(e) => setSelectedOperatorId(e.target.value)}
+              >
+                <option value="">Select operator</option>
+                {operators.map((operator) => (
+                  <option key={operator.id} value={operator.id}>
+                    {operator.name}{operator.region ? ` (${operator.region})` : ''}
+                  </option>
+                ))}
+              </select>
+              {!selectedOperatorId && (
+                <p className="text-xs text-amber-300">Select an operator to start LinkedIn connect flow.</p>
+              )}
+              {isAdmin && hasOperatorLoadFailure && (
+                <p className="text-xs text-red-300">{operatorLoadError}</p>
+              )}
+              {isAdmin && !hasOperatorLoadFailure && !hasOperators && (
+                <p className="text-xs text-amber-300">No operators available. Add/create operators first.</p>
+              )}
+              {isAdmin && operatorLoadErrorKind === 'backend_unavailable' && (
+                <p className="text-xs text-muted-foreground">
+                  Check backend health and API base URL, then click Refresh.
+                </p>
+              )}
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="mb-4 rounded border border-green-500/30 bg-green-500/10 p-2 text-sm text-green-300">{successMessage}</div>
+          )}
+          {error && (
+            <div className="mb-4 rounded border border-red-500/30 bg-red-500/10 p-2 text-sm text-red-300">
+              <p>{error}</p>
+              {errorHint && <p className="mt-1 text-xs text-red-200/80">Technical hint: {errorHint}</p>}
+              <p className="mt-1 text-xs text-red-200/80">Retry: use Refresh after backend/service health is restored.</p>
+            </div>
+          )}
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {connectors.map((connector) => {
+              const conn = connectionByPlatform.get(connector.code);
+              const isConnected = conn?.status === 'connected';
+              const isOauthSupported = connector.code === 'linkedin';
+              const oauthAppConfigured = isOauthSupported
+                ? Boolean((connector.metadata as Record<string, unknown> | undefined)?.oauth_app_configured)
+                : true;
+              const appConfigured = Boolean((connector.metadata as Record<string, unknown> | undefined)?.app_configured);
+              const missingFields = asMissingFields(connector.metadata as Record<string, unknown> | undefined);
+              const effectiveStatus: UiStatus = conn?.status ?? (connector.credentials_active ? 'connected' : 'not_connected');
+              const guide = PLATFORM_GUIDES[connector.code] ?? {
+                intro: 'Connector guide is not yet configured for this platform.',
+                support: 'Check with engineering for platform-specific setup.',
+                requiresOauth: false,
+                steps: ['Open platform docs and collect required credentials.'],
+                requiredValues: ['Platform credentials'],
+                verifySteps: ['Refresh this page and confirm status is updated.'],
+              };
+              const isExpanded = expandedPlatform === connector.code;
+
+              return (
+                <div key={connector.code} className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold">{connector.name || toTitle(connector.code)}</p>
+                    <Badge className={statusBadge(effectiveStatus)}>
+                      {statusLabel(effectiveStatus)}
+                    </Badge>
+                  </div>
+
+                  <p className="mt-2 text-xs text-muted-foreground">{guide.support}</p>
+
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                    <span className="rounded border border-white/10 px-2 py-0.5">Auth: {connector.auth_type}</span>
+                    <span className="rounded border border-white/10 px-2 py-0.5">Schedule: {connector.can_schedule ? 'Yes' : 'No'}</span>
+                    <span className="rounded border border-white/10 px-2 py-0.5">Publish: {connector.can_publish ? 'Yes' : 'No'}</span>
+                  </div>
+
+                  {conn?.reason && (
+                    <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-200">
+                      <p className="font-medium">Why not connected?</p>
+                      <p className="mt-1">{conn.reason}</p>
+                    </div>
+                  )}
+                  {isOauthSupported && isAdmin && selectedOperatorId && !oauthAppConfigured && (
+                    <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-200">
+                      LinkedIn app credentials are not configured for this operator. Configure in admin social app settings.
+                    </div>
+                  )}
+                  {isAdmin && selectedOperatorId && !appConfigured && missingFields.length > 0 && (
+                    <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-200">
+                      Missing app config fields: {missingFields.join(', ')}
+                    </div>
+                  )}
+
+                  <div className="mt-3 flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setExpandedPlatform((prev) => (prev === connector.code ? null : connector.code))}
+                    >
+                      {isExpanded ? 'Hide Guide' : 'Open Guide'}
+                    </Button>
+                    {isAdmin && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!selectedOperatorId}
+                        onClick={() => {
+                          if (!selectedOperatorId) {
+                            setError('Select an operator before opening social app settings.');
+                            setErrorHint(null);
+                            return;
+                          }
+                          const nextUrl = `/dashboard/admin/social-apps?operator_id=${encodeURIComponent(selectedOperatorId)}&platform=${encodeURIComponent(connector.code)}`;
+                          window.location.href = nextUrl;
+                        }}
+                      >
+                        Configure
+                      </Button>
+                    )}
+
+                    {isOauthSupported && (
+                      <Button
+                        size="sm"
+                        disabled={isAdmin && (!selectedOperatorId || !hasOperators || hasOperatorLoadFailure || !oauthAppConfigured || !appConfigured)}
+                        onClick={() => {
+                          const query = isAdmin && selectedOperatorId
+                            ? `?operator_id=${encodeURIComponent(selectedOperatorId)}`
+                            : '';
+                          window.location.href = `/api/proxy/social/connect/${connector.code}${query}`;
+                        }}
+                      >
+                        {isConnected ? 'Reconnect' : 'Connect'}
+                      </Button>
+                    )}
+
+                  {isConnected && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          try {
+                            if (isAdmin && !selectedOperatorId) {
+                              setError('Select an operator before disconnecting this social integration.');
+                              setErrorHint(null);
+                              return;
+                            }
+                            const query = isAdmin && selectedOperatorId
+                              ? `?operator_id=${encodeURIComponent(selectedOperatorId)}`
+                              : '';
+                            await clientFetch(`/social/disconnect/${connector.code}${query}`, { method: 'POST' });
+                            await loadData();
+                          } catch (err: unknown) {
+                            const rawMessage = err instanceof Error ? err.message : 'Failed to disconnect platform';
+                            const mapped = mapSocialConnectorError(rawMessage);
+                            setError(mapped.userMessage);
+                            setErrorHint(mapped.technicalHint ?? null);
+                          }
+                        }}
+                      >
+                        Disconnect
+                      </Button>
+                    )}
+                  </div>
+
+                  {isExpanded && (
+                    <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-3 text-xs">
+                      <p className="font-medium text-sm">Integration Guide</p>
+                      <p className="mt-1 text-muted-foreground">{guide.intro}</p>
+
+                      <div className="mt-3">
+                        <p className="font-medium">Setup steps</p>
+                        <ol className="mt-1 list-decimal space-y-1 pl-4 text-muted-foreground">
+                          {guide.steps.map((step) => (
+                            <li key={step}>{step}</li>
+                          ))}
+                        </ol>
+                      </div>
+
+                      <div className="mt-3">
+                        <p className="font-medium">What to paste / keep ready</p>
+                        <ul className="mt-1 space-y-1 text-muted-foreground">
+                          {guide.requiredValues.map((valueKey) => (
+                            <li key={valueKey} className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[11px]">
+                              {valueKey}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="mt-3">
+                        <p className="font-medium">How to verify integration</p>
+                        <ol className="mt-1 list-decimal space-y-1 pl-4 text-muted-foreground">
+                          {guide.verifySteps.map((step) => (
+                            <li key={step}>{step}</li>
+                          ))}
+                        </ol>
+                      </div>
+
+                      <p className="mt-3 text-[11px] text-muted-foreground">
+                        Status detection: this card reads from your live connector capability and OAuth connection state returned by `/social/connectors` and `/social/connections`.
+                      </p>
+                      {isAdmin && !canRunAdminScopedRead && (
+                        <p className="mt-2 text-[11px] text-muted-foreground">
+                          Select an operator to load operator-scoped connection status.
+                        </p>
+                      )}
+                      {!guide.requiresOauth && (
+                        <p className="mt-2 text-[11px] text-muted-foreground">
+                          Note: Direct OAuth/API connect is not enabled yet for this platform, so status will stay Not connected until rollout.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

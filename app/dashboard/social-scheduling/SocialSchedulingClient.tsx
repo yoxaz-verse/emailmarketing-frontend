@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +13,6 @@ type PlatformCode = 'meta' | 'linkedin' | 'reddit' | 'telegram' | 'whatsapp';
 type CalendarView = 'month' | 'week';
 type DialogMode = 'create' | 'edit';
 type DialogStep = 1 | 2;
-type SocialConnectionStatus = 'connected' | 'expired' | 'missing_scope' | 'disconnected';
 
 type ScheduledSocialPost = {
   id: string;
@@ -36,15 +35,6 @@ type ComposerDraft = {
   ctaUrl: string;
   hashtagsCsv: string;
   mediaCsv: string;
-};
-
-type SocialConnection = {
-  platform_code: string;
-  status: SocialConnectionStatus;
-  reason: string | null;
-  scopes: string[];
-  expires_at: string | null;
-  metadata: Record<string, unknown>;
 };
 
 const IST_TIMEZONE = 'Asia/Kolkata';
@@ -105,6 +95,28 @@ function composeLocalDateTime(dateStr: string, timeStr: string): Date | null {
   const local = new Date(`${dateStr}T${timeStr}:00`);
   if (Number.isNaN(local.getTime())) return null;
   return local;
+}
+
+function isStrictlyFutureDateTime(dateStr: string, timeStr: string): boolean {
+  const scheduled = composeLocalDateTime(dateStr, timeStr);
+  if (!scheduled) return false;
+  return scheduled.getTime() > Date.now();
+}
+
+function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+}
+
+function endOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+}
+
+function isDayFullyElapsed(date: Date): boolean {
+  return endOfDay(date).getTime() <= Date.now();
+}
+
+function isPastOrCurrentSlot(date: Date): boolean {
+  return date.getTime() <= Date.now();
 }
 
 function formatMonthLabel(date: Date): string {
@@ -238,8 +250,6 @@ export default function SocialSchedulingClient() {
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ComposerDraft>(defaultDraftForDate(new Date()));
   const [error, setError] = useState<string | null>(null);
-  const [connections, setConnections] = useState<SocialConnection[]>([]);
-  const [connectionsLoading, setConnectionsLoading] = useState(false);
 
   const quarterHourOptions = useMemo(() => buildQuarterHourOptions(), []);
   const today = useMemo(() => new Date(), []);
@@ -292,25 +302,15 @@ export default function SocialSchedulingClient() {
   }, [draft.scheduledDate, draft.scheduledTime]);
 
   const selectedPlatforms = useMemo(() => getSelectedPlatforms(draft.platforms), [draft.platforms]);
-  const linkedInConnection = useMemo(
-    () => connections.find((c) => c.platform_code === 'linkedin') ?? null,
-    [connections]
-  );
-
-  useEffect(() => {
-    const loadConnections = async () => {
-      setConnectionsLoading(true);
-      try {
-        const data = await clientFetch<SocialConnection[]>('/social/connections');
-        setConnections(data);
-      } catch {
-        setConnections([]);
-      } finally {
-        setConnectionsLoading(false);
+  const disabledTimeOptions = useMemo(() => {
+    const map = new Set<string>();
+    for (const opt of quarterHourOptions) {
+      if (!isStrictlyFutureDateTime(draft.scheduledDate, opt)) {
+        map.add(opt);
       }
-    };
-    void loadConnections();
-  }, []);
+    }
+    return map;
+  }, [draft.scheduledDate, quarterHourOptions]);
 
   const openComposerForDate = (date: Date) => {
     const prefill = new Date(date);
@@ -383,6 +383,10 @@ export default function SocialSchedulingClient() {
       setError('Please select a valid date and time.');
       return false;
     }
+    if (!isStrictlyFutureDateTime(draft.scheduledDate, draft.scheduledTime)) {
+      setError('scheduled_at must be in the future');
+      return false;
+    }
     if (selectedPlatforms.length === 0) {
       setError('Select at least one platform.');
       return false;
@@ -397,6 +401,10 @@ export default function SocialSchedulingClient() {
     const local = composeLocalDateTime(draft.scheduledDate, draft.scheduledTime);
     if (!local) {
       setError('Please choose a valid schedule date and time.');
+      return;
+    }
+    if (!isStrictlyFutureDateTime(draft.scheduledDate, draft.scheduledTime)) {
+      setError('scheduled_at must be in the future');
       return;
     }
     const platforms = getSelectedPlatforms(draft.platforms);
@@ -607,64 +615,6 @@ export default function SocialSchedulingClient() {
           <p className="text-sm text-muted-foreground">{IST_TIMEZONE}</p>
         </CardHeader>
         <CardContent>
-          <div className="mb-4 rounded-lg border border-white/10 bg-white/[0.02] p-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold">LinkedIn API Connection</p>
-                <p className="text-xs text-muted-foreground">
-                  LinkedIn is API-enabled for text + link. Other platforms remain manual fallback for now.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                {connectionsLoading && <Badge variant="outline">Checking...</Badge>}
-                {!connectionsLoading && (
-                  <Badge
-                    className={
-                      linkedInConnection?.status === 'connected'
-                        ? 'bg-green-600 text-white'
-                        : linkedInConnection?.status === 'expired'
-                          ? 'bg-amber-600 text-white'
-                          : linkedInConnection?.status === 'missing_scope'
-                            ? 'bg-orange-600 text-white'
-                            : 'bg-slate-600 text-white'
-                    }
-                  >
-                    {linkedInConnection?.status ?? 'disconnected'}
-                  </Badge>
-                )}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL}/social/connect/linkedin`;
-                  }}
-                >
-                  {linkedInConnection?.status === 'connected' ? 'Reconnect' : 'Connect LinkedIn'}
-                </Button>
-                {linkedInConnection && linkedInConnection.status !== 'disconnected' && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={async () => {
-                      try {
-                        await clientFetch(`/social/disconnect/linkedin`, { method: 'POST' });
-                        const data = await clientFetch<SocialConnection[]>('/social/connections');
-                        setConnections(data);
-                      } catch {
-                        setError('Failed to disconnect LinkedIn');
-                      }
-                    }}
-                  >
-                    Disconnect
-                  </Button>
-                )}
-              </div>
-            </div>
-            {linkedInConnection?.reason && (
-              <p className="mt-2 text-xs text-amber-300">{linkedInConnection.reason}</p>
-            )}
-          </div>
-
           {view === 'month' && (
             <div className="grid grid-cols-7 gap-2">
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
@@ -676,19 +626,32 @@ export default function SocialSchedulingClient() {
                 const dayPosts = postsByDay.get(key) ?? [];
                 const isCurrentMonth = day.getMonth() === anchorDate.getMonth();
                 const isTodayCell = isSameDay(day, today);
+                const isPastDayCell = isDayFullyElapsed(day);
 
                 return (
                   <button
                     key={key}
                     type="button"
-                    onClick={() => openComposerForDate(day)}
-                    className={`min-h-[130px] rounded-lg border p-2 text-left transition hover:border-blue-400/60 ${
+                    onClick={() => {
+                      if (isPastDayCell) return;
+                      openComposerForDate(day);
+                    }}
+                    aria-disabled={isPastDayCell}
+                    className={`min-h-[130px] rounded-lg border p-2 text-left transition ${
+                      isPastDayCell ? '' : 'hover:border-blue-400/60'
+                    } ${
                       isCurrentMonth ? 'border-white/10 bg-white/5' : 'border-white/5 bg-white/[0.02]'
-                    } ${isTodayCell ? 'ring-1 ring-blue-500/70' : ''}`}
+                    } ${isTodayCell && !isPastDayCell ? 'ring-1 ring-blue-500/70' : ''} ${
+                      isPastDayCell
+                        ? 'cursor-not-allowed border-red-400/70 bg-red-500/20 text-red-100'
+                        : ''
+                    }`}
                   >
                     <div className="mb-2 flex items-center justify-between">
                       <span className={`text-sm font-semibold ${isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'}`}>{day.getDate()}</span>
-                      {isTodayCell && <Badge className="bg-blue-600 text-white">Today</Badge>}
+                      {isTodayCell ? (
+                        <Badge className="bg-blue-600 text-white">Today</Badge>
+                      ) : null}
                     </div>
                     <div className="space-y-1">
                       {dayPosts.slice(0, 2).map(renderPostChip)}
@@ -726,13 +689,24 @@ export default function SocialSchedulingClient() {
                         return time.getHours() === hour;
                       });
                       const nowLine = isSameDay(d, today) && today.getHours() === hour;
+                      const slotDisabled = isPastOrCurrentSlot(slot);
 
                       return (
                         <button
                           key={slot.toISOString()}
                           type="button"
-                          onClick={() => openComposerForDate(slot)}
-                          className={`min-h-[64px] rounded border p-1 text-left hover:border-blue-400/60 ${nowLine ? 'border-blue-500/60 bg-blue-500/10' : 'border-white/10 bg-white/5'}`}
+                          onClick={() => {
+                            if (slotDisabled) return;
+                            openComposerForDate(slot);
+                          }}
+                          aria-disabled={slotDisabled}
+                          className={`min-h-[64px] rounded border p-1 text-left ${
+                            slotDisabled ? '' : 'hover:border-blue-400/60'
+                          } ${nowLine ? 'border-blue-500/60 bg-blue-500/10' : 'border-white/10 bg-white/5'} ${
+                            slotDisabled
+                              ? 'cursor-not-allowed border-red-400/70 bg-red-500/20 text-red-100'
+                              : ''
+                          }`}
                         >
                           {dayPosts.length === 0 ? (
                             <span className="text-[10px] text-muted-foreground">+ schedule</span>
@@ -807,6 +781,7 @@ export default function SocialSchedulingClient() {
                     <Input
                       type="date"
                       value={draft.scheduledDate}
+                      min={toDateInput(new Date())}
                       onChange={(e) => setDraft((prev) => ({ ...prev, scheduledDate: e.target.value }))}
                     />
                   </div>
@@ -818,7 +793,9 @@ export default function SocialSchedulingClient() {
                       onChange={(e) => setDraft((prev) => ({ ...prev, scheduledTime: e.target.value }))}
                     >
                       {quarterHourOptions.map((opt) => (
-                        <option key={opt} value={opt}>{opt}</option>
+                        <option key={opt} value={opt} disabled={disabledTimeOptions.has(opt)}>
+                          {disabledTimeOptions.has(opt) ? `${opt} (past)` : opt}
+                        </option>
                       ))}
                     </select>
                   </div>
