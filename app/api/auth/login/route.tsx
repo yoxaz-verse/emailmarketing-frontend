@@ -11,6 +11,22 @@ type LoginBackendResponse = {
   message?: string;
 };
 
+type LoginBackendSuccess = {
+  token: string;
+  user: {
+    role: string;
+    operator_id?: string | null;
+  };
+};
+
+function isLoginBackendSuccess(data: LoginBackendResponse | null): data is LoginBackendSuccess {
+  if (!data) return false;
+  if (typeof data.token !== 'string' || data.token.trim() === '') return false;
+  if (!data.user) return false;
+  if (typeof data.user.role !== 'string' || data.user.role.trim() === '') return false;
+  return true;
+}
+
 export async function POST(req: Request) {
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
   const contentType = req.headers.get('content-type') || '';
@@ -82,7 +98,7 @@ export async function POST(req: Request) {
     return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(errorMessage)}`, req.url));
   }
 
-  if (!backendData?.token || !backendData?.user) {
+  if (!isLoginBackendSuccess(backendData)) {
     const errorMessage = 'Login failed. Backend returned invalid response.';
     if (contentType.includes('application/json')) {
       return NextResponse.json({ error: errorMessage }, { status: 401 });
