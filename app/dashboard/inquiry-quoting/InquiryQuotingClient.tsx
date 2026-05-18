@@ -43,6 +43,9 @@ type Quote = {
 };
 
 const STATUSES = ['draft', 'reviewed', 'approved', 'sent', 'closed'] as const;
+type QuoteDraftPatch = Partial<Quote> & { mark_sent?: boolean };
+type QuoteDraftField = keyof Quote | 'mark_sent';
+type QuoteDraftValue = QuoteDraftPatch[keyof QuoteDraftPatch] | '';
 
 export default function InquiryQuotingClient() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
@@ -65,7 +68,7 @@ export default function InquiryQuotingClient() {
     notes: '',
   });
 
-  const [quoteDrafts, setQuoteDrafts] = useState<Record<string, Partial<Quote> & { mark_sent?: boolean }>>({});
+  const [quoteDrafts, setQuoteDrafts] = useState<Record<string, QuoteDraftPatch>>({});
 
   const filteredQuotes = useMemo(() => {
     return quotes.filter((q) => {
@@ -131,7 +134,7 @@ export default function InquiryQuotingClient() {
     }
   }
 
-  function patchQuoteDraft(id: string, field: keyof Quote | 'mark_sent', value: string | boolean) {
+  function patchQuoteDraft(id: string, field: QuoteDraftField, value: QuoteDraftValue) {
     setQuoteDrafts((prev) => ({
       ...prev,
       [id]: {
@@ -236,7 +239,21 @@ export default function InquiryQuotingClient() {
                 </div>
 
                 <div className="grid gap-2 md:grid-cols-4">
-                  <Input placeholder="Price" value={String(patch.price ?? quote.price ?? '')} onChange={(e) => patchQuoteDraft(quote.id, 'price', e.target.value ? Number(e.target.value) : '')} />
+                  <Input
+                    placeholder="Price"
+                    value={String(patch.price ?? quote.price ?? '')}
+                    onChange={(e) => {
+                      const raw = e.target.value.trim();
+                      if (!raw) {
+                        patchQuoteDraft(quote.id, 'price', '');
+                        return;
+                      }
+                      const parsed = Number(raw);
+                      if (!Number.isNaN(parsed)) {
+                        patchQuoteDraft(quote.id, 'price', parsed);
+                      }
+                    }}
+                  />
                   <Input placeholder="Quantity" value={String(patch.quantity ?? quote.quantity ?? '')} onChange={(e) => patchQuoteDraft(quote.id, 'quantity', e.target.value)} />
                   <Input placeholder="Currency" value={String(patch.currency ?? quote.currency ?? '')} onChange={(e) => patchQuoteDraft(quote.id, 'currency', e.target.value)} />
                   <Input placeholder="Incoterm" value={String(patch.incoterm ?? quote.incoterm ?? '')} onChange={(e) => patchQuoteDraft(quote.id, 'incoterm', e.target.value)} />
