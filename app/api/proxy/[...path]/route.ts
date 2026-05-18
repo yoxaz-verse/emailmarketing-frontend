@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
+function isAuthLikeError(message: string): boolean {
+  return /unauthorized|invalid token|invalid signature|authentication required|user disabled/i.test(message);
+}
+
+function clearAuthCookies(response: NextResponse): NextResponse {
+  response.cookies.delete('auth_token');
+  response.cookies.delete('user_role');
+  response.cookies.delete('operator_id');
+  response.cookies.delete('login_error');
+  return response;
+}
+
 function pickSafeResponseHeaders(upstream: Response): Headers {
   const headers = new Headers();
   const contentType = upstream.headers.get('content-type');
@@ -89,6 +101,14 @@ async function proxy(req: NextRequest, path: string[]) {
     if (contentType.includes('application/json')) {
       const raw = await upstream.text();
       const parsed = raw ? JSON.parse(raw) : {};
+      if ((status === 401 || status === 403) && isAuthLikeError(String(parsed?.error ?? parsed?.message ?? ''))) {
+        console.warn('[API_PROXY_AUTH_INVALIDATING_SESSION]', {
+          method: req.method,
+          backendPath: `/${backendPath}`,
+          status,
+        });
+        return clearAuthCookies(NextResponse.json(parsed, { status }));
+      }
       return NextResponse.json(parsed, { status });
     }
 
