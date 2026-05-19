@@ -10,7 +10,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -18,9 +17,9 @@ import {
   Plus,
   Edit2,
   Trash2,
-  MoreVertical,
   Filter,
-  Download
+  Download,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -34,6 +33,7 @@ import DeleteModal from './DeleteModal';
 import { bulkDeleteRows } from './action';
 import { RelationMap } from '@/lib/resolveRelation';
 import { cn } from '@/lib/utils';
+import { isAdminRole } from '@/lib/dashboard-access';
 
 type Props = {
   table: string;
@@ -90,14 +90,25 @@ export default function DynamicTable({
 }: Props) {
   const fields = tableConfig[table] ?? [];
   const meta = tableMeta[table] ?? {};
-  const actions = meta.actions ?? [];
+  const isAdmin = isAdminRole(role);
+  const isSequenceTable = table === 'sequences' || table === 'sequence_steps';
+  const sequenceReadOnlyForOperator = isSequenceTable && !isAdmin;
+  const actions = sequenceReadOnlyForOperator
+    ? (meta.actions ?? []).filter((action) => action.key === 'viewSequence')
+    : (meta.actions ?? []);
   const bulkActions = meta.bulkActions ?? [];
-  const hasActionColumn = actions.length > 0 || meta.allowEdit !== false || meta.allowDelete !== false;
+  const allowCreate = sequenceReadOnlyForOperator ? false : meta.allowCreate !== false;
+  const allowEdit = sequenceReadOnlyForOperator ? false : meta.allowEdit !== false;
+  const allowDelete = sequenceReadOnlyForOperator ? false : meta.allowDelete !== false;
+  const hasActionColumn = actions.length > 0 || allowEdit || allowDelete;
   const visibleFields = fields.filter((f) => f.inTable);
 
   const [showForm, setShowForm] = useState(false);
   const [editingRow, setEditingRow] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [pendingRowActionId, setPendingRowActionId] = useState<string | null>(null);
+  const [pendingActionType, setPendingActionType] = useState<'edit' | 'delete' | null>(null);
+  const [isModalSubmitting, setIsModalSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isBulkPending, startBulkTransition] = useTransition();
@@ -307,17 +318,26 @@ export default function DynamicTable({
                       }
                     }}
                   >
-                    {bulkAction.label} ({selectedCount})
+                    {isBulkPending && bulkAction.key === 'bulkDelete' ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Deleting...
+                      </>
+                    ) : (
+                      `${bulkAction.label} (${selectedCount})`
+                    )}
                   </Button>
                 ))}
               </div>
             )}
             
-            {meta.allowCreate !== false && (
+            {allowCreate && (
               <Button
                 size="sm"
                 className="h-10 gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs px-5 rounded-xl shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
                 onClick={() => {
+                  setPendingRowActionId(null);
+                  setPendingActionType(null);
                   setEditingRow(null);
                   setShowForm(true);
                 }}
@@ -479,12 +499,18 @@ export default function DynamicTable({
                     {hasActionColumn && (
                       <TableCell className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1 opacity-100">
-                          {meta.allowEdit !== false && (
+                    {allowEdit && (
                             <Button
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8 text-muted-foreground/70 hover:text-blue-300 hover:bg-blue-500/10"
+                              disabled={
+                                isModalSubmitting ||
+                                (pendingRowActionId === row.id && pendingActionType === 'edit')
+                              }
                               onClick={() => {
+                                setPendingRowActionId(row.id);
+                                setPendingActionType('edit');
                                 setEditingRow(row);
                                 setShowForm(true);
                               }}
@@ -493,12 +519,20 @@ export default function DynamicTable({
                             </Button>
                           )}
 
-                          {meta.allowDelete !== false && (
+                    {allowDelete && (
                             <Button
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8 text-muted-foreground/70 hover:text-red-400 hover:bg-red-500/10"
-                              onClick={() => setDeleteId(row.id)}
+                              disabled={
+                                isModalSubmitting ||
+                                (pendingRowActionId === row.id && pendingActionType === 'delete')
+                              }
+                              onClick={() => {
+                                setPendingRowActionId(row.id);
+                                setPendingActionType('delete');
+                                setDeleteId(row.id);
+                              }}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -570,9 +604,15 @@ export default function DynamicTable({
               row={editingRow}
               relations={relations}
               role={role}
-              onClose={() => setShowForm(false)}
+              onClose={() => {
+                if (isModalSubmitting) return;
+                setShowForm(false);
+                setPendingRowActionId(null);
+                setPendingActionType(null);
+              }}
               onSuccess={refresh}
               defaultValues={defaultValues}
+              onSubmittingChange={(submitting) => setIsModalSubmitting(submitting)}
             />,
             document.body
           )}
@@ -581,8 +621,14 @@ export default function DynamicTable({
             <DeleteModal
               table={table}
               id={deleteId}
-              onClose={() => setDeleteId(null)}
+              onClose={() => {
+                if (isModalSubmitting) return;
+                setDeleteId(null);
+                setPendingRowActionId(null);
+                setPendingActionType(null);
+              }}
               onSuccess={refresh}
+              onSubmittingChange={(submitting) => setIsModalSubmitting(submitting)}
             />,
             document.body
           )}

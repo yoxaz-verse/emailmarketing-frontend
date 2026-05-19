@@ -9,10 +9,16 @@ export async function resolveRelations(
 ): Promise<RelationMap> {
   const fields = tableConfig[table] ?? [];
   const relations: RelationMap = {};
+  const isAdmin = role === 'admin' || role === 'superadmin';
 
   for (const field of fields) {
     if (field.type === 'relation' && field.relation) {
-      if (field.adminOnly && role !== 'admin' && role !== 'superadmin') {
+      const isOperatorCampaignOperatorField =
+        table === 'campaigns' &&
+        field.key === 'operator_id' &&
+        field.relation.table === 'operators';
+
+      if (field.adminOnly && role !== 'admin' && role !== 'superadmin' && !isOperatorCampaignOperatorField) {
         continue;
       }
       const tableName = field.relation.table;
@@ -42,6 +48,29 @@ export async function resolveRelations(
           });
           relations[tableName] = [];
         }
+      }
+    }
+  }
+
+  if (table === 'campaigns' && isAdmin) {
+    const hasOperatorField = fields.some(
+      (field) =>
+        field.type === 'relation' &&
+        field.key === 'operator_id' &&
+        field.inForm &&
+        (!field.adminOnly || isAdmin)
+    );
+
+    if (hasOperatorField && !relations.users) {
+      try {
+        relations.users = await serverFetch('/crud/users');
+      } catch (error) {
+        console.warn('[resolveRelations] Failed to load users relation for campaigns', {
+          sourceTable: table,
+          relationTable: 'users',
+          error,
+        });
+        relations.users = [];
       }
     }
   }

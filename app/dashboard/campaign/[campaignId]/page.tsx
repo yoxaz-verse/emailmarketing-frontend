@@ -83,38 +83,12 @@ export default async function CampaignPage({
     const campaignInboxes = await serverFetch<any[]>(
       `/crud/campaign_inboxes?campaign_id=${campaign.id}`
     );
-    const allCampaignInboxes = await serverFetch<any[]>(`/crud/campaign_inboxes`);
-    const allCampaigns = await serverFetch<any[]>(`/crud/campaigns`);
-
-    const unlockedStatuses = new Set(['paused', 'completed', 'ended', 'cancelled', 'canceled']);
-    const campaignMap = new Map<string, any>();
-    for (const c of allCampaigns) {
-      if (c?.id) campaignMap.set(String(c.id), c);
-    }
-
-    const lockedInboxes = new Map<string, {
+    const lockedInboxes = await serverFetch<Array<{
       inbox_id: string;
       blocking_campaign_id: string;
       blocking_campaign_name: string;
       blocking_status: string;
-    }>();
-
-    for (const row of allCampaignInboxes) {
-      const inboxId = String(row?.inbox_id ?? '');
-      const rowCampaignId = String(row?.campaign_id ?? '');
-      if (!inboxId || !rowCampaignId || rowCampaignId === String(campaign.id)) continue;
-      const rowCampaign = campaignMap.get(rowCampaignId);
-      const status = String(rowCampaign?.status ?? '').toLowerCase();
-      if (unlockedStatuses.has(status)) continue;
-      if (!lockedInboxes.has(inboxId)) {
-        lockedInboxes.set(inboxId, {
-          inbox_id: inboxId,
-          blocking_campaign_id: rowCampaignId,
-          blocking_campaign_name: String(rowCampaign?.name ?? 'Unknown Campaign'),
-          blocking_status: String(rowCampaign?.status ?? 'unknown'),
-        });
-      }
-    }
+    }>>(`/campaigns/${campaign.id}/inbox-locks`);
 
     /**
      * 7️⃣ Load sequence + graph (for read-only steps)
@@ -209,7 +183,7 @@ export default async function CampaignPage({
             campaign={campaign}
             inboxes={inboxes}
             campaignInboxes={campaignInboxes}
-            lockedInboxes={Array.from(lockedInboxes.values())}
+            lockedInboxes={lockedInboxes}
           />
 
           {/* Main layout */}

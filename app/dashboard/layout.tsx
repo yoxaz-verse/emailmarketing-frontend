@@ -11,13 +11,14 @@ export default async function DashboardLayout({
 }) {
   const cookieStore = await cookies();
   const token = cookieStore.get('auth_token')?.value;
+  const role = cookieStore.get('user_role')?.value;
   if (!token) {
     redirect('/login');
   }
 
   return (
     <div className="flex bg-background min-h-screen">
-      <Sidebar />
+      <Sidebar role={role} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <TopBar />

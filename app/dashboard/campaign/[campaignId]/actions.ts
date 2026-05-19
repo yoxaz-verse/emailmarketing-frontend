@@ -2,6 +2,7 @@
 
 import { serverFetch } from '@/lib/server/server-fetch';
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 
 export type CampaignAttachSummary = {
   success: boolean;
@@ -31,20 +32,64 @@ export type CampaignInboxSyncSummary = {
   }>;
 };
 
-export async function startCampaignAction(campaignId: string) {
-  await serverFetch(`/campaigns/${campaignId}/start`, {
-    method: 'POST',
-  });
+export type CampaignActionResult = {
+  success: boolean;
+  error?: string;
+  statusCode?: number;
+};
 
-  revalidatePath(`/dashboard/campaign/${campaignId}`);
+async function callCampaignAction(path: string): Promise<CampaignActionResult> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth_token')?.value;
+
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}${path}`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+    });
+
+    if (res.ok) return { success: true };
+
+    const raw = await res.text();
+    let parsed: { error?: string; message?: string } | null = null;
+    try {
+      parsed = raw ? JSON.parse(raw) : null;
+    } catch {
+      parsed = null;
+    }
+
+    return {
+      success: false,
+      error: String((parsed?.error ?? parsed?.message ?? raw) || 'Campaign action failed'),
+      statusCode: res.status,
+    };
+  } catch (err: unknown) {
+    const typedErr = err as { message?: string };
+    return {
+      success: false,
+      error: String(typedErr?.message ?? 'Campaign action failed'),
+    };
+  }
 }
 
-export async function pauseCampaignAction(campaignId: string) {
-  await serverFetch(`/campaigns/${campaignId}/pause`, {
-    method: 'POST',
-  });
+export async function startCampaignAction(campaignId: string): Promise<CampaignActionResult> {
+  const result = await callCampaignAction(`/campaigns/${campaignId}/start`);
+  if (result.success) {
+    revalidatePath(`/dashboard/campaign/${campaignId}`);
+  }
+  return result;
+}
 
-  revalidatePath(`/dashboard/campaign/${campaignId}`);
+export async function pauseCampaignAction(campaignId: string): Promise<CampaignActionResult> {
+  const result = await callCampaignAction(`/campaigns/${campaignId}/pause`);
+  if (result.success) {
+    revalidatePath(`/dashboard/campaign/${campaignId}`);
+  }
+  return result;
 }
 
 export async function attachLeadsAction(

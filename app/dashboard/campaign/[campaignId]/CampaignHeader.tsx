@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { pauseCampaignAction, startCampaignAction, updateCampaignInboxes } from './actions';
 import { Check, ChevronDown, Mail, Server } from 'lucide-react';
@@ -38,6 +39,7 @@ export default function CampaignHeader({
   campaignInboxes,
   lockedInboxes = []
 }: Props) {
+  const router = useRouter();
 
   /**
    * Inbox IDs currently attached in DB
@@ -53,6 +55,8 @@ export default function CampaignHeader({
     new Set(attachedInboxIds)
   );
   const [saving, setSaving] = useState(false);
+  const [isSubmittingCampaignAction, setIsSubmittingCampaignAction] = useState(false);
+  const [campaignActionStatus, setCampaignActionStatus] = useState<string | null>(null);
   const [backendHealth, setBackendHealth] = useState<BackendHealth>('checking');
   const [isInboxesOpen, setIsInboxesOpen] = useState(true);
   const [lockConflicts, setLockConflicts] = useState<Array<{
@@ -161,6 +165,35 @@ export default function CampaignHeader({
     }
   }
 
+  async function handleStartPause() {
+    if (isSubmittingCampaignAction) return;
+    setCampaignActionStatus(null);
+    try {
+      setIsSubmittingCampaignAction(true);
+      const result = canStart
+        ? await startCampaignAction(campaign.id)
+        : await pauseCampaignAction(campaign.id);
+
+      if (!result.success) {
+        const message = result.error ?? 'Unable to update campaign status';
+        setCampaignActionStatus(message);
+        toast.error(message);
+        return;
+      }
+
+      const successMessage = canStart ? 'Campaign started successfully.' : 'Campaign paused successfully.';
+      setCampaignActionStatus(successMessage);
+      toast.success(successMessage);
+      router.refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to update campaign status';
+      setCampaignActionStatus(message);
+      toast.error(message);
+    } finally {
+      setIsSubmittingCampaignAction(false);
+    }
+  }
+
   const unchanged =
     JSON.stringify([...selected].sort()) ===
     JSON.stringify([...attachedInboxIds].sort());
@@ -206,11 +239,16 @@ export default function CampaignHeader({
         <div className="flex flex-col items-end gap-2">
           <div className="flex items-center gap-2">
             {(canStart || canPause) && (
-              <form action={canStart ? startCampaignAction.bind(null, campaign.id) : pauseCampaignAction.bind(null, campaign.id)}>
-                <Button variant={canPause ? 'destructive' : 'default'} type="submit">
-                  {canStart ? 'Start Campaign' : 'Pause Campaign'}
-                </Button>
-              </form>
+              <Button
+                variant={canPause ? 'destructive' : 'default'}
+                type="button"
+                onClick={() => void handleStartPause()}
+                disabled={isSubmittingCampaignAction}
+              >
+                {isSubmittingCampaignAction
+                  ? (canStart ? 'Starting...' : 'Pausing...')
+                  : (canStart ? 'Start Campaign' : 'Pause Campaign')}
+              </Button>
             )}
             <Button
               onClick={applyChanges}
@@ -242,6 +280,11 @@ export default function CampaignHeader({
           {canStart && selected.size === 0 && (
             <span className="text-xs font-medium text-red-500 bg-red-500/10 px-2 py-1 rounded-md">
               At least one inbox required
+            </span>
+          )}
+          {campaignActionStatus && (
+            <span className="text-xs font-medium text-amber-200 bg-amber-500/10 border border-amber-500/30 px-2 py-1 rounded-md">
+              {campaignActionStatus}
             </span>
           )}
         </div>
@@ -314,7 +357,9 @@ export default function CampaignHeader({
                         </p>
                         {isLocked ? (
                           <p className="mt-1 text-[11px] text-amber-300">
-                            Locked by: {lockInfo?.blocking_campaign_name} ({lockInfo?.blocking_status})
+                            {lockInfo?.blocking_campaign_name === 'Another active campaign'
+                              ? `Locked by another active campaign (${lockInfo?.blocking_status})`
+                              : `Locked by: ${lockInfo?.blocking_campaign_name} (${lockInfo?.blocking_status})`}
                           </p>
                         ) : null}
                       </div>

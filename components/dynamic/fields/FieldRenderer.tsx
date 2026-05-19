@@ -89,7 +89,11 @@ function renderRelationField(
         >
           <option value="">Select {field.label}</option>
           {options.map((row: any) => (
-            <option key={row[rel.valueKey]} value={row[rel.valueKey]}>
+            <option
+              key={row[rel.valueKey]}
+              value={row[rel.valueKey]}
+              disabled={Boolean(row?.__disabled)}
+            >
               {getRelationOptionLabel(field, rel, row)}
             </option>
           ))}
@@ -117,6 +121,10 @@ function getRelationOptionLabel(field: any, rel: any, row: any): string {
 
   if (rel.table === 'sequences' && row?.is_active === false) {
     return `${baseLabel} (inactive)`;
+  }
+
+  if (row?.__deleted === true) {
+    return `${baseLabel} (deleted)`;
   }
 
   return baseLabel;

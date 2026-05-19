@@ -58,6 +58,8 @@ type OperationsSummaryData = {
 };
 
 export default function OverviewPage() {
+  const REQUEST_TIMEOUT_MS = 12000;
+  const RETRY_DELAY_MS = 800;
   const [data, setData] = useState<OperationsSummaryData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -67,26 +69,64 @@ export default function OverviewPage() {
     setIsRefreshing(true);
     setLoadError(null);
     setConnectionState((previous) => (previous === 'connected' ? previous : 'loading'));
-    try {
-      const res = await fetch('/api/stats/operations-summary', {
-        method: 'GET',
-        cache: 'no-store',
-      });
-      const body = await res.json().catch(() => null);
+    const fetchSummary = async () => {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      try {
+        const res = await fetch('/api/stats/operations-summary', {
+          method: 'GET',
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        const body = await res.json().catch(() => null);
 
-      if (!res.ok) {
-        const status = String((body as { status?: string } | null)?.status ?? '');
-        if (status === 'backend_unavailable') setConnectionState('backend_unavailable');
-        else if (status === 'route_missing') setConnectionState('route_missing');
-        else setConnectionState('error');
-        const message = String((body as { error?: string } | null)?.error ?? `Failed to load stats (${res.status})`);
-        throw new Error(message);
+        if (!res.ok) {
+          const status = String((body as { status?: string } | null)?.status ?? '');
+          if (status === 'backend_unavailable') setConnectionState('backend_unavailable');
+          else if (status === 'route_missing') setConnectionState('route_missing');
+          else setConnectionState('error');
+          const message = String((body as { error?: string } | null)?.error ?? `Failed to load stats (${res.status})`);
+          throw new Error(message);
+        }
+
+        setData(body as OperationsSummaryData);
+        setConnectionState('connected');
+      } catch (err) {
+        const isAbort = err instanceof DOMException && err.name === 'AbortError';
+        if (isAbort) {
+          setConnectionState('error');
+          throw new Error('Request timed out. Click Refresh to retry.');
+        }
+        throw err;
+      } finally {
+        window.clearTimeout(timeoutId);
       }
+    };
 
-      setData(body as OperationsSummaryData);
-      setConnectionState('connected');
+    try {
+      await fetchSummary();
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Failed to load stats');
+      const message = err instanceof Error ? err.message : 'Failed to load stats';
+      const shouldRetry =
+        message.toLowerCase().includes('timed out') ||
+        message.toLowerCase().includes('network') ||
+        message.toLowerCase().includes('fetch failed') ||
+        message.toLowerCase().includes('backend unavailable');
+
+      if (shouldRetry) {
+        await new Promise((resolve) => window.setTimeout(resolve, RETRY_DELAY_MS));
+        try {
+          await fetchSummary();
+          return;
+        } catch (retryErr) {
+          const retryMessage = retryErr instanceof Error ? retryErr.message : 'Failed to load stats';
+          setConnectionState((previous) => (previous === 'loading' ? 'error' : previous));
+          setLoadError(retryMessage);
+        }
+      } else {
+        setConnectionState((previous) => (previous === 'loading' ? 'error' : previous));
+        setLoadError(message);
+      }
     } finally {
       setIsRefreshing(false);
     }

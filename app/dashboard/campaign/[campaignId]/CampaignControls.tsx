@@ -7,12 +7,19 @@ import {
 } from './actions';
 
 export default function CampaignControls({ campaign }: any) {
+  const startCampaign = async () => {
+    await startCampaignAction(campaign.id);
+  };
+  const pauseCampaign = async () => {
+    await pauseCampaignAction(campaign.id);
+  };
+
   return (
     <div className="flex gap-4">
       {(campaign.status === 'draft' ||
         campaign.status === 'paused') && (
         <form
-          action={startCampaignAction.bind(null, campaign.id)}
+          action={startCampaign}
         >
           <Button>Start Campaign</Button>
         </form>
@@ -20,7 +27,7 @@ export default function CampaignControls({ campaign }: any) {
 
       {campaign.status === 'running' && (
         <form
-          action={pauseCampaignAction.bind(null, campaign.id)}
+          action={pauseCampaign}
         >
           <Button variant="destructive">
             Pause Campaign

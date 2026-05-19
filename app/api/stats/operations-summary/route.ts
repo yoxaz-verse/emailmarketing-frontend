@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 type ProxyErrorStatus = 'backend_unavailable' | 'route_missing' | 'upstream_error' | 'misconfigured';
 
@@ -9,6 +10,7 @@ type ProxyErrorBody = {
 };
 
 export async function GET() {
+  const UPSTREAM_TIMEOUT_MS = 12000;
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
   if (!apiBase || apiBase.trim() === '') {
     return NextResponse.json<ProxyErrorBody>(
@@ -20,17 +22,31 @@ export async function GET() {
     );
   }
 
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth_token')?.value;
+
   let upstream: Response;
   try {
     upstream = await fetch(`${apiBase}/stats/operations-summary`, {
       method: 'GET',
       cache: 'no-store',
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
       headers: {
         Accept: 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown network error';
+    const isTimeout =
+      error instanceof Error &&
+      (error.name === 'TimeoutError' ||
+        error.name === 'AbortError' ||
+        error.message.toLowerCase().includes('timed out'));
+    const message = isTimeout
+      ? `Upstream request timed out after ${UPSTREAM_TIMEOUT_MS}ms`
+      : error instanceof Error
+        ? error.message
+        : 'Unknown network error';
     return NextResponse.json<ProxyErrorBody>(
       {
         error: 'Backend unavailable',

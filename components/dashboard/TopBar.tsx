@@ -1,35 +1,52 @@
 "use client";
 
-import React from 'react';
-import { usePathname } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-    Bell,
-    Search,
-    Settings,
-    LogOut,
-    User,
-    HelpCircle
+    LogOut
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import NotificationPanel from './NotificationPanel';
+import { clientFetch } from '@/lib/client-fetch';
+
+type AuthMeResponse = {
+    id?: string;
+    role?: string;
+    operator_id?: string | null;
+    email?: string;
+};
 
 export default function TopBar() {
-    const pathname = usePathname();
+    const [email, setEmail] = useState<string>('');
 
-    const getPageTitle = (path: string) => {
-        const segments = path.split('/').filter(Boolean);
-        if (segments.length <= 1) return 'Dashboard';
-        const lastSegment = segments[segments.length - 1];
-        return lastSegment.split(/[_-]/).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    const getDisplayEmail = (value: unknown): string => {
+        if (typeof value !== 'string') return '';
+        const trimmed = value.trim();
+        return trimmed.length > 0 ? trimmed : '';
+    };
+
+    useEffect(() => {
+        let active = true;
+        clientFetch('/auth/me')
+            .then(async (res) => {
+                if (!res.ok) return;
+                const data = (await res.json()) as AuthMeResponse;
+                if (!active) return;
+                setEmail(getDisplayEmail(data?.email));
+            })
+            .catch(() => {
+                if (!active) return;
+                setEmail('');
+            });
+
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    const handleSignOut = () => {
+        const shouldSignOut = window.confirm('Are you sure you want to sign out?');
+        if (!shouldSignOut) return;
+        window.location.href = '/api/auth/logout';
     };
 
     return (
@@ -51,37 +68,17 @@ export default function TopBar() {
 
             <div className="flex items-center gap-4">
                 <NotificationPanel />
-
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <button className="flex items-center gap-3 p-1 rounded-full hover:bg-muted transition-colors outline-none">
-                            <div className="w-8 h-8 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-white shadow-sm">
-                                JD
-                            </div>
-                            <div className="text-left hidden lg:block">
-                                <p className="text-sm font-semibold text-foreground leading-tight">John Doe</p>
-                                <p className="text-[10px] text-muted-foreground font-medium">Administrator</p>
-                            </div>
-                        </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56 mt-2">
-                        <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem>
-                            <User className="mr-2 h-4 w-4" /> Profile
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                            <Settings className="mr-2 h-4 w-4" /> Settings
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                            <HelpCircle className="mr-2 h-4 w-4" /> Support
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-500 focus:bg-red-500/10 focus:text-red-500" onClick={() => window.location.href = '/api/auth/logout'}>
-                            <LogOut className="mr-2 h-4 w-4" /> Sign out
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                <p className="text-sm font-medium text-foreground max-w-[320px] truncate" title={email || 'Signed in'}>
+                    {email || 'Signed in'}
+                </p>
+                <Button
+                    variant="ghost"
+                    className="text-red-500 hover:text-red-500 hover:bg-red-500/10"
+                    onClick={handleSignOut}
+                >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign out
+                </Button>
             </div>
         </header>
     );

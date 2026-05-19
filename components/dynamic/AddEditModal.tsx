@@ -8,6 +8,8 @@ import { RelationMap } from '@/lib/resolveRelation';
 import { executeAction } from '@/lib/action-executor';
 import { clientFetch } from '@/lib/client-fetch';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
 type Props = {
   table: string;
@@ -16,7 +18,8 @@ type Props = {
   role?: string;
   onClose: () => void;
   onSuccess: () => void;
-  defaultValues?: Record<string, any>
+  defaultValues?: Record<string, any>;
+  onSubmittingChange?: (submitting: boolean) => void;
 };
 
 export default function AddEditModal({
@@ -26,8 +29,8 @@ export default function AddEditModal({
   role,
   onClose,
   onSuccess,
-  defaultValues = {},   // 👈 ADD THIS
-
+  defaultValues = {},
+  onSubmittingChange,
 }: Props) {
   const config = tableConfig[table];
   const isEdit = !!row;
@@ -35,6 +38,7 @@ export default function AddEditModal({
 
   const [form, setForm] = useState<any>({});
   const [relationData, setRelationData] = useState<RelationMap>(relations);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const previousProviderRef = useRef<string>('');
   const sequenceFallbackAttemptedRef = useRef(false);
 
@@ -58,6 +62,30 @@ export default function AddEditModal({
     setRelationData(relations);
     sequenceFallbackAttemptedRef.current = false;
   }, [relations]);
+
+  function isOperatorSoftDeleted(operator: any): boolean {
+    if (!operator || typeof operator !== 'object') return false;
+
+    if (operator.deleted === true || operator.is_deleted === true) return true;
+    if (operator.deleted_at) return true;
+
+    const status = String(operator.status ?? '').trim().toLowerCase();
+    if (status && ['deleted', 'inactive', 'disabled', 'archived'].includes(status)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function labelOperator(operator: any): string {
+    const name = String(operator?.name ?? '').trim();
+    if (name) return name;
+    const email = String(operator?.email ?? '').trim();
+    if (email) return email;
+    const id = String(operator?.id ?? '').trim();
+    if (id) return `Operator ${id.slice(0, 8)}`;
+    return 'Unknown operator';
+  }
 
   function parseSequenceActiveFlag(value: unknown): boolean {
     if (value === true || value === 1) return true;
@@ -229,6 +257,71 @@ export default function AddEditModal({
   }, [isEdit, table, form.sequence_id, relationData]);
 
   useEffect(() => {
+    if (table !== 'campaigns') return;
+
+    const operators = Array.isArray(relations?.operators) ? relations.operators : [];
+    if (operators.length === 0) return;
+
+    const users = Array.isArray(relations?.users) ? relations.users : [];
+    const activeOperatorIds = new Set(
+      users
+        .map((user: any) => String(user?.operator_id ?? '').trim())
+        .filter((id: string) => id.length > 0)
+    );
+    const hasUserScopedOperators = activeOperatorIds.size > 0;
+
+    const filteredOperators = operators.filter((operator: any) => {
+      const id = String(operator?.id ?? '').trim();
+      if (!id) return false;
+      if (isOperatorSoftDeleted(operator)) return false;
+      if (hasUserScopedOperators && !activeOperatorIds.has(id)) return false;
+      return true;
+    });
+
+    const selectedOperatorId = String(form.operator_id ?? '').trim();
+    const selectedInFiltered = filteredOperators.some(
+      (operator: any) => String(operator?.id ?? '').trim() === selectedOperatorId
+    );
+
+    const selectedOriginal = operators.find(
+      (operator: any) => String(operator?.id ?? '').trim() === selectedOperatorId
+    );
+
+    let nextOperators = filteredOperators;
+    if (selectedOperatorId && !selectedInFiltered && selectedOriginal) {
+      nextOperators = [
+        ...filteredOperators,
+        {
+          ...selectedOriginal,
+          __deleted: true,
+          __disabled: true,
+          name: labelOperator(selectedOriginal),
+        },
+      ];
+    }
+
+    setRelationData((prev) => {
+      const previous = Array.isArray(prev?.operators) ? prev.operators : [];
+      const same =
+        previous.length === nextOperators.length &&
+        previous.every((operator: any, index: number) => {
+          const nextOperator = nextOperators[index];
+          return (
+            String(operator?.id ?? '') === String(nextOperator?.id ?? '') &&
+            Boolean(operator?.__deleted) === Boolean(nextOperator?.__deleted) &&
+            String(operator?.name ?? '') === String(nextOperator?.name ?? '')
+          );
+        });
+
+      if (same) return prev;
+      return {
+        ...prev,
+        operators: nextOperators,
+      };
+    });
+  }, [table, relations?.operators, relations?.users, form.operator_id]);
+
+  useEffect(() => {
     if (table !== 'smtp_accounts') return;
 
     const provider = String(form.provider ?? '').toLowerCase().trim();
@@ -304,19 +397,28 @@ export default function AddEditModal({
   }
 
   async function submit() {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    onSubmittingChange?.(true);
+
     const label = table.replace('_', ' ');
     const normalizedForm = normalizeSmtpUsername(form);
-    const res = await executeAction(
-      () => (isEdit ? updateRow(table, row.id, normalizedForm) : createRow(table, normalizedForm)),
-      {
-        success: `${label} ${isEdit ? 'updated' : 'created'}`,
-        error: `Failed to ${isEdit ? 'update' : 'create'} ${label}`,
-      }
-    );
+    try {
+      const res = await executeAction(
+        () => (isEdit ? updateRow(table, row.id, normalizedForm) : createRow(table, normalizedForm)),
+        {
+          success: `${label} ${isEdit ? 'updated' : 'created'}`,
+          error: `Failed to ${isEdit ? 'update' : 'create'} ${label}`,
+        }
+      );
 
-    if (res !== undefined) {
-      onSuccess();
-      onClose();
+      if (res !== undefined) {
+        onSuccess();
+        onClose();
+      }
+    } finally {
+      setIsSubmitting(false);
+      onSubmittingChange?.(false);
     }
   }
 
@@ -367,7 +469,10 @@ export default function AddEditModal({
         </div>
 
         <div className={cn('flex justify-end gap-2 pt-4', isCampaignModal ? 'pt-6' : '')}>
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={isSubmitting}
             className={cn(
               'transition-colors',
               isCampaignModal
@@ -377,8 +482,10 @@ export default function AddEditModal({
             onClick={onClose}
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
+            disabled={isSubmitting}
             className={cn(
               'rounded px-4 transition-colors',
               isCampaignModal
@@ -387,8 +494,9 @@ export default function AddEditModal({
             )}
             onClick={submit}
           >
-            {isEdit ? 'Save' : 'Create'}
-          </button>
+            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isSubmitting ? (isEdit ? 'Saving...' : 'Creating...') : (isEdit ? 'Save' : 'Create')}
+          </Button>
         </div>
       </div>
     </div>

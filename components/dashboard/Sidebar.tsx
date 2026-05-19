@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { isAdminRole } from '@/lib/dashboard-access';
 import {
     LayoutDashboard,
     Mail,
@@ -85,8 +86,9 @@ type NavItem = {
     comingSoon?: boolean;
 };
 
-export default function Sidebar() {
+export default function Sidebar({ role }: { role?: string }) {
     const pathname = usePathname();
+    const isAdmin = isAdminRole(role);
 
 const renderNavItem = (item: NavItem, isActive: boolean) => (
         <li key={item.href}>
@@ -141,68 +143,82 @@ const renderNavItem = (item: NavItem, isActive: boolean) => (
                     </ul>
                 </div>
 
-                <div>
-                    <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                        Newsletter
-                    </h3>
-                    <ul className="space-y-1">
-                        {newsletterItems.map((item) => renderNavItem(item, pathname === item.href))}
-                    </ul>
-                </div>
+                {isAdmin && (
+                    <div>
+                        <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+                            Newsletter
+                        </h3>
+                        <ul className="space-y-1">
+                            {newsletterItems.map((item) => renderNavItem(item, pathname === item.href))}
+                        </ul>
+                    </div>
+                )}
 
-                <div>
-                    <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                        Content
-                    </h3>
-                    <ul className="space-y-1">
-                        {contentItems.map((item) => renderNavItem(item, pathname === item.href))}
-                    </ul>
-                </div>
+                {isAdmin && (
+                    <div>
+                        <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+                            Content
+                        </h3>
+                        <ul className="space-y-1">
+                            {contentItems.map((item) => renderNavItem(item, pathname === item.href))}
+                        </ul>
+                    </div>
+                )}
 
-                <div>
-                    <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                        Email Automation
-                    </h3>
-                    <ul className="space-y-1">
-                        {emailItems.map((item) => renderNavItem(item, pathname === item.href))}
-                    </ul>
-                </div>
+                {isAdmin && (
+                    <div>
+                        <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+                            Email Automation
+                        </h3>
+                        <ul className="space-y-1">
+                            {emailItems.map((item) => renderNavItem(item, pathname === item.href))}
+                        </ul>
+                    </div>
+                )}
 
-                <div>
-                    <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                        Voice AI (CS)
-                    </h3>
-                    <ul className="space-y-1">
-                        {voiceItems.map((item) => renderNavItem(item, pathname.startsWith(item.href)))}
-                    </ul>
-                </div>
+                {isAdmin && (
+                    <div>
+                        <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+                            Voice AI (CS)
+                        </h3>
+                        <ul className="space-y-1">
+                            {voiceItems.map((item) => renderNavItem(item, pathname.startsWith(item.href)))}
+                        </ul>
+                    </div>
+                )}
 
-                <div>
-                    <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                        OpenFlow AI
-                    </h3>
-                    <ul className="space-y-1">
-                        {openFlowItems.map((item) => renderNavItem(item, pathname.startsWith(item.href)))}
-                    </ul>
-                </div>
+                {isAdmin && (
+                    <div>
+                        <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+                            OpenFlow AI
+                        </h3>
+                        <ul className="space-y-1">
+                            {openFlowItems.map((item) => renderNavItem(item, pathname.startsWith(item.href)))}
+                        </ul>
+                    </div>
+                )}
 
-                <div>
-                    <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                        Inquiry
-                    </h3>
-                    <ul className="space-y-1">
-                        {inquiryItems.map((item) => renderNavItem(item, pathname.startsWith(item.href)))}
-                    </ul>
-                </div>
+                {isAdmin && (
+                    <div>
+                        <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+                            Inquiry
+                        </h3>
+                        <ul className="space-y-1">
+                            {inquiryItems.map((item) => renderNavItem(item, pathname.startsWith(item.href)))}
+                        </ul>
+                    </div>
+                )}
 
-                <div>
-                    <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                        Admin
-                    </h3>
-                    <ul className="space-y-1">
-                        {adminItems.map((item) => renderNavItem(item, pathname === item.href))}
-                    </ul>
-                </div>
+                {isAdmin && (
+                    <div>
+                        <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+                            Admin
+                        </h3>
+                        <ul className="space-y-1">
+                            {adminItems.map((item) => renderNavItem(item, pathname === item.href))}
+                        </ul>
+                    </div>
+                )}
             </nav>
 
             {/* <div className="p-4 border-t bg-gray-50/50">

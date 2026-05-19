@@ -1,33 +1,49 @@
 'use client';
 
+import { useState } from 'react';
 import { deleteRow } from "./action";
 import { executeAction } from "@/lib/action-executor";
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
 
 export default function DeleteModal({
   table,
   id,
   onClose,
-  onSuccess
+  onSuccess,
+  onSubmittingChange
 }: {
   table: string;
   id: string;
   onClose: () => void;
   onSuccess: () => void;
+  onSubmittingChange?: (submitting: boolean) => void;
 }) {
-  async function confirm() {
-    const label = table.replace('_', ' ');
-    const res = await executeAction(
-      () => deleteRow(table, id),
-      {
-        success: `${label} deleted`,
-        error: `Failed to delete ${label}`
-      }
-    );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    if (res !== undefined) {
-      onSuccess();
-      onClose();
+  async function confirm() {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    onSubmittingChange?.(true);
+
+    const label = table.replace('_', ' ');
+    try {
+      const res = await executeAction(
+        () => deleteRow(table, id),
+        {
+          success: `${label} deleted`,
+          error: `Failed to delete ${label}`
+        }
+      );
+
+      if (res !== undefined) {
+        onSuccess();
+        onClose();
+      }
+    } finally {
+      setIsSubmitting(false);
+      onSubmittingChange?.(false);
     }
   }
 
@@ -39,15 +55,24 @@ export default function DeleteModal({
         <p className="text-muted-foreground">This action cannot be undone.</p>
 
         <div className="flex justify-end gap-2">
-          <button className="text-muted-foreground hover:text-foreground" onClick={onClose}>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={isSubmitting}
+            className="text-muted-foreground hover:text-foreground"
+            onClick={onClose}
+          >
             Cancel
-          </button>
-          <button
-            className="bg-destructive text-white px-4 py-1 rounded"
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={isSubmitting}
             onClick={confirm}
           >
-            Delete
-          </button>
+            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isSubmitting ? 'Deleting...' : 'Delete'}
+          </Button>
         </div>
       </div>
     </div>
