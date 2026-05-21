@@ -5,6 +5,7 @@ import { serverFetch } from "@/lib/server/server-fetch";
 export type ImportReport = {
   success: boolean;
   insertedCount: number;
+  replacedCount?: number;
   duplicateCount: number;
   invalidCount: number;
   duplicateEmails: string[];
@@ -157,6 +158,7 @@ export async function uploadImportedLeadsAction(payload: {
   operator_id?: string;
   source?: string;
   tags?: string[];
+  duplicate_mode?: "skip" | "replace";
 }): Promise<ImportReport> {
   try {
     return await serverFetch<ImportReport>("/operator/leads/upload", {

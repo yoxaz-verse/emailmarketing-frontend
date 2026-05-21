@@ -67,6 +67,7 @@ export default function UploadLeadsForm({
   const [importError, setImportError] = useState<ImportUiError | null>(null);
   const [showImportErrorDetails, setShowImportErrorDetails] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [duplicateMode, setDuplicateMode] = useState<'skip' | 'replace'>('skip');
 
   const hasOperatorSelection = (role?.toLowerCase() === 'admin' || role?.toLowerCase() === 'superadmin' || operators.length > 0);
 
@@ -212,6 +213,7 @@ export default function UploadLeadsForm({
           .split(',')
           .map((v) => v.trim())
           .filter(Boolean),
+        duplicate_mode: duplicateMode,
       });
       setImportReport(report);
       toast.success('Onboarding sequence completed successfully.', {
@@ -295,7 +297,7 @@ export default function UploadLeadsForm({
         <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
           <div className={cn(
             'grid gap-6 p-4 rounded-xl bg-accent/20 border border-border/40',
-            hasOperatorSelection ? 'md:grid-cols-4' : 'md:grid-cols-3'
+            hasOperatorSelection ? 'md:grid-cols-5' : 'md:grid-cols-4'
           )}>
             {hasOperatorSelection && (
               <div className="space-y-1.5">
@@ -333,6 +335,18 @@ export default function UploadLeadsForm({
                 onChange={(e) => setImportTags(e.target.value)}
                 className="h-11 bg-background/50 border-border/60 focus:border-primary/50 shadow-inner"
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Duplicate Strategy</label>
+              <select
+                className="h-11 w-full rounded-lg border border-border/60 bg-background/50 px-3 py-2 text-sm focus:ring-2 focus:ring-primary/30 outline-none transition-all hover:border-primary/50 shadow-inner"
+                value={duplicateMode}
+                onChange={(e) => setDuplicateMode(e.target.value as 'skip' | 'replace')}
+              >
+                <option value="skip">Skip duplicates (recommended)</option>
+                <option value="replace">Replace existing leads</option>
+              </select>
             </div>
 
             <div className="space-y-1.5">
@@ -488,7 +502,7 @@ export default function UploadLeadsForm({
                   </li>
                   <li className="flex items-center gap-2 text-xs text-foreground/80">
                     <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                    Duplicates Ignored Automatically
+                    {duplicateMode === 'replace' ? 'Duplicates replace existing leads' : 'Duplicates are skipped safely'}
                   </li>
                 </ul>
               </div>
@@ -558,7 +572,9 @@ export default function UploadLeadsForm({
                   <div className="text-4xl font-black text-green-500 tracking-tighter">{importReport.insertedCount}</div>
                 </div>
                 <div className="relative group rounded-2xl border border-yellow-500/30 bg-yellow-500/5 p-6 text-center transition-all hover:bg-yellow-500/10 shadow-lg shadow-yellow-500/5">
-                  <div className="text-[10px] font-bold text-yellow-500/70 uppercase tracking-[0.2em] mb-2">Duplicate Entries</div>
+                  <div className="text-[10px] font-bold text-yellow-500/70 uppercase tracking-[0.2em] mb-2">
+                    {duplicateMode === 'replace' ? 'Duplicate Emails Detected' : 'Duplicate Emails Skipped'}
+                  </div>
                   <div className="text-4xl font-black text-yellow-500 tracking-tighter">{importReport.duplicateCount}</div>
                 </div>
                 <div className="relative group rounded-2xl border border-red-500/30 bg-red-500/5 p-6 text-center transition-all hover:bg-red-500/10 shadow-lg shadow-red-500/5">
@@ -567,7 +583,25 @@ export default function UploadLeadsForm({
                 </div>
               </div>
 
+              {typeof importReport.replacedCount === 'number' && importReport.replacedCount > 0 && (
+                <div className="rounded-xl border border-primary/30 bg-primary/10 p-3 text-xs text-primary">
+                  Replaced existing leads: <span className="font-bold">{importReport.replacedCount}</span> (non-empty uploaded fields only).
+                </div>
+              )}
+
               <div className="flex items-center justify-center gap-4 pt-2">
+                {importReport.duplicateCount > 0 && (
+                  <a
+                    className="text-xs font-bold text-yellow-300 hover:text-yellow-200 flex items-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/20 transition-all hover:scale-105"
+                    href={`data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify({
+                      reason: 'Email already exists for this operator.',
+                      duplicateEmails: importReport.duplicateEmails,
+                    }, null, 2))}`}
+                    download="duplicate-email-report.json"
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5" /> Download Duplicate Report
+                  </a>
+                )}
                 {importReport.invalidCount > 0 && (
                   <a
                     className="text-xs font-bold text-red-400 hover:text-red-300 flex items-center gap-2 px-6 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 transition-all hover:scale-105"

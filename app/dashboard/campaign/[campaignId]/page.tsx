@@ -2,6 +2,7 @@ import CampaignHeader from './CampaignHeader';
 import LeadsTab from './LeadTab';
 import CampaignJourneyMap from './CampaignJourneyMap';
 import { serverFetch } from '@/lib/server/server-fetch';
+import Link from 'next/link';
 
 type SendingLimitsConfig = {
   warmup_steps?: Array<{
@@ -194,6 +195,40 @@ export default async function CampaignPage({
       String(lead?.status ?? '').toLowerCase() === 'replied' &&
       String((lead?.interest_status ?? '') as InterestStatus).toLowerCase() === 'interested'
     )).length;
+    let replyOpenAnalytics: {
+      sent: number;
+      delivered: number;
+      opened: number;
+      not_opened: number;
+      replied: number;
+      not_replied: number;
+      bounced_hard: number;
+      bounced_soft: number;
+      bounced_total: number;
+      delivery_failed: number;
+      pending_outcome: number;
+      outcome_vs_step_mismatch: number;
+      delivery_rate: number;
+      bounce_rate: number;
+      open_rate: number;
+      reply_rate: number;
+      outcome_rows?: Array<{
+        campaign_lead_id: string;
+        outcome: string;
+      }>;
+    } | null = null;
+    try {
+      replyOpenAnalytics = await serverFetch(`/campaigns/${campaign.id}/reply-open-analytics`);
+    } catch {
+      replyOpenAnalytics = null;
+    }
+
+    const leadOutcomeByCampaignLeadId = new Map<string, string>();
+    for (const row of replyOpenAnalytics?.outcome_rows ?? []) {
+      if (row?.campaign_lead_id) {
+        leadOutcomeByCampaignLeadId.set(String(row.campaign_lead_id), String(row.outcome ?? ''));
+      }
+    }
 
     return (
       <div className="-mx-8 -my-8">
@@ -209,20 +244,74 @@ export default async function CampaignPage({
           {/* Main layout */}
           <div className="space-y-6">
             <section className="rounded-xl border border-border bg-card/50 p-4">
-              <div className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Reply Summary</div>
-              <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+              <div className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Delivery Health</div>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-4 gap-3 text-sm">
                 <div className="rounded-lg border border-border px-3 py-2">
-                  <div className="text-muted-foreground text-xs">Total Replies</div>
-                  <div className="mt-1 text-base font-semibold text-foreground">{totalReplies}</div>
+                  <div className="text-muted-foreground text-xs">Sent</div>
+                  <div className="mt-1 text-base font-semibold text-foreground">{replyOpenAnalytics?.sent ?? 0}</div>
                 </div>
                 <div className="rounded-lg border border-border px-3 py-2">
-                  <div className="text-muted-foreground text-xs">Unreviewed</div>
-                  <div className="mt-1 text-base font-semibold text-amber-300">{unreviewedReplies}</div>
+                  <div className="text-muted-foreground text-xs">Delivered</div>
+                  <div className="mt-1 text-base font-semibold text-emerald-300">{replyOpenAnalytics?.delivered ?? 0}</div>
                 </div>
                 <div className="rounded-lg border border-border px-3 py-2">
-                  <div className="text-muted-foreground text-xs">Interested</div>
-                  <div className="mt-1 text-base font-semibold text-emerald-300">{interestedReplies}</div>
+                  <div className="text-muted-foreground text-xs">Opened</div>
+                  <div className="mt-1 text-base font-semibold text-sky-300">{replyOpenAnalytics?.opened ?? 0}</div>
                 </div>
+                <div className="rounded-lg border border-border px-3 py-2">
+                  <div className="text-muted-foreground text-xs">Replied</div>
+                  <div className="mt-1 text-base font-semibold text-sky-300">
+                    {replyOpenAnalytics?.replied ?? totalReplies}
+                  </div>
+                </div>
+              </div>
+              {replyOpenAnalytics ? (
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-4 gap-3 text-sm">
+                  <div className="rounded-lg border border-border px-3 py-2">
+                    <div className="text-muted-foreground text-xs">Hard Bounce</div>
+                    <div className="mt-1 text-base font-semibold text-rose-300">{replyOpenAnalytics.bounced_hard}</div>
+                  </div>
+                  <div className="rounded-lg border border-border px-3 py-2">
+                    <div className="text-muted-foreground text-xs">Soft Bounce</div>
+                    <div className="mt-1 text-base font-semibold text-orange-300">{replyOpenAnalytics.bounced_soft}</div>
+                  </div>
+                  <div className="rounded-lg border border-border px-3 py-2">
+                    <div className="text-muted-foreground text-xs">Pending Outcome</div>
+                    <div className="mt-1 text-base font-semibold text-amber-300">{replyOpenAnalytics.pending_outcome}</div>
+                  </div>
+                  <div className="rounded-lg border border-border px-3 py-2">
+                    <div className="text-muted-foreground text-xs">Step/Outcome Mismatch</div>
+                    <div className="mt-1 text-base font-semibold text-yellow-300">{replyOpenAnalytics.outcome_vs_step_mismatch}</div>
+                  </div>
+                </div>
+              ) : null}
+              {replyOpenAnalytics ? (
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-4 gap-3 text-sm">
+                  <div className="rounded-lg border border-border px-3 py-2">
+                    <div className="text-muted-foreground text-xs">Delivery Rate</div>
+                    <div className="mt-1 text-base font-semibold text-emerald-300">{replyOpenAnalytics.delivery_rate}%</div>
+                  </div>
+                  <div className="rounded-lg border border-border px-3 py-2">
+                    <div className="text-muted-foreground text-xs">Open Rate</div>
+                    <div className="mt-1 text-base font-semibold text-sky-300">{replyOpenAnalytics.open_rate}%</div>
+                  </div>
+                  <div className="rounded-lg border border-border px-3 py-2">
+                    <div className="text-muted-foreground text-xs">Reply Rate</div>
+                    <div className="mt-1 text-base font-semibold text-cyan-300">{replyOpenAnalytics.reply_rate}%</div>
+                  </div>
+                  <div className="rounded-lg border border-border px-3 py-2">
+                    <div className="text-muted-foreground text-xs">Bounce Rate</div>
+                    <div className="mt-1 text-base font-semibold text-rose-300">{replyOpenAnalytics.bounce_rate}%</div>
+                  </div>
+                </div>
+              ) : null}
+              <div className="mt-3">
+                <Link
+                  href={`/dashboard/campaign/replies?campaign_id=${campaign.id}`}
+                  className="inline-flex h-9 items-center rounded border border-border px-3 text-sm text-foreground hover:bg-muted"
+                >
+                  View Replies
+                </Link>
               </div>
             </section>
             <LeadsTab
@@ -240,12 +329,13 @@ export default async function CampaignPage({
               sequenceResolved={sequenceResolved}
               sequenceName={sequenceName}
               sequenceSteps={sequenceSteps}
-              campaignLeads={campaignLeads}
-              allLeads={allLeads}
-              inboxes={inboxes}
-              campaignInboxes={campaignInboxes}
-              sendingLimitsConfig={sendingLimitsConfig}
-            />
+                campaignLeads={campaignLeads}
+                allLeads={allLeads}
+                inboxes={inboxes}
+                campaignInboxes={campaignInboxes}
+                sendingLimitsConfig={sendingLimitsConfig}
+                leadOutcomeByCampaignLeadId={Object.fromEntries(leadOutcomeByCampaignLeadId)}
+              />
           </div>
         </div>
       </div>

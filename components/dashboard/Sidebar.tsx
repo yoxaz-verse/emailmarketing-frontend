@@ -30,6 +30,7 @@ const mainItems = [
 
 const marketingItems = [
     { label: 'Campaigns', href: '/dashboard/campaign', icon: Megaphone },
+    { label: 'Replies', href: '/dashboard/campaign/replies', icon: Mail },
     { label: 'Campaign Lead', href: '/dashboard/campaign_leads', icon: UserPlus },
     { label: 'Leads', href: '/dashboard/leads', icon: Users },
     { label: 'Bulk Upload', href: '/dashboard/leads/upload', icon: UserPlus },

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import * as ToggleGroup from '@radix-ui/react-toggle-group';
-import { AlertTriangle, CheckCircle, Clock, Database, Filter, UploadCloud } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, Database, Filter, Folder, FolderOpen, UploadCloud } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 
@@ -346,25 +346,53 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
           
           <div className="flex flex-wrap items-center gap-3">
             <Button
-              variant={scope.type === 'all' ? 'default' : 'outline'}
+              variant="outline"
               className={cn(
-                "h-10 px-5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all",
-                scope.type === 'all' ? "bg-primary shadow-lg shadow-primary/20" : "hover:bg-primary/10 hover:border-primary/30"
+                "group relative h-10 rounded-xl border pl-3 pr-4 text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-0",
+                scope.type === 'all'
+                  ? "border-primary/35 bg-primary/10 text-primary"
+                  : "border-border/60 bg-background/25 text-muted-foreground hover:border-primary/25 hover:bg-primary/5 hover:text-foreground"
               )}
               onClick={() => updateScope({ type: 'all' })}
             >
+              <span
+                className={cn(
+                  "pointer-events-none absolute -top-[1px] left-3 h-2.5 w-5 rounded-t-md border border-b-0",
+                  scope.type === 'all'
+                    ? "border-primary/35 bg-primary/10"
+                    : "border-border/60 bg-background/25 group-hover:border-primary/25 group-hover:bg-primary/5"
+                )}
+                aria-hidden
+              />
+              {scope.type === 'all' && <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-r bg-primary/70" aria-hidden />}
+              <FolderOpen className={cn("mr-2 h-3.5 w-3.5", scope.type === 'all' ? "text-primary/90" : "text-muted-foreground")} />
               Global View ({leads.length})
             </Button>
             {folders.map((folder) => (
               <Button
                 key={folder.id}
-                variant={scope.type === 'folder' && scope.folderId === folder.id ? 'default' : 'outline'}
+                variant="outline"
                 className={cn(
-                  "h-10 px-5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all",
-                  scope.type === 'folder' && scope.folderId === folder.id ? "bg-teal-600 shadow-lg shadow-teal-500/20" : "hover:bg-teal-500/10 hover:border-teal-500/30"
+                  "group relative h-10 rounded-xl border pl-3 pr-4 text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors focus-visible:ring-2 focus-visible:ring-teal-400/40 focus-visible:ring-offset-0",
+                  scope.type === 'folder' && scope.folderId === folder.id
+                    ? "border-teal-400/35 bg-teal-500/10 text-teal-100"
+                    : "border-border/60 bg-background/25 text-muted-foreground hover:border-teal-400/25 hover:bg-teal-500/5 hover:text-foreground"
                 )}
                 onClick={() => updateScope({ type: 'folder', folderId: folder.id })}
               >
+                <span
+                  className={cn(
+                    "pointer-events-none absolute -top-[1px] left-3 h-2.5 w-5 rounded-t-md border border-b-0",
+                    scope.type === 'folder' && scope.folderId === folder.id
+                      ? "border-teal-400/35 bg-teal-500/10"
+                      : "border-border/60 bg-background/25 group-hover:border-teal-400/25 group-hover:bg-teal-500/5"
+                  )}
+                  aria-hidden
+                />
+                {scope.type === 'folder' && scope.folderId === folder.id && (
+                  <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-r bg-teal-300/80" aria-hidden />
+                )}
+                <Folder className={cn("mr-2 h-3.5 w-3.5", scope.type === 'folder' && scope.folderId === folder.id ? "text-teal-200" : "text-muted-foreground")} />
                 {folder.name} ({folder.lead_count})
               </Button>
             ))}
@@ -452,153 +480,155 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
         </section>
 
         <div className="grid grid-cols-1 gap-4 items-start">
-          <section className="rounded-2xl border border-border/40 bg-card/30 backdrop-blur-md p-5 shadow-xl space-y-5">
-            <div className="flex flex-col">
+          <section className="rounded-2xl border border-border/40 bg-card/30 backdrop-blur-md p-5 shadow-xl">
+            <div className="mb-4 flex flex-col">
               <h3 className="text-lg font-bold tracking-tight flex items-center gap-2 text-foreground">
                 <CheckCircle className="h-5 w-5 text-green-500" /> Validation
               </h3>
               <p className="text-xs text-muted-foreground mt-1">Manage pipeline checks.</p>
             </div>
-            <div className="rounded-xl border border-border/40 bg-background/30 p-3 space-y-2">
-              {validationLoading ? (
-                <div className="text-xs text-muted-foreground">Loading validation status...</div>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="uppercase tracking-wider text-muted-foreground">Status</span>
-                    <span className="font-semibold text-foreground">{validationStatus?.status ?? 'idle'}</span>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 items-start">
+              <div className="lg:col-span-8 rounded-xl border border-border/40 bg-background/30 p-3 space-y-2">
+                {validationLoading ? (
+                  <div className="text-xs text-muted-foreground">Loading validation status...</div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="uppercase tracking-wider text-muted-foreground">Status</span>
+                      <span className="font-semibold text-foreground">{validationStatus?.status ?? 'idle'}</span>
+                    </div>
+                    {!hasActiveRun && (
+                      <div className="text-xs rounded-md border border-emerald-500/20 bg-emerald-500/5 p-2 text-emerald-300">
+                        Pending available: <span className="font-semibold">{pendingAvailable}</span>
+                      </div>
+                    )}
+                    <div className="w-full h-2 rounded bg-muted overflow-hidden">
+                      <div
+                        className="h-full bg-green-500 transition-all duration-500"
+                        style={{ width: `${hasActiveRun ? validationStatus?.metrics.completionPercent ?? 0 : pendingAvailable > 0 ? 100 : 0}%` }}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] leading-4 text-muted-foreground">
+                      <div>Targeted: <span className="text-foreground">{validationStatus?.metrics.totalTargeted ?? 0}</span></div>
+                      <div>Processed: <span className="text-foreground">{validationStatus?.metrics.processed ?? 0}</span></div>
+                      <div>Remaining: <span className="text-foreground">{validationStatus?.metrics.remaining ?? 0}</span></div>
+                      <div>Done: <span className="text-foreground">{validationStatus?.metrics.completionPercent ?? 0}%</span></div>
+                      <div>Processing now: <span className="text-foreground">{validationStatus?.availability?.processingNow ?? 0}</span></div>
+                      <div>Stuck processing: <span className="text-foreground">{validationStatus?.availability?.stuckProcessing ?? 0}</span></div>
+                      <div>Updated in last 2 min: <span className="text-foreground">{validationStatus?.availability?.recentUpdates ?? 0}</span></div>
+                      <div>Total leads: <span className="text-foreground">{validationStatus?.availability?.totalLeads ?? 0}</span></div>
+                    </div>
+                    <div className="rounded-md border border-border/40 bg-background/20 p-2 text-[10px] leading-4 text-muted-foreground space-y-1">
+                      <div><span className="text-foreground">Step 1</span> syntax check.</div>
+                      <div><span className="text-foreground">Step 2</span> provider/domain check.</div>
+                      <div><span className="text-foreground">Step 3</span> risk filters (free provider, role-based, disposable).</div>
+                      <div><span className="text-foreground">Step 4</span> final eligibility decision.</div>
+                    </div>
+                    {mostFailedStep && mostFailedStep.count > 0 && (
+                      <div className="text-[10px] leading-4 text-amber-300">
+                        Most failures at: <span className="text-foreground">{mostFailedStep.label}</span> ({mostFailedStep.count})
+                      </div>
+                    )}
+                    {topReasons.length > 0 && (
+                      <div className="text-[10px] leading-4 text-muted-foreground">
+                        Top reasons: {topReasons.slice(0, 3).map((row) => `${row.reason} (${row.count})`).join(' · ')}
+                      </div>
+                    )}
+                    {showStalledWarning && (
+                      <div className="text-[10px] leading-4 text-amber-400">
+                        Validation appears stalled. Last progress: {runAgeMinutes} min ago. {processingNow} in progress, {stuckProcessing} stale candidates.
+                      </div>
+                    )}
+                    {validationStatus?.availability?.lastProgressAt && (
+                      <div className="text-[10px] leading-4 text-muted-foreground">
+                        Last progress at: {new Date(validationStatus.availability.lastProgressAt).toLocaleString()}
+                      </div>
+                    )}
+                    {validationStatus?.availability?.lastProcessedLeadAt && (
+                      <div className="text-[10px] leading-4 text-muted-foreground">
+                        Last processed lead update: {new Date(validationStatus.availability.lastProcessedLeadAt).toLocaleString()}
+                      </div>
+                    )}
+                    {showFreshPendingHint && (
+                      <div className="text-[10px] leading-4 text-emerald-300">
+                        New pending leads are available for validation.
+                      </div>
+                    )}
+                    {!showFreshPendingHint && validationStatus?.status === 'completed' && (validationStatus?.metrics.totalTargeted ?? 0) === 0 && (
+                      <div className="text-[10px] leading-4 text-amber-400">
+                        No queue-eligible pending leads matched current backend filters (pending + not processing).
+                      </div>
+                    )}
+                  </>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-[10px] px-2"
+                  onClick={() => void refreshValidationStatus()}
+                >
+                  Refresh Status
+                </Button>
+              </div>
+              <div className="lg:col-span-4 flex flex-col gap-2.5">
+                {activeRunLockReason && (
+                  <div className="text-[10px] leading-4 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-amber-300">
+                    {activeRunLockReason}
                   </div>
-                  {!hasActiveRun && (
-                    <div className="text-xs rounded-md border border-emerald-500/20 bg-emerald-500/5 p-2 text-emerald-300">
-                      Pending available: <span className="font-semibold">{pendingAvailable}</span>
-                    </div>
-                  )}
-                  <div className="w-full h-2 rounded bg-muted overflow-hidden">
-                    <div
-                      className="h-full bg-green-500 transition-all duration-500"
-                      style={{ width: `${hasActiveRun ? validationStatus?.metrics.completionPercent ?? 0 : pendingAvailable > 0 ? 100 : 0}%` }}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
-                    <div>Targeted: <span className="text-foreground">{validationStatus?.metrics.totalTargeted ?? 0}</span></div>
-                    <div>Processed: <span className="text-foreground">{validationStatus?.metrics.processed ?? 0}</span></div>
-                    <div>Remaining: <span className="text-foreground">{validationStatus?.metrics.remaining ?? 0}</span></div>
-                    <div>Done: <span className="text-foreground">{validationStatus?.metrics.completionPercent ?? 0}%</span></div>
-                    <div>Processing now: <span className="text-foreground">{validationStatus?.availability?.processingNow ?? 0}</span></div>
-                    <div>Stuck processing: <span className="text-foreground">{validationStatus?.availability?.stuckProcessing ?? 0}</span></div>
-                    <div>Updated in last 2 min: <span className="text-foreground">{validationStatus?.availability?.recentUpdates ?? 0}</span></div>
-                    <div>Total leads: <span className="text-foreground">{validationStatus?.availability?.totalLeads ?? 0}</span></div>
-                  </div>
-                  <div className="rounded-md border border-border/40 bg-background/20 p-2 text-[10px] text-muted-foreground space-y-1">
-                    <div><span className="text-foreground">Step 1</span> syntax check.</div>
-                    <div><span className="text-foreground">Step 2</span> provider/domain check.</div>
-                    <div><span className="text-foreground">Step 3</span> risk filters (free provider, role-based, disposable).</div>
-                    <div><span className="text-foreground">Step 4</span> final eligibility decision.</div>
-                  </div>
-                  {mostFailedStep && mostFailedStep.count > 0 && (
-                    <div className="text-[10px] text-amber-300">
-                      Most failures at: <span className="text-foreground">{mostFailedStep.label}</span> ({mostFailedStep.count})
-                    </div>
-                  )}
-                  {topReasons.length > 0 && (
-                    <div className="text-[10px] text-muted-foreground">
-                      Top reasons: {topReasons.slice(0, 3).map((row) => `${row.reason} (${row.count})`).join(' · ')}
-                    </div>
-                  )}
-                  {showStalledWarning && (
-                    <div className="text-[10px] text-amber-400">
-                      Validation appears stalled. Last progress: {runAgeMinutes} min ago. {processingNow} in progress, {stuckProcessing} stale candidates.
-                    </div>
-                  )}
-                  {validationStatus?.availability?.lastProgressAt && (
-                    <div className="text-[10px] text-muted-foreground">
-                      Last progress at: {new Date(validationStatus.availability.lastProgressAt).toLocaleString()}
-                    </div>
-                  )}
-                  {validationStatus?.availability?.lastProcessedLeadAt && (
-                    <div className="text-[10px] text-muted-foreground">
-                      Last processed lead update: {new Date(validationStatus.availability.lastProcessedLeadAt).toLocaleString()}
-                    </div>
-                  )}
-                  {showFreshPendingHint && (
-                    <div className="text-[10px] text-emerald-300">
-                      New pending leads are available for validation.
-                    </div>
-                  )}
-                  {!showFreshPendingHint && validationStatus?.status === 'completed' && (validationStatus?.metrics.totalTargeted ?? 0) === 0 && (
-                    <div className="text-[10px] text-amber-400">
-                      No queue-eligible pending leads matched current backend filters (pending + not processing).
-                    </div>
-                  )}
-                </>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-[10px] px-2"
-                onClick={() => void refreshValidationStatus()}
-              >
-                Refresh Status
-              </Button>
-            </div>
-            <div className="flex flex-col gap-3">
-              {activeRunLockReason && (
-                <div className="text-[10px] rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-amber-300">
-                  {activeRunLockReason}
-                </div>
-              )}
-              <RunValidationButton
-                label="Run Email Validation"
-                successText="Validation pipeline started"
-                onRun={runEmailValidationAction}
-                disabled={validationStatus?.status === 'running' || validationStatus?.status === 'queued'}
-                disabledText="A validation run is currently active."
-              />
-              <RunValidationButton
-                label="Re-run Failed"
-                successText="Failed leads queued again"
-                onRun={rerunFailedValidationAction}
-                disabled={validationStatus?.status === 'running' || validationStatus?.status === 'queued'}
-                disabledText="A validation run is currently active."
-              />
-              <RunValidationButton
-                label="Reset Stuck & Re-run"
-                successText="In-progress rows reset and validation restarted"
-                onRun={async () => {
-                  const result = await resetStuckAndRerunAction();
-                  await refreshValidationStatus();
-                  return result;
-                }}
-                disabled={!canResetStuck}
-                disabledText="Reset is available when run has stalled or no rows are progressing."
-              />
-              {canForceUnlock && (
+                )}
                 <RunValidationButton
-                  label="Force Unlock & Re-run"
-                  successText="Stale run unlocked and validation restarted"
+                  label="Run Email Validation"
+                  successText="Validation pipeline started"
+                  onRun={runEmailValidationAction}
+                  disabled={validationStatus?.status === 'running' || validationStatus?.status === 'queued'}
+                  disabledText="A validation run is currently active."
+                />
+                <RunValidationButton
+                  label="Re-run Failed"
+                  successText="Failed leads queued again"
+                  onRun={rerunFailedValidationAction}
+                  disabled={validationStatus?.status === 'running' || validationStatus?.status === 'queued'}
+                  disabledText="A validation run is currently active."
+                />
+                <RunValidationButton
+                  label="Reset Stuck & Re-run"
+                  successText="In-progress rows reset and validation restarted"
                   onRun={async () => {
-                    const result = await forceUnlockAndRerunAction();
+                    const result = await resetStuckAndRerunAction();
                     await refreshValidationStatus();
-
-                    const previous = result.previousRunId ? `Closed ${result.previousRunId}` : 'No prior run id';
-                    const next = result.newRunId ?? result.runId;
-                    toast.success(`${previous} -> Started ${next}`);
-
                     return result;
                   }}
+                  disabled={!canResetStuck}
+                  disabledText="Reset is available when run has stalled or no rows are progressing."
                 />
-              )}
-              <Button variant="outline" className="w-full justify-start border-primary/20 hover:bg-primary/10 hover:text-primary font-bold text-xs" onClick={() => alert('Use filtered Validated view as campaign-ready pool.')}>
-                Prepare Campaign Pool
-              </Button>
-              {(role === 'admin' || role === 'superadmin') && (
-                <Link
-                  href="/dashboard/admin/validation-monitor"
-                  className="inline-flex w-full items-center justify-start rounded-md border border-border px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                  Open Validation Monitor (Admin)
-                </Link>
-              )}
+                {canForceUnlock && (
+                  <RunValidationButton
+                    label="Force Unlock & Re-run"
+                    successText="Stale run unlocked and validation restarted"
+                    onRun={async () => {
+                      const result = await forceUnlockAndRerunAction();
+                      await refreshValidationStatus();
+
+                      const previous = result.previousRunId ? `Closed ${result.previousRunId}` : 'No prior run id';
+                      const next = result.newRunId ?? result.runId;
+                      toast.success(`${previous} -> Started ${next}`);
+
+                      return result;
+                    }}
+                  />
+                )}
+                <Button variant="outline" className="w-full justify-start border-primary/20 hover:bg-primary/10 hover:text-primary font-bold text-xs" onClick={() => alert('Use filtered Validated view as campaign-ready pool.')}>
+                  Prepare Campaign Pool
+                </Button>
+                {(role === 'admin' || role === 'superadmin') && (
+                  <Link
+                    href="/dashboard/admin/validation-monitor"
+                    className="inline-flex w-full items-center justify-start rounded-md border border-border px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    Open Validation Monitor (Admin)
+                  </Link>
+                )}
+              </div>
             </div>
           </section>
 

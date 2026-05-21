@@ -6,6 +6,7 @@ type SequenceStep = {
 };
 
 type CampaignLead = {
+  id?: string | null;
   status?: string | null;
   current_step?: number | null;
   lead_id?: string | null;
@@ -120,6 +121,8 @@ export default function CampaignJourneyMap({
   inboxes,
   campaignInboxes,
   sendingLimitsConfig
+  ,
+  leadOutcomeByCampaignLeadId
 }: {
   campaign: Campaign;
   sequenceId?: string | null;
@@ -132,6 +135,7 @@ export default function CampaignJourneyMap({
   inboxes: Inbox[];
   campaignInboxes: CampaignInbox[];
   sendingLimitsConfig: SendingLimitsConfig;
+  leadOutcomeByCampaignLeadId?: Record<string, string>;
 }) {
   const sortedSteps = [...sequenceSteps].sort(
     (a, b) => (a.step_number ?? 0) - (b.step_number ?? 0)
@@ -303,11 +307,13 @@ export default function CampaignJourneyMap({
                     return (
                       <div
                         key={`schedule-step-${step.stepNumber}-${index}`}
-                        className="absolute"
-                        style={{ left: `${safeLeft}%`, top: isEven ? '34px' : '76px', transform: 'translateX(-50%)' }}
+                        className="absolute top-11"
+                        style={{ left: `${safeLeft}%`, transform: 'translate(-50%, -50%)' }}
                       >
                         <div className="h-5 w-5 rounded-full border-2 border-cyan-100 bg-cyan-400 shadow-[0_0_0_3px_rgba(6,182,212,0.25)]" />
-                        <div className={`mt-1 whitespace-nowrap text-[10px] ${isEven ? 'text-slate-100' : 'text-slate-300'}`}>
+                        <div
+                          className={`absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] ${isEven ? 'text-slate-100' : 'text-slate-300'} ${isEven ? '-top-6' : 'top-7'}`}
+                        >
                           S{step.stepNumber} • Day {step.runDay} • {step.runDateLabel}
                         </div>
                       </div>
@@ -411,6 +417,10 @@ export default function CampaignJourneyMap({
     const stepsDone = stepStates.filter((state) => state === 'sent').length;
     const hasProgressMismatch = (status === 'completed' || status === 'replied') && currentStep <= stepCount;
     const fallbackLeadId = String(row.lead_id ?? `row-${rowIndex + 1}`);
+    const campaignLeadId = String(row.id ?? '');
+    const deliveryOutcome = campaignLeadId
+      ? String(leadOutcomeByCampaignLeadId?.[campaignLeadId] ?? 'Not Sent')
+      : 'Not Sent';
     return {
       key: `${fallbackLeadId}-${rowIndex}`,
       leadLabel: lead?.email || fallbackLeadId,
@@ -418,6 +428,7 @@ export default function CampaignJourneyMap({
       rawStatus: status || 'pending',
       stepsDone,
       hasProgressMismatch,
+      deliveryOutcome,
       stepStates
     };
   });
@@ -474,6 +485,16 @@ export default function CampaignJourneyMap({
     in_progress: 'In Progress',
     failed: 'Failed',
     pending: 'Pending'
+  };
+  const outcomeChipClass = (value: string): string => {
+    const normalized = String(value).toLowerCase();
+    if (normalized.includes('replied')) return 'border-cyan-500/30 bg-cyan-500/15 text-cyan-200';
+    if (normalized.includes('hard bounce')) return 'border-rose-500/30 bg-rose-500/15 text-rose-200';
+    if (normalized.includes('soft bounce')) return 'border-orange-500/30 bg-orange-500/15 text-orange-200';
+    if (normalized.includes('opened')) return 'border-sky-500/30 bg-sky-500/15 text-sky-200';
+    if (normalized.includes('delivered')) return 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200';
+    if (normalized.includes('pending')) return 'border-amber-500/30 bg-amber-500/15 text-amber-200';
+    return 'border-slate-500/30 bg-slate-500/15 text-slate-200';
   };
 
   return (
@@ -629,6 +650,7 @@ export default function CampaignJourneyMap({
                     <th className="py-2 pr-3 font-medium">Lead</th>
                     <th className="py-2 pr-3 font-medium">Steps Done</th>
                     <th className="py-2 pr-3 font-medium">Data Check</th>
+                    <th className="py-2 pr-3 font-medium">Delivery Outcome</th>
                     {sortedSteps.map((step, index) => (
                       <th key={`lead-header-step-${step.id ?? index}`} className="py-2 pr-3 font-medium">
                         S{step.step_number ?? index + 1}
@@ -650,6 +672,11 @@ export default function CampaignJourneyMap({
                         ) : (
                           <span className="text-slate-500 text-[11px]">OK</span>
                         )}
+                      </td>
+                      <td className="py-2 pr-3">
+                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] ${outcomeChipClass(row.deliveryOutcome)}`}>
+                          {row.deliveryOutcome}
+                        </span>
                       </td>
                       {row.stepStates.map((state, idx) => (
                         <td key={`${row.key}-state-${idx}`} className="py-2 pr-3">

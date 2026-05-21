@@ -35,9 +35,10 @@ export function RunValidationButton({
   };
 
   return (
-    <div className="space-y-2">
+    <div className="w-full space-y-2">
       <Button
         variant="outline"
+        className="w-full justify-start"
         onClick={handleClick}
         disabled={loading || disabled}
       >

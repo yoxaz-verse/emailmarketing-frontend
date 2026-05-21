@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { reviewReplyInterestAction } from './actions';
 
 type Reply = {
@@ -24,10 +25,40 @@ type Reply = {
   };
 };
 
-export default function RepliesReviewClient({ initialReplies }: { initialReplies: Reply[] }) {
+export default function RepliesReviewClient({
+  initialReplies,
+  campaigns,
+  operators,
+  isAdmin,
+  selectedCampaignId,
+  selectedReviewStatus,
+  selectedOperatorId,
+}: {
+  initialReplies: Reply[];
+  campaigns: Array<{ id: string; name: string }>;
+  operators: Array<{ id: string; name: string }>;
+  isAdmin: boolean;
+  selectedCampaignId: string;
+  selectedReviewStatus: string;
+  selectedOperatorId: string;
+}) {
   const [replies, setReplies] = useState<Reply[]>(initialReplies);
   const [busyLeadId, setBusyLeadId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  function updateFilter(next: { campaignId?: string; reviewStatus?: string; operatorId?: string }) {
+    const query = new URLSearchParams();
+    const campaignId = next.campaignId ?? selectedCampaignId;
+    const reviewStatus = next.reviewStatus ?? selectedReviewStatus;
+    const operatorId = next.operatorId ?? selectedOperatorId;
+    if (campaignId) query.set('campaign_id', campaignId);
+    if (reviewStatus && reviewStatus !== 'all') query.set('review_status', reviewStatus);
+    if (isAdmin && operatorId) query.set('operator_id', operatorId);
+    const url = query.toString() ? `${pathname}?${query.toString()}` : pathname;
+    router.push(url);
+  }
 
   function updateInterest(leadId: string, interest_status: 'unreviewed' | 'interested' | 'not_interested') {
     setBusyLeadId(leadId);
@@ -49,12 +80,44 @@ export default function RepliesReviewClient({ initialReplies }: { initialReplies
     });
   }
 
-  if (replies.length === 0) {
-    return <p className="text-sm text-muted-foreground">No replies yet</p>;
-  }
-
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={selectedCampaignId}
+          onChange={(e) => updateFilter({ campaignId: e.target.value })}
+          className="h-9 rounded border border-border bg-background px-2 text-sm"
+        >
+          <option value="">All Campaigns</option>
+          {campaigns.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+        <select
+          value={selectedReviewStatus}
+          onChange={(e) => updateFilter({ reviewStatus: e.target.value })}
+          className="h-9 rounded border border-border bg-background px-2 text-sm"
+        >
+          <option value="all">All Reviews</option>
+          <option value="unreviewed">Unreviewed</option>
+          <option value="reviewed">Reviewed</option>
+        </select>
+        {isAdmin ? (
+          <select
+            value={selectedOperatorId}
+            onChange={(e) => updateFilter({ operatorId: e.target.value })}
+            className="h-9 rounded border border-border bg-background px-2 text-sm"
+          >
+            <option value="">All Operators</option>
+            {operators.map((o) => (
+              <option key={o.id} value={o.id}>{o.name}</option>
+            ))}
+          </select>
+        ) : null}
+      </div>
+      {replies.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No replies yet</p>
+      ) : null}
       {replies.map((r) => {
         const current = r.interest_status ?? 'unreviewed';
         const disabled = isPending && busyLeadId === r.id;
