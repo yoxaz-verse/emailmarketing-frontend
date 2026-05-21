@@ -69,7 +69,16 @@ function isFreeProvider(lead: Lead): boolean {
 }
 
 function getMutationErrorMessage(error: unknown): string {
-  const raw = error instanceof Error ? error.message : 'Unknown error';
+  const raw = (() => {
+    if (typeof error === 'string') return error;
+    if (error instanceof Error) return error.message;
+    if (typeof error === 'object' && error !== null) {
+      const withMessage = error as { message?: unknown; error?: unknown };
+      if (typeof withMessage.message === 'string' && withMessage.message.trim()) return withMessage.message;
+      if (typeof withMessage.error === 'string' && withMessage.error.trim()) return withMessage.error;
+    }
+    return 'Unknown error';
+  })();
   const lower = raw.toLowerCase();
   if (raw.includes('Cannot POST') && raw.includes('/campaigns/') && raw.includes('/leads/detach')) {
     return 'Detach route is unavailable on backend. Please restart/deploy backend and retry.';
@@ -94,7 +103,7 @@ export default function LeadsTab({
   leadFolders,
   mutationHealth,
 }: {
-  campaign: { id: string };
+  campaign: { id: string; status?: string | null };
   leads: Lead[];
   allLeads: Lead[];
   campaignLeads: { lead_id: string }[];
@@ -106,6 +115,8 @@ export default function LeadsTab({
   };
 }) {
   const router = useRouter();
+  const isLeadMutationLocked = String(campaign?.status ?? '').toLowerCase() === 'running';
+  const leadMutationLockedMessage = 'Lead changes are locked while this campaign is running. Pause campaign to add or remove leads.';
 
   const attachedLeadIds = useMemo(
     () => Array.from(new Set(campaignLeads.map((cl) => String(cl.lead_id)))),
@@ -226,6 +237,7 @@ export default function LeadsTab({
   }
 
   function selectAllAttachedVisible() {
+    if (isLeadMutationLocked) return;
     if (attachedVisibleIds.length === 0) return;
     setSelectedAttachedIds((prev) => {
       const next = new Set(prev);
@@ -237,6 +249,7 @@ export default function LeadsTab({
   }
 
   function clearAllAttachedVisible() {
+    if (isLeadMutationLocked) return;
     if (attachedVisibleIds.length === 0) return;
     setSelectedAttachedIds((prev) => {
       const next = new Set(prev);
@@ -248,6 +261,7 @@ export default function LeadsTab({
   }
 
   function selectAllUnassignedVisible() {
+    if (isLeadMutationLocked) return;
     if (unassignedVisibleIds.length === 0) return;
     setSelectedUnassignedIds((prev) => {
       const next = new Set(prev);
@@ -259,6 +273,7 @@ export default function LeadsTab({
   }
 
   function clearAllUnassignedVisible() {
+    if (isLeadMutationLocked) return;
     if (unassignedVisibleIds.length === 0) return;
     setSelectedUnassignedIds((prev) => {
       const next = new Set(prev);
@@ -270,6 +285,10 @@ export default function LeadsTab({
   }
 
   async function attachSelected() {
+    if (isLeadMutationLocked) {
+      toast.error(leadMutationLockedMessage);
+      return;
+    }
     const leadIds = Array.from(selectedUnassignedIds);
     if (leadIds.length === 0) return;
 
@@ -297,6 +316,10 @@ export default function LeadsTab({
   }
 
   function requestRemoveSelected() {
+    if (isLeadMutationLocked) {
+      toast.error(leadMutationLockedMessage);
+      return;
+    }
     const leadIds = Array.from(selectedAttachedIds);
     if (leadIds.length === 0) return;
     setRemoveTargetCount(leadIds.length);
@@ -304,6 +327,10 @@ export default function LeadsTab({
   }
 
   async function removeSelected() {
+    if (isLeadMutationLocked) {
+      toast.error(leadMutationLockedMessage);
+      return;
+    }
     const leadIds = Array.from(selectedAttachedIds);
     if (leadIds.length === 0) {
       setRemoveConfirmOpen(false);
@@ -334,6 +361,10 @@ export default function LeadsTab({
   }
 
   async function attachFromSource() {
+    if (isLeadMutationLocked) {
+      toast.error(leadMutationLockedMessage);
+      return;
+    }
     if (sourceId === 'all') {
       await attachSelected();
       return;
@@ -363,6 +394,10 @@ export default function LeadsTab({
   }
 
   async function attachSingleLead(leadId: string) {
+    if (isLeadMutationLocked) {
+      toast.error(leadMutationLockedMessage);
+      return;
+    }
     try {
       const result = await attachLeadsAction(campaign.id, [leadId]);
       if (!result.success) {
@@ -376,6 +411,10 @@ export default function LeadsTab({
   }
 
   async function detachSingleLead(leadId: string) {
+    if (isLeadMutationLocked) {
+      toast.error(leadMutationLockedMessage);
+      return;
+    }
     try {
       const result = await detachLeadsAction(campaign.id, [leadId]);
       if (!result.success) {
@@ -389,11 +428,18 @@ export default function LeadsTab({
   }
 
   function onDragStart(leadId: string, source: 'attached' | 'unassigned') {
+    if (isLeadMutationLocked) return;
     setDraggingLeadId(leadId);
     setDragSource(source);
   }
 
   async function onDropToColumn(target: 'attached' | 'unassigned') {
+    if (isLeadMutationLocked) {
+      toast.error(leadMutationLockedMessage);
+      setDraggingLeadId(null);
+      setDragSource(null);
+      return;
+    }
     if (!draggingLeadId || !dragSource || dragSource === target) return;
     if (dragSource === 'unassigned' && target === 'attached') {
       await attachSingleLead(draggingLeadId);
@@ -419,6 +465,11 @@ export default function LeadsTab({
       {mutationHealth?.ok ? (
         <div className="rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-200">
           Mutation health: OK ({mutationHealth.routeContractVersion ?? 'campaign-mutations-v1'})
+        </div>
+      ) : null}
+      {isLeadMutationLocked ? (
+        <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          {leadMutationLockedMessage}
         </div>
       ) : null}
       <div className="flex items-center justify-between gap-3">
@@ -465,7 +516,7 @@ export default function LeadsTab({
                 size="sm"
                 variant="outline"
                 onClick={allAttachedVisibleSelected ? clearAllAttachedVisible : selectAllAttachedVisible}
-                disabled={attachedVisibleIds.length === 0}
+                disabled={isLeadMutationLocked || attachedVisibleIds.length === 0}
               >
                 {allAttachedVisibleSelected ? 'Clear all' : 'Select all'}
               </Button>
@@ -473,7 +524,7 @@ export default function LeadsTab({
                 size="sm"
                 variant="destructive"
                 onClick={requestRemoveSelected}
-                disabled={selectedAttachedIds.size === 0}
+                disabled={isLeadMutationLocked || selectedAttachedIds.size === 0}
               >
                 Remove Selected
               </Button>
@@ -495,14 +546,15 @@ export default function LeadsTab({
             {attachedVisible.map((row) => (
               <label
                 key={row.id}
-                draggable
+                draggable={!isLeadMutationLocked}
                 onDragStart={() => onDragStart(row.id, 'attached')}
-                className="flex items-center gap-2 rounded p-2 bg-muted/20 text-sm cursor-grab"
+                className={`flex items-center gap-2 rounded p-2 bg-muted/20 text-sm ${isLeadMutationLocked ? 'cursor-not-allowed opacity-70' : 'cursor-grab'}`}
               >
                 <input
                   type="checkbox"
                   checked={selectedAttachedIds.has(row.id)}
                   onChange={() => toggleSelected(setSelectedAttachedIds, row.id)}
+                  disabled={isLeadMutationLocked}
                 />
                   <span className="flex-1 truncate">{row.email}</span>
                 <span className="flex items-center gap-2 text-[10px] text-muted-foreground">
@@ -547,14 +599,14 @@ export default function LeadsTab({
                   size="sm"
                   variant="outline"
                   onClick={allUnassignedVisibleSelected ? clearAllUnassignedVisible : selectAllUnassignedVisible}
-                  disabled={unassignedVisibleIds.length === 0}
+                  disabled={isLeadMutationLocked || unassignedVisibleIds.length === 0}
                 >
                   {allUnassignedVisibleSelected ? 'Clear all' : 'Select all'}
                 </Button>
                 <Button
                   size="sm"
                   onClick={attachSelected}
-                  disabled={selectedUnassignedIds.size === 0}
+                  disabled={isLeadMutationLocked || selectedUnassignedIds.size === 0}
                 >
                   Attach Selected
                 </Button>
@@ -583,14 +635,15 @@ export default function LeadsTab({
               return (
                 <label
                   key={id}
-                  draggable
+                  draggable={!isLeadMutationLocked}
                   onDragStart={() => onDragStart(id, 'unassigned')}
-                  className="flex items-center gap-2 rounded p-2 bg-muted/20 text-sm cursor-grab"
+                  className={`flex items-center gap-2 rounded p-2 bg-muted/20 text-sm ${isLeadMutationLocked ? 'cursor-not-allowed opacity-70' : 'cursor-grab'}`}
                 >
                   <input
                     type="checkbox"
                     checked={selectedUnassignedIds.has(id)}
                     onChange={() => toggleSelected(setSelectedUnassignedIds, id)}
+                    disabled={isLeadMutationLocked}
                   />
                   <span className="flex-1 truncate">{String(lead.email ?? `Unknown lead ${id}`)}</span>
                   <span className="flex items-center gap-2 text-[10px] text-muted-foreground">
@@ -666,7 +719,12 @@ export default function LeadsTab({
         <Button
           variant="outline"
           onClick={attachFromSource}
-          disabled={sourceId === 'all' ? selectedUnassignedIds.size === 0 || activeEligibilityTab !== 'eligible' : !selectedFolderId}
+          disabled={
+            isLeadMutationLocked ||
+            (sourceId === 'all'
+              ? selectedUnassignedIds.size === 0 || activeEligibilityTab !== 'eligible'
+              : !selectedFolderId)
+          }
         >
           Attach Source
         </Button>
