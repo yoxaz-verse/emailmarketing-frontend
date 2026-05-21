@@ -11,8 +11,9 @@ type Platform = 'linkedin' | 'meta' | 'reddit' | 'telegram' | 'whatsapp';
 
 type PlatformConfigResponse = {
   configured: boolean;
-  operator_id: string;
+  operator_id: string | null;
   platform_code: Platform;
+  scope?: 'global' | 'operator';
   required_missing: string[];
   fields?: Record<string, string>;
 };
@@ -64,16 +65,19 @@ export default function SocialAppsSettingsClient({
   operators,
   initialOperatorId,
   initialPlatform,
+  initialScope,
   loadError,
 }: {
   operators: Operator[];
   initialOperatorId: string;
   initialPlatform: string;
+  initialScope: string;
   loadError?: string;
 }) {
   const router = useRouter();
   const [operatorId, setOperatorId] = useState(initialOperatorId);
   const [platform, setPlatform] = useState<Platform>(normalizePlatform(initialPlatform));
+  const [scope, setScope] = useState<'global' | 'operator'>(initialScope === 'operator' ? 'operator' : 'global');
   const [fields, setFields] = useState<Record<string, string>>({});
   const [missing, setMissing] = useState<string[]>([]);
   const [configured, setConfigured] = useState(false);
@@ -85,10 +89,17 @@ export default function SocialAppsSettingsClient({
 
   const selectedOperator = useMemo(() => operators.find((o) => o.id === operatorId), [operators, operatorId]);
 
+  useEffect(() => {
+    if (scope === 'operator' && !operatorId && operators.length === 1) {
+      setOperatorId(String(operators[0]?.id ?? ''));
+    }
+  }, [scope, operatorId, operators]);
+
   async function readConfig(activeOperatorId: string, activePlatform: Platform): Promise<PlatformConfigResponse> {
+    const scopeQuery = `scope=${scope}`;
     const attempts = [
-      `/admin/social-apps/${activePlatform}?operator_id=${encodeURIComponent(activeOperatorId)}`,
-      `/admin/social-apps?platform=${encodeURIComponent(activePlatform)}&operator_id=${encodeURIComponent(activeOperatorId)}`,
+      `/admin/social-apps/${activePlatform}?${scopeQuery}${scope === 'operator' ? `&operator_id=${encodeURIComponent(activeOperatorId)}` : ''}`,
+      `/admin/social-apps?platform=${encodeURIComponent(activePlatform)}&${scopeQuery}${scope === 'operator' ? `&operator_id=${encodeURIComponent(activeOperatorId)}` : ''}`,
     ];
 
     let lastError: unknown = null;
@@ -103,7 +114,7 @@ export default function SocialAppsSettingsClient({
   }
 
   useEffect(() => {
-    if (!operatorId) {
+    if (scope === 'operator' && !operatorId) {
       setFields({});
       setMissing([]);
       setConfigured(false);
@@ -133,12 +144,12 @@ export default function SocialAppsSettingsClient({
     };
 
     void run();
-  }, [operatorId, platform]);
+  }, [operatorId, platform, scope]);
 
   const activeFields = PLATFORM_FIELDS[platform];
 
   async function save() {
-    if (!operatorId) {
+    if (scope === 'operator' && !operatorId) {
       setError('Select an operator first.');
       return;
     }
@@ -153,8 +164,9 @@ export default function SocialAppsSettingsClient({
 
     try {
       const payload: Record<string, unknown> = {
-        operator_id: operatorId,
+        scope,
       };
+      if (scope === 'operator') payload.operator_id = operatorId;
 
       for (const def of activeFields) {
         const value = String(fields[def.key] ?? '').trim();
@@ -170,6 +182,7 @@ export default function SocialAppsSettingsClient({
 
       await clientFetch(`/admin/social-apps/${platform}`, {
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
@@ -203,7 +216,25 @@ export default function SocialAppsSettingsClient({
           <CardTitle>Configuration Context</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <label className="text-sm space-y-1">
+              <span>Configuration Scope</span>
+              <select
+                value={scope}
+                onChange={(e) => {
+                  const next = e.target.value === 'operator' ? 'operator' : 'global';
+                  setScope(next);
+                  const qp = operatorId
+                    ? `?operator_id=${encodeURIComponent(operatorId)}&platform=${platform}&scope=${next}`
+                    : `?platform=${platform}&scope=${next}`;
+                  router.replace(`/dashboard/admin/social-apps${qp}`);
+                }}
+                className="w-full rounded-md border border-border bg-background px-3 py-2"
+              >
+                <option value="global">Global default (all operators)</option>
+                <option value="operator">Operator override</option>
+              </select>
+            </label>
             <label className="text-sm space-y-1">
               <span>Operator</span>
               <select
@@ -211,8 +242,9 @@ export default function SocialAppsSettingsClient({
                 onChange={(e) => {
                   const next = e.target.value;
                   setOperatorId(next);
-                  router.replace(`/dashboard/admin/social-apps?operator_id=${encodeURIComponent(next)}&platform=${platform}`);
+                  router.replace(`/dashboard/admin/social-apps?operator_id=${encodeURIComponent(next)}&platform=${platform}&scope=${scope}`);
                 }}
+                disabled={scope !== 'operator'}
                 className="w-full rounded-md border border-border bg-background px-3 py-2"
               >
                 <option value="">Select operator</option>
@@ -231,7 +263,7 @@ export default function SocialAppsSettingsClient({
                 onChange={(e) => {
                   const next = normalizePlatform(e.target.value);
                   setPlatform(next);
-                  const qp = operatorId ? `?operator_id=${encodeURIComponent(operatorId)}&platform=${next}` : `?platform=${next}`;
+                  const qp = operatorId ? `?operator_id=${encodeURIComponent(operatorId)}&platform=${next}&scope=${scope}` : `?platform=${next}&scope=${scope}`;
                   router.replace(`/dashboard/admin/social-apps${qp}`);
                 }}
                 className="w-full rounded-md border border-border bg-background px-3 py-2"
@@ -241,10 +273,13 @@ export default function SocialAppsSettingsClient({
             </label>
           </div>
 
-          {selectedOperator && (
+          {scope === 'operator' && selectedOperator && (
             <p className="text-xs text-muted-foreground">
               Editing config for: <span className="font-medium text-foreground">{selectedOperator.name}</span>
             </p>
+          )}
+          {scope === 'global' && (
+            <p className="text-xs text-muted-foreground">Editing global defaults used by all operators unless overridden.</p>
           )}
 
           {configured ? (
@@ -253,7 +288,7 @@ export default function SocialAppsSettingsClient({
             </div>
           ) : (
             <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-sm text-amber-200">
-              Missing required fields: {missing.length > 0 ? missing.join(', ') : operatorId ? 'unable to load status right now' : 'select operator to load status'}
+              Missing required fields: {missing.length > 0 ? missing.join(', ') : scope === 'operator' && !operatorId ? 'select operator to load status' : 'unable to load status right now'}
             </div>
           )}
 
@@ -274,7 +309,7 @@ export default function SocialAppsSettingsClient({
           <CardTitle>Platform Fields</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!operatorId ? (
+          {scope === 'operator' && !operatorId ? (
             <p className="text-sm text-muted-foreground">Select an operator first.</p>
           ) : (
             <>

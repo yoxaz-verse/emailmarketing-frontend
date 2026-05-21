@@ -9,6 +9,7 @@ type PageProps = {
   searchParams?: Promise<{
     operator_id?: string;
     platform?: string;
+    scope?: string;
   }>;
 };
 
@@ -37,6 +38,7 @@ export default async function SocialAppsSettingsPage({ searchParams }: PageProps
       operators={operators}
       initialOperatorId={query.operator_id ?? ''}
       initialPlatform={query.platform ?? 'linkedin'}
+      initialScope={query.scope ?? 'global'}
       loadError={loadError}
     />
   );

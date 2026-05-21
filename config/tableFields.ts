@@ -760,6 +760,19 @@ badge: {
         
           campaign_leads: [
             {
+              key: 'campaign_id',
+              label: 'Campaign',
+              type: 'relation',
+              relation: {
+                table: 'campaigns',
+                labelKey: 'name',
+                valueKey: 'id',
+              },
+              inTable: true,
+              inForm: false,
+              required: true,
+            },
+            {
               key: 'current_step',
               label: 'Current Steps',
               type: 'text',

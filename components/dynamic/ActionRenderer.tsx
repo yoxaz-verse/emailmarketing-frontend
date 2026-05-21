@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,23 +19,50 @@ type Props = {
 };
 
 export default function ActionRenderer({ actions, row }: Props) {
-  const [isPending, startTransition] = useTransition();
+  const [pendingActionId, setPendingActionId] = useState<string | null>(null);
 
   if (!actions?.length) return null;
 
+  function actionId(actionKey: string): string {
+    return `${String(row?.id ?? 'row')}:${actionKey}`;
+  }
+
+  function pendingLabel(actionKey: string, defaultLabel: string): string {
+    if (actionKey === 'viewCampaign' || actionKey === 'viewSequence') return 'Opening...';
+    if (actionKey === 'startCampaign') return 'Starting...';
+    if (actionKey === 'pauseCampaign') return 'Pausing...';
+    return 'Processing...';
+  }
+
   async function handleAction(key: string, handler: any) {
-    startTransition(async () => {
-      try {
-        const result = await handler(row);
-        if (result?.success) {
-          toast.success(`${key.replace(/([A-Z])/g, ' $1')} successful!`);
-        } else if (result?.error) {
-          toast.error(result.error);
-        }
-      } catch (err: any) {
-        toast.error(err.message || 'Action failed');
+    const id = actionId(key);
+    if (pendingActionId === id) return;
+    setPendingActionId(id);
+
+    try {
+      const result = await handler(row);
+      if (result?.success) {
+        toast.success(`${key.replace(/([A-Z])/g, ' $1')} successful!`);
+      } else if (result?.error) {
+        toast.error(result.error);
       }
-    });
+    } catch (err: any) {
+      toast.error(err.message || 'Action failed');
+    } finally {
+      setPendingActionId((current) => (current === id ? null : current));
+    }
+  }
+
+  function handleViewAction(key: string, handler: any) {
+    const id = actionId(key);
+    if (pendingActionId === id) return;
+    setPendingActionId(id);
+    try {
+      handler(row);
+    } catch (err: any) {
+      setPendingActionId((current) => (current === id ? null : current));
+      toast.error(err.message || 'Unable to open');
+    }
   }
 
   return (
@@ -52,6 +79,10 @@ export default function ActionRenderer({ actions, row }: Props) {
           return null;
         }
 
+        const id = actionId(action.key);
+        const isThisPending = pendingActionId === id;
+        const label = isThisPending ? pendingLabel(action.key, action.label) : action.label;
+
         // 🔹 VIEW / REDIRECT ACTION
         if (action.key === 'viewCampaign' || action.key === 'viewSequence') {
           return (
@@ -59,10 +90,11 @@ export default function ActionRenderer({ actions, row }: Props) {
               key={action.key}
               size="sm"
               variant={action.variant ?? 'outline'}
-              disabled={isPending}
-              onClick={() => handler(row)}
+              disabled={isThisPending}
+              onClick={() => handleViewAction(action.key, handler)}
             >
-              {action.label}
+              {isThisPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+              {label}
             </Button>
           );
         }
@@ -73,11 +105,11 @@ export default function ActionRenderer({ actions, row }: Props) {
             key={action.key}
             size="sm"
             variant={action.variant ?? 'default'}
-            disabled={isPending}
+            disabled={isThisPending}
             onClick={() => handleAction(action.key, handler)}
           >
-            {isPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
-            {action.label}
+            {isThisPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+            {label}
           </Button>
         );
       })}

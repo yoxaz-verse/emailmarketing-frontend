@@ -22,7 +22,7 @@ type SocialConnector = {
   code: string;
   name: string;
   status: 'manual_assisted' | 'api_enabled';
-  auth_type: 'none' | 'oauth2';
+  auth_type: 'none' | 'oauth2' | 'api_key';
   can_schedule: boolean;
   can_publish: boolean;
   credentials_active: boolean;
@@ -68,13 +68,13 @@ const PLATFORM_GUIDES: Record<string, GuideContent> = {
     ],
   },
   meta: {
-    intro: 'Meta currently works in manual-assisted mode. API connect will be enabled later.',
-    support: 'Manual-assisted publishing only. Direct OAuth/API connect is coming soon.',
-    requiresOauth: false,
+    intro: 'Use OAuth to connect your Meta account for direct API publishing.',
+    support: 'Direct OAuth/API publishing is available.',
+    requiresOauth: true,
     steps: [
       'Create a Meta app in Facebook Developers.',
       'Collect your app credentials and page/business access token.',
-      'Paste these values in your secure connector config once API flow is enabled.',
+      'Approve the requested permissions.',
     ],
     requiredValues: [
       'META_APP_ID',
@@ -83,19 +83,19 @@ const PLATFORM_GUIDES: Record<string, GuideContent> = {
       'META_BUSINESS_ACCOUNT_ID',
     ],
     verifySteps: [
-      'Keep badge as Not connected until OAuth/API release for Meta.',
-      'Use manual-assisted posting flow for now.',
-      'After API release, status should move to Connected and ready.',
+      'Status should show Connected and ready after callback.',
+      'Connector should be available in social publishing.',
+      'Reconnect if scope changes are required.',
     ],
   },
   reddit: {
-    intro: 'Reddit is currently manual-assisted and will support direct OAuth/API later.',
-    support: 'Manual-assisted publishing only. Direct OAuth/API connect is coming soon.',
-    requiresOauth: false,
+    intro: 'Use OAuth to connect your Reddit account for direct API publishing.',
+    support: 'Direct OAuth/API publishing is available.',
+    requiresOauth: true,
     steps: [
       'Create a Reddit app from your Reddit developer account.',
       'Collect client id, client secret, and redirect URL details.',
-      'Store these values in connector config once Reddit API flow is released.',
+      'Approve requested scopes in Reddit consent screen.',
     ],
     requiredValues: [
       'REDDIT_CLIENT_ID',
@@ -104,19 +104,19 @@ const PLATFORM_GUIDES: Record<string, GuideContent> = {
       'REDDIT_USER_AGENT',
     ],
     verifySteps: [
-      'Badge remains Not connected until direct API support is live.',
-      'Manual-assisted publish tasks should continue to work.',
-      'On API release, run connect flow and verify Connected and ready.',
+      'Badge should show Connected and ready after callback.',
+      'Connection metadata should include your Reddit identity.',
+      'Reconnect if scopes are missing.',
     ],
   },
   telegram: {
-    intro: 'Telegram is currently manual-assisted and will support direct bot/API linking later.',
-    support: 'Manual-assisted publishing only. Direct OAuth/API connect is coming soon.',
-    requiresOauth: false,
+    intro: 'Connect Telegram in one click using your configured bot token and chat id.',
+    support: 'Direct API validation connect is available.',
+    requiresOauth: true,
     steps: [
       'Create a bot using BotFather.',
-      'Collect bot token and target channel/group id.',
-      'Keep these values ready for future connector input.',
+      'Set bot token and target channel/group id in admin settings.',
+      'Click Connect to validate bot access and bind this operator.',
     ],
     requiredValues: [
       'TELEGRAM_BOT_TOKEN',
@@ -124,19 +124,19 @@ const PLATFORM_GUIDES: Record<string, GuideContent> = {
       'TELEGRAM_PARSE_MODE',
     ],
     verifySteps: [
-      'Status shows Not connected until bot/API connect is added in product.',
-      'Use manual-assisted publishing in the meantime.',
-      'After API support lands, reconnect and verify Connected and ready.',
+      'Status should show Connected and ready after validation.',
+      'Connector metadata should show bot username.',
+      'Reconnect after token/chat updates.',
     ],
   },
   whatsapp: {
-    intro: 'WhatsApp is currently manual-assisted and will support direct API integration later.',
-    support: 'Manual-assisted publishing only. Direct OAuth/API connect is coming soon.',
-    requiresOauth: false,
+    intro: 'Connect WhatsApp Business in one click using configured business access token.',
+    support: 'Direct API validation connect is available.',
+    requiresOauth: true,
     steps: [
       'Set up a WhatsApp Business account and Meta app.',
       'Collect phone number id, business account id, and access token.',
-      'Keep values ready for future direct connector setup.',
+      'Save values in admin settings for either global or operator scope.',
     ],
     requiredValues: [
       'WHATSAPP_PHONE_NUMBER_ID',
@@ -144,9 +144,9 @@ const PLATFORM_GUIDES: Record<string, GuideContent> = {
       'WHATSAPP_ACCESS_TOKEN',
     ],
     verifySteps: [
-      'Status remains Not connected until direct WhatsApp API flow is released.',
-      'Use manual-assisted flow until then.',
-      'After release, connect and verify Connected and ready.',
+      'Status should show Connected and ready after token validation.',
+      'Metadata should capture business account context.',
+      'Reconnect when credentials rotate.',
     ],
   },
 };
@@ -281,6 +281,12 @@ export default function SocialConnectorsClient({
   }, [loadData]);
 
   useEffect(() => {
+    if (isAdmin && !selectedOperatorId && operators.length === 1) {
+      setSelectedOperatorId(String(operators[0]?.id ?? ''));
+    }
+  }, [isAdmin, operators, selectedOperatorId]);
+
+  useEffect(() => {
     const connectError = searchParams.get('social_connect_error');
     const connectedPlatform = searchParams.get('social_connected');
 
@@ -355,7 +361,7 @@ export default function SocialConnectorsClient({
             {connectors.map((connector) => {
               const conn = connectionByPlatform.get(connector.code);
               const isConnected = conn?.status === 'connected';
-              const isOauthSupported = connector.code === 'linkedin';
+              const isOauthSupported = ['linkedin', 'meta', 'reddit', 'telegram', 'whatsapp'].includes(connector.code);
               const oauthAppConfigured = isOauthSupported
                 ? Boolean((connector.metadata as Record<string, unknown> | undefined)?.oauth_app_configured)
                 : true;
@@ -436,7 +442,7 @@ export default function SocialConnectorsClient({
                     {isOauthSupported && (
                       <Button
                         size="sm"
-                        disabled={isAdmin && (!selectedOperatorId || !hasOperators || hasOperatorLoadFailure || !oauthAppConfigured || !appConfigured)}
+                        disabled={isAdmin && (!selectedOperatorId || !hasOperators || hasOperatorLoadFailure || !oauthAppConfigured)}
                         onClick={() => {
                           const query = isAdmin && selectedOperatorId
                             ? `?operator_id=${encodeURIComponent(selectedOperatorId)}`
@@ -519,7 +525,7 @@ export default function SocialConnectorsClient({
                           Select an operator to load operator-scoped connection status.
                         </p>
                       )}
-                      {!guide.requiresOauth && (
+                      {!isOauthSupported && (
                         <p className="mt-2 text-[11px] text-muted-foreground">
                           Note: Direct OAuth/API connect is not enabled yet for this platform, so status will stay Not connected until rollout.
                         </p>
