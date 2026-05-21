@@ -237,6 +237,9 @@ export default async function CampaignPage({
       delivery_rate: number;
       bounce_rate: number;
       open_rate: number;
+      open_rate_visible?: boolean;
+      open_rate_visibility_reason?: string | null;
+      open_confidence?: 'high' | 'medium' | 'low';
       reply_rate: number;
       spam_hints?: string[];
       outcome_rows?: Array<{
@@ -330,7 +333,9 @@ export default async function CampaignPage({
                   </div>
                   <div className="rounded-lg border border-border px-3 py-2">
                     <div className="text-muted-foreground text-xs">Open Rate</div>
-                    <div className="mt-1 text-base font-semibold text-sky-300">{replyOpenAnalytics.open_rate}%</div>
+                    <div className="mt-1 text-base font-semibold text-sky-300">
+                      {replyOpenAnalytics.open_rate_visible === false ? 'Hidden' : `${replyOpenAnalytics.open_rate}%`}
+                    </div>
                   </div>
                   <div className="rounded-lg border border-border px-3 py-2">
                     <div className="text-muted-foreground text-xs">Reply Rate</div>
@@ -345,11 +350,18 @@ export default async function CampaignPage({
               <div className="mt-3 rounded-lg border border-border px-3 py-2 text-xs">
                 <span className="text-muted-foreground">Tracking confidence:</span>{' '}
                 <span className={lowConfidenceOutcomeCount > 0 ? 'text-amber-300' : 'text-emerald-300'}>
-                  {lowConfidenceOutcomeCount > 0
+                  {replyOpenAnalytics?.open_confidence === 'low'
+                    ? 'Low confidence: open events are not confirmed yet.'
+                    : lowConfidenceOutcomeCount > 0
                     ? `${lowConfidenceOutcomeCount} low-confidence outcomes (fallback match/pixel)`
                     : 'All matched outcomes high confidence'}
                 </span>
               </div>
+              {replyOpenAnalytics?.open_rate_visible === false && replyOpenAnalytics?.open_rate_visibility_reason ? (
+                <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
+                  {replyOpenAnalytics.open_rate_visibility_reason}
+                </div>
+              ) : null}
               <div className="mt-3 rounded-lg border border-border px-3 py-2 text-xs">
                 <span className="text-muted-foreground">Content lint:</span>{' '}
                 <span className={(hasSenderMismatchRisk || senderLooksPersonal) ? 'text-rose-300' : 'text-emerald-300'}>

@@ -34,6 +34,7 @@ export default function RepliesReviewClient({
   selectedCampaignId,
   selectedReviewStatus,
   selectedOperatorId,
+  replyCaptureHealth,
 }: {
   initialReplies: Reply[];
   unmatchedReplies: Array<{
@@ -50,6 +51,10 @@ export default function RepliesReviewClient({
   selectedCampaignId: string;
   selectedReviewStatus: string;
   selectedOperatorId: string;
+  replyCaptureHealth?: {
+    stale?: boolean;
+    last_poll_at?: string | null;
+  } | null;
 }) {
   const [replies, setReplies] = useState<Reply[]>(initialReplies);
   const [unmatched, setUnmatched] = useState(unmatchedReplies);
@@ -106,6 +111,11 @@ export default function RepliesReviewClient({
 
   return (
     <div className="space-y-3">
+      {replyCaptureHealth?.stale ? (
+        <div className="rounded border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
+          Reply capture worker looks stale. Last poll: {replyCaptureHealth.last_poll_at ? new Date(replyCaptureHealth.last_poll_at).toLocaleString() : 'never'}.
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <select
           value={selectedCampaignId}
@@ -139,7 +149,7 @@ export default function RepliesReviewClient({
           </select>
         ) : null}
       </div>
-      {replies.length === 0 ? (
+      {replies.length === 0 && unmatched.length === 0 ? (
         <p className="text-sm text-muted-foreground">No replies yet</p>
       ) : null}
       {unmatched.length > 0 ? (
@@ -147,6 +157,9 @@ export default function RepliesReviewClient({
           <div className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Unmatched / Needs Mapping</div>
           {unmatched.map((row) => (
             <div key={row.id} className="rounded border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+              <div className="mb-1 inline-flex rounded border border-amber-500/40 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-amber-300">
+                Unmatched (manual map required)
+              </div>
               <div className="text-xs text-muted-foreground">
                 From {row.from_email || 'unknown'} via {row.inbox_email || 'unknown inbox'} at {row.received_at ? new Date(row.received_at).toLocaleString() : 'unknown time'}
               </div>
@@ -183,7 +196,7 @@ export default function RepliesReviewClient({
                 ) : null}
               </div>
               <span className="text-xs px-2 py-1 rounded border border-border text-muted-foreground">
-                {current}
+                Matched • {current}
               </span>
             </div>
 

@@ -36,6 +36,10 @@ type OperatorOption = {
   id: string;
   label: string;
 };
+type ReplyCaptureHealth = {
+  stale?: boolean;
+  last_poll_at?: string | null;
+};
 
 export default async function OperatorRepliesPage({
   searchParams,
@@ -54,6 +58,7 @@ export default async function OperatorRepliesPage({
   let campaigns: CampaignOption[] = [];
   let operators: OperatorOption[] = [];
   let selectedOperatorId = requestedOperatorId;
+  let replyCaptureHealth: ReplyCaptureHealth | null = null;
 
   if (isAdmin) {
     try {
@@ -92,6 +97,12 @@ export default async function OperatorRepliesPage({
     campaigns = [];
   }
 
+  try {
+    replyCaptureHealth = await serverFetch<ReplyCaptureHealth>('/execution/system/reply-capture-health');
+  } catch {
+    replyCaptureHealth = null;
+  }
+
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Replies</h2>
@@ -107,6 +118,7 @@ export default async function OperatorRepliesPage({
         selectedCampaignId={campaignId}
         selectedReviewStatus={reviewStatus}
         selectedOperatorId={selectedOperatorId}
+        replyCaptureHealth={replyCaptureHealth}
       />
     </div>
   );
