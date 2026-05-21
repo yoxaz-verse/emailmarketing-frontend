@@ -3,6 +3,7 @@ import Sidebar from '@/components/dashboard/Sidebar';
 import TopBar from '@/components/dashboard/TopBar';
 import AuthGuardClient from '@/components/dashboard/AuthGuardClient';
 import { cookies } from 'next/headers';
+import { serverFetch } from '@/lib/server/server-fetch';
 
 export default async function DashboardLayout({
   children,
@@ -15,6 +16,10 @@ export default async function DashboardLayout({
   if (!token) {
     redirect('/login');
   }
+
+  // Validate token server-side before rendering dashboard shell.
+  // serverFetch redirects to /api/auth/logout on 401/403.
+  await serverFetch('/auth/me');
 
   return (
     <div className="flex bg-background min-h-screen">

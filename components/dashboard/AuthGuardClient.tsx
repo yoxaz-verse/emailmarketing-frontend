@@ -7,11 +7,13 @@ export default function AuthGuardClient() {
   useEffect(() => {
     let active = true;
     clientFetch('/auth/me')
-      .catch(() => {
+      .catch((error: unknown) => {
         if (active) {
-          // Non-destructive in production: do not force logout on transient
-          // backend/network/auth-me failures. Server-side guards remain source of truth.
-          console.warn('[AuthGuardClient] /auth/me check failed; keeping current session.');
+          const message = error instanceof Error ? error.message : '';
+          if (message === 'UNAUTHORIZED') {
+            return;
+          }
+          console.warn('[AuthGuardClient] /auth/me check failed.', { message });
         }
       });
 

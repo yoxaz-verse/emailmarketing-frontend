@@ -6,6 +6,8 @@ type ApiErrorShape = {
   ok?: boolean;
 };
 
+let hasTriggeredAuthRedirect = false;
+
 function isHtmlLikeResponse(raw: string): boolean {
   const trimmed = raw.trim().toLowerCase();
   return trimmed.startsWith('<!doctype html') || trimmed.startsWith('<html');
@@ -93,11 +95,12 @@ export async function clientFetch<T>(
 
   if (res.status === 401 || res.status === 403) {
     const raw = await res.text();
-    const parsed = parseErrorText(raw);
-    const isConfirmedAuthFailure = Boolean(parsed.isAuthLike);
 
-    if (isConfirmedAuthFailure && typeof window !== 'undefined') {
-      window.location.href = '/api/auth/logout';
+    if (typeof window !== 'undefined') {
+      if (!hasTriggeredAuthRedirect) {
+        hasTriggeredAuthRedirect = true;
+        window.location.href = '/api/auth/logout';
+      }
       throw new Error('UNAUTHORIZED');
     }
 

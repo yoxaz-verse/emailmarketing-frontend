@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 function isAuthLikeError(message: string): boolean {
-  return /unauthorized|invalid token|invalid signature|authentication required|user disabled/i.test(message);
+  return /unauthorized|invalid token|token expired|jwt expired|invalid signature|authentication required|session expired|sign(?:ed)? in again|user disabled|forbidden/i.test(message);
 }
 
 function clearAuthCookies(response: NextResponse): NextResponse {
