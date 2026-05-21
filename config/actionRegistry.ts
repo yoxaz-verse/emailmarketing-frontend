@@ -6,6 +6,7 @@ import {
   pauseNewsletterIssue,
   publishNewsletterIssue,
   resumeNewsletterIssue,
+  reuseLead,
   runNewsletterIssueNow,
   validateSendingDomain,
   validateSmtpAccount,
@@ -27,5 +28,6 @@ import { viewCampaign, viewSequence } from "./clientTableActions";
     runNewsletterIssueNow,
     pauseNewsletterIssue,
     resumeNewsletterIssue,
+    reuseLead,
   };
   

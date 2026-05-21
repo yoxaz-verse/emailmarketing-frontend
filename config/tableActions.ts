@@ -77,3 +77,27 @@ export async function resumeNewsletterIssue(row: any) {
   await serverFetch(`/newsletter/issues/${row.id}/resume`, { method: 'POST' });
   revalidatePath('/dashboard/newsletter_issues');
 }
+
+export async function reuseLead(row: any) {
+  if (!row?.id) return { success: false, error: 'Missing lead id' };
+
+  const result = await serverFetch<{
+    success: boolean;
+    lead_id: string;
+    detached_count: number;
+    blocked_running_count: number;
+    remaining_count: number;
+    reused: boolean;
+  }>(`/leads/${row.id}/reuse`, { method: 'POST' });
+
+  revalidatePath('/dashboard/leads');
+
+  if (result.blocked_running_count > 0 && !result.reused) {
+    return {
+      success: false,
+      error: `Lead detached from ${result.detached_count} old campaign(s), but ${result.blocked_running_count} running campaign link(s) still block reuse. Pause running campaign first.`,
+    };
+  }
+
+  return { success: true };
+}

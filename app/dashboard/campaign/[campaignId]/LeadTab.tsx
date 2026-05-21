@@ -50,6 +50,15 @@ function classifyLead(lead: Lead): LeadBucket {
   return 'invalid';
 }
 
+function classifyAttachedLead(lead: Lead): LeadBucket {
+  if (lead.is_blocked === true || lead.permanently_failed === true) return 'blocked';
+  const eligibility = String(lead.email_eligibility ?? '').toLowerCase();
+  if (eligibility === 'eligible' || eligibility === 'valid' || eligibility === 'validated') return 'valid';
+  if (eligibility === 'risky') return 'risky';
+  if (eligibility === 'pending') return 'pending';
+  return 'invalid';
+}
+
 function matchesQuery(value: string, query: string) {
   if (!query.trim()) return true;
   return value.toLowerCase().includes(query.trim().toLowerCase());
@@ -127,11 +136,12 @@ export default function LeadsTab({
       if (classifyLead(lead) === 'blocked') {
         return null;
       }
+      const attachedBucket = classifyAttachedLead(lead);
       return {
         id: leadId,
         email: String(lead.email ?? `Unknown lead ${leadId}`),
         source: 'known',
-        bucket: classifyLead(lead),
+        bucket: attachedBucket,
         freeProvider: isFreeProvider(lead),
       };
     }).filter((row): row is AttachedLeadRow => row != null);
@@ -141,11 +151,10 @@ export default function LeadsTab({
   const selectedFolderId = sourceId.startsWith('folder:') ? sourceId.slice('folder:'.length) : '';
 
   const candidateScopeLeads = useMemo(() => {
-    const base = leads.filter((lead) => classifyLead(lead) !== 'blocked');
     if (selectedFolderId) {
-      return base.filter((lead) => String(lead.folder_id ?? '') === selectedFolderId);
+      return leads.filter((lead) => String(lead.folder_id ?? '') === selectedFolderId);
     }
-    return base;
+    return leads;
   }, [leads, selectedFolderId]);
 
   const validCandidates = candidateScopeLeads.filter((lead) => classifyLead(lead) === 'valid');
@@ -158,16 +167,16 @@ export default function LeadsTab({
 
   const excludedRows = candidateScopeLeads.filter((lead) => {
     const bucket = classifyLead(lead);
-    return !attachedLeadIdSet.has(String(lead.id)) && bucket !== 'valid' && bucket !== 'risky' && bucket !== 'blocked';
+    return !attachedLeadIdSet.has(String(lead.id)) && bucket !== 'valid' && bucket !== 'risky' && bucket !== 'used';
   });
 
   const [selectedAttachedIds, setSelectedAttachedIds] = useState<Set<string>>(new Set());
   const [selectedUnassignedIds, setSelectedUnassignedIds] = useState<Set<string>>(new Set());
+  const [activeEligibilityTab, setActiveEligibilityTab] = useState<'eligible' | 'ineligible'>('eligible');
 
   const [attachedSearch, setAttachedSearch] = useState('');
-  const [unassignedSearch, setUnassignedSearch] = useState('');
-  const [excludedSearch, setExcludedSearch] = useState('');
-  const [showExcluded, setShowExcluded] = useState(false);
+  const [eligibleSearch, setEligibleSearch] = useState('');
+  const [ineligibleSearch, setIneligibleSearch] = useState('');
   const [draggingLeadId, setDraggingLeadId] = useState<string | null>(null);
   const [dragSource, setDragSource] = useState<'attached' | 'unassigned' | null>(null);
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
@@ -175,10 +184,25 @@ export default function LeadsTab({
   const [removePending, setRemovePending] = useState(false);
 
   const attachedVisible = attachedRows.filter((row) => matchesQuery(row.email, attachedSearch));
-  const unassignedVisible = unassignedRows.filter((row) => matchesQuery(String(row.email ?? ''), unassignedSearch));
-  const excludedVisible = excludedRows.filter((row) => matchesQuery(String(row.email ?? ''), excludedSearch));
+  const unassignedVisible = unassignedRows.filter((row) => matchesQuery(String(row.email ?? ''), eligibleSearch));
+  const excludedVisible = excludedRows.filter((row) => matchesQuery(String(row.email ?? ''), ineligibleSearch));
   const attachedVisibleIds = useMemo(() => attachedVisible.map((row) => row.id), [attachedVisible]);
   const unassignedVisibleIds = useMemo(() => unassignedVisible.map((lead) => String(lead.id)), [unassignedVisible]);
+  const excludedVisibleIds = useMemo(() => excludedVisible.map((lead) => String(lead.id)), [excludedVisible]);
+  const ineligibleBreakdown = useMemo(() => {
+    const counts: Record<LeadBucket, number> = {
+      valid: 0,
+      risky: 0,
+      pending: 0,
+      invalid: 0,
+      blocked: 0,
+      used: 0,
+    };
+    for (const lead of excludedRows) {
+      counts[classifyLead(lead)] += 1;
+    }
+    return counts;
+  }, [excludedRows]);
 
   const allAttachedVisibleSelected =
     attachedVisibleIds.length > 0 && attachedVisibleIds.every((id) => selectedAttachedIds.has(id));
@@ -386,22 +410,29 @@ export default function LeadsTab({
 
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <span>Attached: {attachedCount}</span>
-        <span>Unassigned (Valid): {validCandidates.length}</span>
-        <span>Unassigned (Risky): {riskyCandidates.length}</span>
-        <span>Excluded: {excludedRows.length}</span>
+        <span>Eligible (Valid): {validCandidates.length}</span>
+        <span>Eligible (Risky): {riskyCandidates.length}</span>
+        <span>Ineligible: {excludedRows.length}</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          size="sm"
-          variant={showExcluded ? 'default' : 'outline'}
-          onClick={() => setShowExcluded((prev) => !prev)}
-        >
-          {showExcluded ? 'Hide Excluded' : 'Show Excluded'}
+        <Button size="sm" variant={activeEligibilityTab === 'eligible' ? 'default' : 'outline'} onClick={() => setActiveEligibilityTab('eligible')}>
+          Eligible ({unassignedRows.length})
         </Button>
+        <Button size="sm" variant={activeEligibilityTab === 'ineligible' ? 'default' : 'outline'} onClick={() => setActiveEligibilityTab('ineligible')}>
+          Ineligible ({excludedRows.length})
+        </Button>
+        {activeEligibilityTab === 'ineligible' ? (
+          <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+            {ineligibleBreakdown.used > 0 ? <span className="rounded-full border border-border px-2 py-0.5">used: {ineligibleBreakdown.used}</span> : null}
+            {ineligibleBreakdown.pending > 0 ? <span className="rounded-full border border-border px-2 py-0.5">pending: {ineligibleBreakdown.pending}</span> : null}
+            {ineligibleBreakdown.invalid > 0 ? <span className="rounded-full border border-border px-2 py-0.5">invalid: {ineligibleBreakdown.invalid}</span> : null}
+            {ineligibleBreakdown.blocked > 0 ? <span className="rounded-full border border-border px-2 py-0.5">blocked: {ineligibleBreakdown.blocked}</span> : null}
+          </div>
+        ) : null}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <section
           className="rounded border border-border/60 p-3 bg-background/30 space-y-3"
           onDragOver={(e) => e.preventDefault()}
@@ -487,39 +518,46 @@ export default function LeadsTab({
           onDrop={() => void onDropToColumn('unassigned')}
         >
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Unassigned ({unassignedRows.length})</h3>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={allUnassignedVisibleSelected ? clearAllUnassignedVisible : selectAllUnassignedVisible}
-                disabled={unassignedVisibleIds.length === 0}
-              >
-                {allUnassignedVisibleSelected ? 'Clear all' : 'Select all'}
-              </Button>
-              <Button
-                size="sm"
-                onClick={attachSelected}
-                disabled={selectedUnassignedIds.size === 0}
-              >
-                Attach Selected
-              </Button>
-            </div>
+            <h3 className="text-sm font-semibold">
+              {activeEligibilityTab === 'eligible' ? `Eligible (${unassignedRows.length})` : `Ineligible (${excludedRows.length})`}
+            </h3>
+            {activeEligibilityTab === 'eligible' ? (
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={allUnassignedVisibleSelected ? clearAllUnassignedVisible : selectAllUnassignedVisible}
+                  disabled={unassignedVisibleIds.length === 0}
+                >
+                  {allUnassignedVisibleSelected ? 'Clear all' : 'Select all'}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={attachSelected}
+                  disabled={selectedUnassignedIds.size === 0}
+                >
+                  Attach Selected
+                </Button>
+              </div>
+            ) : null}
           </div>
-          {someUnassignedVisibleSelected && !allUnassignedVisibleSelected ? (
+          {activeEligibilityTab === 'eligible' && someUnassignedVisibleSelected && !allUnassignedVisibleSelected ? (
             <div className="text-[11px] text-muted-foreground">Some visible leads selected.</div>
           ) : null}
           <input
             className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-            placeholder="Search unassigned..."
-            value={unassignedSearch}
-            onChange={(e) => setUnassignedSearch(e.target.value)}
+            placeholder={activeEligibilityTab === 'eligible' ? 'Search eligible...' : 'Search ineligible...'}
+            value={activeEligibilityTab === 'eligible' ? eligibleSearch : ineligibleSearch}
+            onChange={(e) => {
+              if (activeEligibilityTab === 'eligible') setEligibleSearch(e.target.value);
+              else setIneligibleSearch(e.target.value);
+            }}
           />
           <div className="max-h-[360px] overflow-auto space-y-2">
-            {unassignedVisible.length === 0 && (
-              <div className="text-xs text-muted-foreground py-4 text-center">No valid/risky unassigned leads.</div>
-            )}
-            {unassignedVisible.map((lead) => {
+            {activeEligibilityTab === 'eligible' && unassignedVisible.length === 0 ? (
+              <div className="text-xs text-muted-foreground py-4 text-center">No eligible/risky unassigned leads.</div>
+            ) : null}
+            {activeEligibilityTab === 'eligible' ? unassignedVisible.map((lead) => {
               const bucket = classifyLead(lead);
               const id = String(lead.id);
               return (
@@ -557,43 +595,33 @@ export default function LeadsTab({
                   </span>
                 </label>
               );
-            })}
+            }) : null}
+            {activeEligibilityTab === 'ineligible' && excludedVisible.length === 0 ? (
+              <div className="text-xs text-muted-foreground py-4 text-center">No ineligible leads.</div>
+            ) : null}
+            {activeEligibilityTab === 'ineligible' ? excludedVisible.map((lead) => {
+              const bucket = classifyLead(lead);
+              const reason = String(lead.email_eligibility_reason ?? '').trim();
+              return (
+                <div
+                  key={String(lead.id)}
+                  className="rounded p-2 bg-muted/20 text-sm space-y-1"
+                  title={reason || bucketLabel(bucket)}
+                >
+                  <div className="truncate">{String(lead.email ?? `Unknown lead ${lead.id}`)}</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    <span className="font-medium">{bucketLabel(bucket)}</span>
+                    {reason ? ` · ${reason}` : ' · no reason provided'}
+                  </div>
+                </div>
+              );
+            }) : null}
           </div>
-        </section>
-
-        <section className={`rounded border border-border/60 p-3 bg-background/30 space-y-3 ${showExcluded ? '' : 'opacity-70'}`}>
-          <h3 className="text-sm font-semibold">Excluded ({excludedRows.length})</h3>
-          {showExcluded ? (
-            <>
-              <input
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                placeholder="Search excluded..."
-                value={excludedSearch}
-                onChange={(e) => setExcludedSearch(e.target.value)}
-              />
-              <div className="max-h-[360px] overflow-auto space-y-2">
-                {excludedVisible.length === 0 && (
-                  <div className="text-xs text-muted-foreground py-4 text-center">No excluded leads.</div>
-                )}
-                {excludedVisible.map((lead) => {
-                  const bucket = classifyLead(lead);
-                  const reason = String(lead.email_eligibility_reason ?? '').trim();
-                  return (
-                    <div key={String(lead.id)} className="rounded p-2 bg-muted/20 text-sm space-y-1">
-                      <div className="truncate">{String(lead.email ?? `Unknown lead ${lead.id}`)}</div>
-                      <div className="text-[10px] text-muted-foreground">
-                        {bucket}{reason ? ` · ${reason}` : ''}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          ) : (
-            <div className="text-xs text-muted-foreground py-8 text-center">
-              Excluded list hidden. Enable “Show Excluded” to inspect pending/invalid/non-sendable leads.
+          {activeEligibilityTab === 'ineligible' && excludedVisibleIds.length > 0 ? (
+            <div className="text-[11px] text-muted-foreground">
+              Ineligible leads are visible for review only and cannot be attached.
             </div>
-          )}
+          ) : null}
         </section>
       </div>
 
@@ -618,7 +646,7 @@ export default function LeadsTab({
         <Button
           variant="outline"
           onClick={attachFromSource}
-          disabled={sourceId === 'all' ? selectedUnassignedIds.size === 0 : !selectedFolderId}
+          disabled={sourceId === 'all' ? selectedUnassignedIds.size === 0 || activeEligibilityTab !== 'eligible' : !selectedFolderId}
         >
           Attach Source
         </Button>

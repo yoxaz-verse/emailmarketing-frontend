@@ -125,6 +125,19 @@ export type BulkActionConfig = {
         },
       ],
     },
+    leads: {
+      allowCreate: true,
+      allowEdit: true,
+      allowDelete: true,
+      actions: [
+        {
+          key: 'reuseLead',
+          label: 'Reuse',
+          variant: 'outline',
+          visible: (row: any) => row?.is_used === true,
+        },
+      ],
+    },
     newsletter_subscribers: {
       allowCreate: true,
       allowEdit: true,
