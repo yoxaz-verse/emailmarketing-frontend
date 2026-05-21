@@ -15,6 +15,7 @@ import {
   assignLeadsToFolderAction,
   createLeadFolderAction,
   deleteLeadsBulkAction,
+  forceUnlockAndRerunAction,
   resetStuckAndRerunAction,
   getValidationRunStatusAction,
   rerunFailedValidationAction,
@@ -201,6 +202,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
     pendingAvailable > 0;
   const showStalledWarning = hasActiveRun && processingNow > 0 && recentUpdates === 0 && runAgeSeconds >= 120;
   const canResetStuck = showStalledWarning || stuckProcessing > 0 || (hasActiveRun && processingNow === 0 && recentUpdates === 0);
+  const canForceUnlock = hasActiveRun && (showStalledWarning || stuckProcessing > 0 || (processingNow === 0 && recentUpdates === 0));
   const activeRunLockReason = hasActiveRun
     ? (processingNow === 0 && recentUpdates === 0
       ? 'Run is active but no rows are currently processing. Use reset to restart cleanly.'
@@ -570,6 +572,22 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
                 disabled={!canResetStuck}
                 disabledText="Reset is available when run has stalled or no rows are progressing."
               />
+              {canForceUnlock && (
+                <RunValidationButton
+                  label="Force Unlock & Re-run"
+                  successText="Stale run unlocked and validation restarted"
+                  onRun={async () => {
+                    const result = await forceUnlockAndRerunAction();
+                    await refreshValidationStatus();
+
+                    const previous = result.previousRunId ? `Closed ${result.previousRunId}` : 'No prior run id';
+                    const next = result.newRunId ?? result.runId;
+                    toast.success(`${previous} -> Started ${next}`);
+
+                    return result;
+                  }}
+                />
+              )}
               <Button variant="outline" className="w-full justify-start border-primary/20 hover:bg-primary/10 hover:text-primary font-bold text-xs" onClick={() => alert('Use filtered Validated view as campaign-ready pool.')}>
                 Prepare Campaign Pool
               </Button>

@@ -40,6 +40,20 @@ export async function resetStuckAndRerunAction() {
   });
 }
 
+export async function forceUnlockAndRerunAction() {
+  return await serverFetch<{
+    success: boolean;
+    queued: number;
+    runId: string;
+    newRunId?: string;
+    previousRunId?: string | null;
+    message: string;
+  }>("/validate/lead/force-unlock-rerun", {
+    method: "POST",
+    body: JSON.stringify({ mode: "pending" }),
+  });
+}
+
 export type ValidationRunStatusResponse = {
   success: boolean;
   status: "idle" | "queued" | "running" | "completed" | "failed";
