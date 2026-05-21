@@ -275,6 +275,10 @@ export default function LeadsTab({
 
     try {
       const result = await attachLeadsAction(campaign.id, leadIds);
+      if (!result.success) {
+        toast.error(getMutationErrorMessage(result.error));
+        return;
+      }
       if (result.inserted > 0) {
         toast.success(
           `Attached ${result.inserted}. Existing: ${result.skipped_existing}, ineligible: ${result.skipped_ineligible}, missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`
@@ -310,6 +314,10 @@ export default function LeadsTab({
 
     try {
       const result = await detachLeadsAction(campaign.id, leadIds);
+      if (!result.success) {
+        toast.error(getMutationErrorMessage(result.error));
+        return;
+      }
       if (result.detached > 0) {
         toast.success(`Removed ${result.detached}. Missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`);
       } else {
@@ -334,6 +342,10 @@ export default function LeadsTab({
     if (!selectedFolderId) return;
     try {
       const result = await attachFolderLeadsAction(campaign.id, [selectedFolderId]);
+      if (!result.success) {
+        toast.error(getMutationErrorMessage(result.error));
+        return;
+      }
       if (result.inserted > 0) {
         toast.success(
           `Folder attached: ${result.inserted}. Existing: ${result.skipped_existing}, skipped non-sendable: ${result.skipped_ineligible}, missing: ${result.skipped_missing}.`
@@ -352,7 +364,11 @@ export default function LeadsTab({
 
   async function attachSingleLead(leadId: string) {
     try {
-      await attachLeadsAction(campaign.id, [leadId]);
+      const result = await attachLeadsAction(campaign.id, [leadId]);
+      if (!result.success) {
+        toast.error(getMutationErrorMessage(result.error));
+        return;
+      }
       router.refresh();
     } catch (error) {
       toast.error(getMutationErrorMessage(error));
@@ -361,7 +377,11 @@ export default function LeadsTab({
 
   async function detachSingleLead(leadId: string) {
     try {
-      await detachLeadsAction(campaign.id, [leadId]);
+      const result = await detachLeadsAction(campaign.id, [leadId]);
+      if (!result.success) {
+        toast.error(getMutationErrorMessage(result.error));
+        return;
+      }
       router.refresh();
     } catch (error) {
       toast.error(getMutationErrorMessage(error));

@@ -5,7 +5,6 @@ import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 
 export type CampaignAttachSummary = {
-  success: boolean;
   requested: number;
   inserted: number;
   detached: number;
@@ -14,6 +13,21 @@ export type CampaignAttachSummary = {
   skipped_missing: number;
   skipped_out_of_scope?: number;
 };
+
+export type CampaignAttachMutationSuccess = CampaignAttachSummary & {
+  success: true;
+};
+
+export type CampaignAttachMutationFailure = CampaignAttachSummary & {
+  success: false;
+  error: string;
+  statusCode?: number;
+  raw?: string;
+};
+
+export type CampaignAttachMutationResult =
+  | CampaignAttachMutationSuccess
+  | CampaignAttachMutationFailure;
 
 export type CampaignMutationHealth = {
   ok: boolean;
@@ -53,6 +67,51 @@ export type CampaignActionResult = {
   error?: string;
   statusCode?: number;
 };
+
+export type CampaignSenderSettings = {
+  sender_display_name: string | null;
+  effective_sender_display_name: string;
+  warning: string | null;
+  schema_ready?: boolean;
+};
+export type CampaignSenderSettingsUpdateResult =
+  | ({ success: true } & CampaignSenderSettings)
+  | { success: false; error: string; statusCode?: number };
+
+function emptyAttachSummary(): CampaignAttachSummary {
+  return {
+    requested: 0,
+    inserted: 0,
+    detached: 0,
+    skipped_existing: 0,
+    skipped_ineligible: 0,
+    skipped_missing: 0,
+    skipped_out_of_scope: 0,
+  };
+}
+
+function toAttachMutationFailure(
+  err: unknown,
+  campaignId: string,
+  route: string
+): CampaignAttachMutationFailure {
+  const typedErr = err as { message?: string; statusCode?: number; raw?: string };
+  const message = String(typedErr?.message ?? 'Failed to mutate campaign leads');
+  const statusCode = typeof typedErr?.statusCode === 'number' ? typedErr.statusCode : undefined;
+  const raw = typeof typedErr?.raw === 'string' ? typedErr.raw : undefined;
+  console.error('[campaign lead mutation failed]', {
+    campaignId,
+    route,
+    statusCode: statusCode ?? 'unknown',
+  });
+  return {
+    ...emptyAttachSummary(),
+    success: false,
+    error: message,
+    statusCode,
+    raw,
+  };
+}
 
 async function callCampaignAction(path: string): Promise<CampaignActionResult> {
   const cookieStore = await cookies();
@@ -111,40 +170,58 @@ export async function pauseCampaignAction(campaignId: string): Promise<CampaignA
 export async function attachLeadsAction(
   campaignId: string,
   leadIds: string[]
-) {
-  const result = await serverFetch<CampaignAttachSummary>(`/campaigns/${campaignId}/leads/attach`, {
-    method: 'POST',
-    body: JSON.stringify({ lead_ids: leadIds }),
-  });
+) : Promise<CampaignAttachMutationResult> {
+  const route = `/campaigns/${campaignId}/leads/attach`;
+  let result: CampaignAttachSummary;
+  try {
+    result = await serverFetch<CampaignAttachSummary>(route, {
+      method: 'POST',
+      body: JSON.stringify({ lead_ids: leadIds }),
+    });
+  } catch (err: unknown) {
+    return toAttachMutationFailure(err, campaignId, route);
+  }
 
   revalidatePath(`/dashboard/campaign/${campaignId}`);
-  return result;
+  return { ...result, success: true };
 }
 
 export async function attachFolderLeadsAction(
   campaignId: string,
   folderIds: string[]
-) {
-  const result = await serverFetch<CampaignAttachSummary>(`/campaigns/${campaignId}/leads/attach-folder`, {
-    method: 'POST',
-    body: JSON.stringify({ folder_ids: folderIds }),
-  });
+) : Promise<CampaignAttachMutationResult> {
+  const route = `/campaigns/${campaignId}/leads/attach-folder`;
+  let result: CampaignAttachSummary;
+  try {
+    result = await serverFetch<CampaignAttachSummary>(route, {
+      method: 'POST',
+      body: JSON.stringify({ folder_ids: folderIds }),
+    });
+  } catch (err: unknown) {
+    return toAttachMutationFailure(err, campaignId, route);
+  }
 
   revalidatePath(`/dashboard/campaign/${campaignId}`);
-  return result;
+  return { ...result, success: true };
 }
 
 export async function detachLeadsAction(
   campaignId: string,
   leadIds: string[]
-) {
-  const result = await serverFetch<CampaignAttachSummary>(`/campaigns/${campaignId}/leads/detach`, {
-    method: 'POST',
-    body: JSON.stringify({ lead_ids: leadIds }),
-  });
+) : Promise<CampaignAttachMutationResult> {
+  const route = `/campaigns/${campaignId}/leads/detach`;
+  let result: CampaignAttachSummary;
+  try {
+    result = await serverFetch<CampaignAttachSummary>(route, {
+      method: 'POST',
+      body: JSON.stringify({ lead_ids: leadIds }),
+    });
+  } catch (err: unknown) {
+    return toAttachMutationFailure(err, campaignId, route);
+  }
 
   revalidatePath(`/dashboard/campaign/${campaignId}`);
-  return result;
+  return { ...result, success: true };
 }
 
 export async function updateCampaignInboxes(
@@ -191,4 +268,28 @@ export async function getCampaignMutationHealth(
   return serverFetch<CampaignMutationHealth>(`/campaigns/${campaignId}/mutation-health`, {
     method: 'GET',
   });
+}
+
+export async function updateCampaignSenderSettings(
+  campaignId: string,
+  senderDisplayName: string
+) {
+  try {
+    const result = await serverFetch<CampaignSenderSettings & { success: boolean }>(
+      `/campaigns/${campaignId}/sender-settings`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ sender_display_name: senderDisplayName }),
+      }
+    );
+
+    revalidatePath(`/dashboard/campaign/${campaignId}`);
+    return result as CampaignSenderSettingsUpdateResult;
+  } catch (err: any) {
+    return {
+      success: false,
+      error: String(err?.message ?? 'Failed to update sender settings'),
+      statusCode: Number.isFinite(Number(err?.statusCode)) ? Number(err.statusCode) : undefined,
+    } as CampaignSenderSettingsUpdateResult;
+  }
 }

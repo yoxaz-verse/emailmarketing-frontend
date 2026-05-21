@@ -182,6 +182,27 @@ export default async function CampaignPage({
     } catch {
       sendingLimitsConfig = null;
     }
+    let senderSettings: {
+      sender_display_name: string | null;
+      effective_sender_display_name: string;
+      warning: string | null;
+      schema_ready?: boolean;
+    } = {
+      sender_display_name: null,
+      effective_sender_display_name: 'OBAOL Team',
+      warning: null,
+      schema_ready: true,
+    };
+    try {
+      senderSettings = await serverFetch(`/campaigns/${campaign.id}/sender-settings`);
+    } catch {
+      senderSettings = {
+        sender_display_name: null,
+        effective_sender_display_name: 'OBAOL Team',
+        warning: null,
+        schema_ready: false,
+      };
+    }
 
     const leadById = new Map<string, any>();
     for (const lead of allLeads) {
@@ -242,6 +263,8 @@ export default async function CampaignPage({
 
     const forbiddenSignoffRegex = /\b(joshua|jacob|jacob alwin joy|jacob supreme)\b/i;
     const hasForbiddenSignoff = (sequenceSteps ?? []).some((step: any) => forbiddenSignoffRegex.test(String(step?.body ?? '')));
+    const senderLooksPersonal = /\b(joshua|jacob|alwin|joy)\b/i.test(String(senderSettings.sender_display_name ?? ''));
+    const hasSenderMismatchRisk = hasForbiddenSignoff && !String(senderSettings.effective_sender_display_name ?? '').toLowerCase().includes('team');
 
     return (
       <div className="-mx-8 -my-8">
@@ -252,6 +275,7 @@ export default async function CampaignPage({
             inboxes={inboxes}
             campaignInboxes={campaignInboxes}
             lockedInboxes={lockedInboxes}
+            senderSettings={senderSettings}
           />
 
           {/* Main layout */}
@@ -328,10 +352,10 @@ export default async function CampaignPage({
               </div>
               <div className="mt-3 rounded-lg border border-border px-3 py-2 text-xs">
                 <span className="text-muted-foreground">Content lint:</span>{' '}
-                <span className={hasForbiddenSignoff ? 'text-rose-300' : 'text-emerald-300'}>
-                  {hasForbiddenSignoff
-                    ? 'Personal sign-off detected (Joshua/Jacob). Replace with OBAOL Team.'
-                    : 'Sender identity compliant (OBAOL Team).'}
+                <span className={(hasSenderMismatchRisk || senderLooksPersonal) ? 'text-rose-300' : 'text-emerald-300'}>
+                  {(hasSenderMismatchRisk || senderLooksPersonal)
+                    ? 'Potential identity mismatch: personal sender/sign-off detected. Recommended brand/team sender.'
+                    : `Sender identity compliant (${senderSettings.effective_sender_display_name || 'OBAOL Team'}).`}
                 </span>
               </div>
               {replyOpenAnalytics?.spam_hints && replyOpenAnalytics.spam_hints.length > 0 ? (

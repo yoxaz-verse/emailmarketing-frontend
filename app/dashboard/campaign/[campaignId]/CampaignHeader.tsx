@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { pauseCampaignAction, startCampaignAction, updateCampaignInboxes } from './actions';
+import { pauseCampaignAction, startCampaignAction, updateCampaignInboxes, updateCampaignSenderSettings } from './actions';
 import { Check, ChevronDown, Mail, Server } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'react-hot-toast';
@@ -14,6 +14,12 @@ type Props = {
     id: string;
     name: string;
     status: string;
+  };
+  senderSettings: {
+    sender_display_name: string | null;
+    effective_sender_display_name: string;
+    warning: string | null;
+    schema_ready?: boolean;
   };
   inboxes: Array<{
     id: string;
@@ -37,7 +43,8 @@ export default function CampaignHeader({
   campaign,
   inboxes,
   campaignInboxes,
-  lockedInboxes = []
+  lockedInboxes = [],
+  senderSettings,
 }: Props) {
   const router = useRouter();
 
@@ -59,6 +66,9 @@ export default function CampaignHeader({
   const [campaignActionStatus, setCampaignActionStatus] = useState<string | null>(null);
   const [backendHealth, setBackendHealth] = useState<BackendHealth>('checking');
   const [isInboxesOpen, setIsInboxesOpen] = useState(true);
+  const [senderDisplayName, setSenderDisplayName] = useState(senderSettings.sender_display_name ?? '');
+  const [savingSender, setSavingSender] = useState(false);
+  const [senderWarning, setSenderWarning] = useState<string | null>(senderSettings.warning ?? null);
   const [lockConflicts, setLockConflicts] = useState<Array<{
     inbox_id: string;
     email_address: string;
@@ -162,6 +172,25 @@ export default function CampaignHeader({
       }
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveSenderSettings() {
+    if (savingSender) return;
+    try {
+      setSavingSender(true);
+      const result = await updateCampaignSenderSettings(campaign.id, senderDisplayName);
+      if (!result.success) {
+        toast.error(result.error || 'Failed to update sender name');
+        return;
+      }
+      setSenderWarning(result.warning ?? null);
+      toast.success('Campaign sender name updated.');
+      router.refresh();
+    } catch (error: any) {
+      toast.error(String(error?.message ?? 'Failed to update sender name'));
+    } finally {
+      setSavingSender(false);
     }
   }
 
@@ -288,6 +317,44 @@ export default function CampaignHeader({
             </span>
           )}
         </div>
+      </div>
+
+      <div className="rounded-xl border border-border/70 bg-background/30 p-4 space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold text-foreground">Campaign Sender Name</div>
+            <div className="text-xs text-muted-foreground">
+              Leave empty to use default <span className="font-semibold text-foreground">OBAOL Team</span>.
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Effective now: <span className="text-foreground">{senderDisplayName.trim() || 'OBAOL Team'}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              value={senderDisplayName}
+              onChange={(e) => setSenderDisplayName(e.target.value)}
+              placeholder="OBAOL Team"
+              className="h-9 w-64 rounded border border-border bg-background px-3 text-sm"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void saveSenderSettings()}
+              disabled={savingSender || senderSettings.schema_ready === false}
+            >
+              {savingSender ? 'Saving...' : 'Save Sender'}
+            </Button>
+          </div>
+        </div>
+        {senderSettings.schema_ready === false ? (
+          <div className="text-xs text-amber-300">
+            Sender override column is not available in DB yet. Apply backend schema update to enable this.
+          </div>
+        ) : null}
+        {senderWarning ? (
+          <div className="text-xs text-amber-300">{senderWarning}</div>
+        ) : null}
       </div>
 
       {/* Inbox Selection Grid */}
