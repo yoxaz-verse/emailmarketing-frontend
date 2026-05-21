@@ -5,6 +5,11 @@ import { serverFetch } from '@/lib/server/server-fetch';
 import Link from 'next/link';
 
 type SendingLimitsConfig = {
+  schedule_enabled?: boolean;
+  schedule_timezone?: string;
+  allowed_weekdays?: number[];
+  send_window_start?: string;
+  send_window_end?: string;
   warmup_steps?: Array<{
     day: number;
     daily_limit: number;
@@ -212,9 +217,12 @@ export default async function CampaignPage({
       bounce_rate: number;
       open_rate: number;
       reply_rate: number;
+      spam_hints?: string[];
       outcome_rows?: Array<{
         campaign_lead_id: string;
         outcome: string;
+        source?: string;
+        confidence?: 'high' | 'medium' | 'low';
       }>;
     } | null = null;
     try {
@@ -224,11 +232,16 @@ export default async function CampaignPage({
     }
 
     const leadOutcomeByCampaignLeadId = new Map<string, string>();
+    let lowConfidenceOutcomeCount = 0;
     for (const row of replyOpenAnalytics?.outcome_rows ?? []) {
       if (row?.campaign_lead_id) {
         leadOutcomeByCampaignLeadId.set(String(row.campaign_lead_id), String(row.outcome ?? ''));
       }
+      if (row?.confidence === 'low') lowConfidenceOutcomeCount += 1;
     }
+
+    const forbiddenSignoffRegex = /\b(joshua|jacob|jacob alwin joy|jacob supreme)\b/i;
+    const hasForbiddenSignoff = (sequenceSteps ?? []).some((step: any) => forbiddenSignoffRegex.test(String(step?.body ?? '')));
 
     return (
       <div className="-mx-8 -my-8">
@@ -303,6 +316,27 @@ export default async function CampaignPage({
                     <div className="text-muted-foreground text-xs">Bounce Rate</div>
                     <div className="mt-1 text-base font-semibold text-rose-300">{replyOpenAnalytics.bounce_rate}%</div>
                   </div>
+                </div>
+              ) : null}
+              <div className="mt-3 rounded-lg border border-border px-3 py-2 text-xs">
+                <span className="text-muted-foreground">Tracking confidence:</span>{' '}
+                <span className={lowConfidenceOutcomeCount > 0 ? 'text-amber-300' : 'text-emerald-300'}>
+                  {lowConfidenceOutcomeCount > 0
+                    ? `${lowConfidenceOutcomeCount} low-confidence outcomes (fallback match/pixel)`
+                    : 'All matched outcomes high confidence'}
+                </span>
+              </div>
+              <div className="mt-3 rounded-lg border border-border px-3 py-2 text-xs">
+                <span className="text-muted-foreground">Content lint:</span>{' '}
+                <span className={hasForbiddenSignoff ? 'text-rose-300' : 'text-emerald-300'}>
+                  {hasForbiddenSignoff
+                    ? 'Personal sign-off detected (Joshua/Jacob). Replace with OBAOL Team.'
+                    : 'Sender identity compliant (OBAOL Team).'}
+                </span>
+              </div>
+              {replyOpenAnalytics?.spam_hints && replyOpenAnalytics.spam_hints.length > 0 ? (
+                <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
+                  {replyOpenAnalytics.spam_hints.join(' ')}
                 </div>
               ) : null}
               <div className="mt-3">

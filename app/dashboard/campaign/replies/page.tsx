@@ -22,6 +22,14 @@ type Reply = {
     email_address: string;
   };
 };
+type UnmatchedReply = {
+  id: string;
+  from_email?: string | null;
+  inbox_email?: string | null;
+  message_id?: string | null;
+  message?: string | null;
+  received_at?: string | null;
+};
 
 type CampaignOption = { id: string; name: string };
 type OperatorOption = {
@@ -42,6 +50,7 @@ export default async function OperatorRepliesPage({
   const requestedOperatorId = typeof params.operator_id === 'string' ? params.operator_id : '';
 
   let replies: Reply[] = [];
+  let unmatchedReplies: UnmatchedReply[] = [];
   let campaigns: CampaignOption[] = [];
   let operators: OperatorOption[] = [];
   let selectedOperatorId = requestedOperatorId;
@@ -67,9 +76,14 @@ export default async function OperatorRepliesPage({
   if (isAdmin && selectedOperatorId) query.set('operator_id', selectedOperatorId);
 
   try {
-    replies = await serverFetch<Reply[]>(`/operator/replies${query.toString() ? `?${query.toString()}` : ''}`);
+    const response = await serverFetch<{ replies: Reply[]; unmatched: UnmatchedReply[] }>(
+      `/operator/replies${query.toString() ? `?${query.toString()}&include_unmatched=true` : '?include_unmatched=true'}`
+    );
+    replies = Array.isArray(response?.replies) ? response.replies : [];
+    unmatchedReplies = Array.isArray(response?.unmatched) ? response.unmatched : [];
   } catch {
     replies = [];
+    unmatchedReplies = [];
   }
 
   try {
@@ -83,6 +97,7 @@ export default async function OperatorRepliesPage({
       <h2 className="text-lg font-semibold">Replies</h2>
       <RepliesReviewClient
         initialReplies={replies}
+        unmatchedReplies={unmatchedReplies}
         campaigns={campaigns.map((c) => ({ id: c.id, name: c.name ?? `Campaign ${String(c.id).slice(0, 8)}` }))}
         operators={operators.map((o) => ({
           id: o.id,

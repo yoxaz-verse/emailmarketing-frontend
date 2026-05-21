@@ -28,6 +28,7 @@ type Lead = {
 type Inbox = {
   id?: string;
   daily_limit?: number | null;
+  hourly_limit?: number | null;
   warmup_enabled?: boolean | null;
   warmup_day?: number | null;
 };
@@ -37,6 +38,11 @@ type CampaignInbox = {
 };
 
 type SendingLimitsConfig = {
+  schedule_enabled?: boolean;
+  schedule_timezone?: string;
+  allowed_weekdays?: number[];
+  send_window_start?: string;
+  send_window_end?: string;
   warmup_steps?: Array<{
     day: number;
     daily_limit: number;
@@ -65,21 +71,94 @@ function getNodeStateFromMetrics(metrics: {
   return 'pending';
 }
 
-function resolveInboxDailyCapacity(inbox: Inbox, sendingLimitsConfig: SendingLimitsConfig): number {
+function resolveInboxEffectiveLimits(inbox: Inbox, sendingLimitsConfig: SendingLimitsConfig): {
+  dailyLimit: number;
+  hourlyLimit: number;
+} {
   const defaultDaily = Math.max(0, Number(inbox.daily_limit ?? 0));
+  const defaultHourly = Math.max(0, Number(inbox.hourly_limit ?? 0));
   if (!inbox.warmup_enabled || !sendingLimitsConfig?.warmup_steps?.length) {
-    return defaultDaily;
+    return {
+      dailyLimit: defaultDaily,
+      hourlyLimit: defaultHourly
+    };
   }
   const day = Math.max(1, Number(inbox.warmup_day ?? 1));
   const step = sendingLimitsConfig.warmup_steps.find((s) => Number(s.day) === day);
-  if (!step) return defaultDaily;
-  return Math.max(0, Number(step.daily_limit ?? defaultDaily));
+  if (!step) {
+    return {
+      dailyLimit: defaultDaily,
+      hourlyLimit: defaultHourly
+    };
+  }
+  return {
+    dailyLimit: Math.max(0, Number(step.daily_limit ?? defaultDaily)),
+    hourlyLimit: Math.max(0, Number(step.hourly_limit ?? defaultHourly))
+  };
 }
 
-function formatDateFromNow(days: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + Math.max(0, days));
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+function parseTimeToMinutes(time: string | undefined): number | null {
+  const raw = String(time ?? '').trim();
+  const match = raw.match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  return hours * 60 + minutes;
+}
+
+function resolveScheduleSettings(sendingLimitsConfig: SendingLimitsConfig): {
+  scheduleEnabled: boolean;
+  allowedWeekdays: number[];
+  windowHours: number;
+  windowLabel: string;
+  timezone: string;
+} {
+  const scheduleEnabled = Boolean(sendingLimitsConfig?.schedule_enabled ?? true);
+  const timezone = String(sendingLimitsConfig?.schedule_timezone ?? 'Asia/Kolkata');
+  const allowedWeekdays = scheduleEnabled
+    ? Array.from(
+      new Set(
+        (sendingLimitsConfig?.allowed_weekdays ?? [0, 1, 2, 3, 4, 5, 6])
+          .map((day) => Number(day))
+          .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
+      )
+    ).sort((a, b) => a - b)
+    : [0, 1, 2, 3, 4, 5, 6];
+
+  const startRaw = String(sendingLimitsConfig?.send_window_start ?? '00:00');
+  const endRaw = String(sendingLimitsConfig?.send_window_end ?? '23:59');
+  const startMinutes = parseTimeToMinutes(startRaw);
+  const endMinutes = parseTimeToMinutes(endRaw);
+  const windowMinutes = scheduleEnabled && startMinutes !== null && endMinutes !== null
+    ? Math.max(0, endMinutes - startMinutes)
+    : 24 * 60;
+  const windowHours = Math.max(0.01, windowMinutes / 60);
+  const windowLabel = scheduleEnabled
+    ? `${startRaw}-${endRaw}`
+    : '00:00-23:59';
+
+  return {
+    scheduleEnabled,
+    allowedWeekdays: allowedWeekdays.length > 0 ? allowedWeekdays : [0, 1, 2, 3, 4, 5, 6],
+    windowHours,
+    windowLabel,
+    timezone
+  };
+}
+
+function addAllowedScheduleDays(anchor: Date, daysToConsume: number, allowedWeekdays: number[]): Date {
+  if (daysToConsume <= 0) return new Date(anchor);
+  const normalizedWeekdays = allowedWeekdays.length > 0 ? allowedWeekdays : [0, 1, 2, 3, 4, 5, 6];
+  const target = new Date(anchor);
+  let remaining = Math.ceil(daysToConsume);
+  while (remaining > 0) {
+    if (normalizedWeekdays.includes(target.getDay())) {
+      remaining -= 1;
+      if (remaining === 0) break;
+    }
+    target.setDate(target.getDate() + 1);
+  }
+  return target;
 }
 
 function formatDateFromAnchor(anchor: Date, days: number): string {
@@ -209,9 +288,18 @@ export default function CampaignJourneyMap({
       campaignInboxes.map((row) => String(row.inbox_id ?? '')).filter(Boolean)
     );
     const selectedInboxes = inboxes.filter((inbox) => selectedInboxIdSet.has(String(inbox.id ?? '')));
-    const totalDailyCapacity = selectedInboxes.reduce((sum, inbox) => (
-      sum + resolveInboxDailyCapacity(inbox, sendingLimitsConfig)
-    ), 0);
+    const schedule = resolveScheduleSettings(sendingLimitsConfig);
+    const capacity = selectedInboxes.reduce((sum, inbox) => {
+      const { dailyLimit, hourlyLimit } = resolveInboxEffectiveLimits(inbox, sendingLimitsConfig);
+      const hourlyWindowLimitedDaily = hourlyLimit * schedule.windowHours;
+      const effectiveDaily = Math.max(0, Math.min(dailyLimit, hourlyWindowLimitedDaily));
+      return {
+        totalDaily: sum.totalDaily + effectiveDaily,
+        totalHourly: sum.totalHourly + Math.max(0, hourlyLimit)
+      };
+    }, { totalDaily: 0, totalHourly: 0 });
+    const totalDailyCapacity = capacity.totalDaily;
+    const totalHourlyCapacity = capacity.totalHourly;
 
     const attachableLeadCount = campaignLeads.reduce((count, row) => {
       const lead = leadMap.get(String(row.lead_id ?? ''));
@@ -223,12 +311,18 @@ export default function CampaignJourneyMap({
     }, 0);
 
     const totalSends = attachableLeadCount * stepCount;
-    const processingDays = totalDailyCapacity > 0
-      ? Math.ceil(totalSends / Math.max(totalDailyCapacity, 1))
+    const estimatedSendingHours = totalDailyCapacity > 0
+      ? totalSends / totalDailyCapacity * schedule.windowHours
       : 0;
+    const processingDaysExact = totalDailyCapacity > 0
+      ? totalSends / Math.max(totalDailyCapacity, 1)
+      : 0;
+    const processingDays = Math.ceil(processingDaysExact);
     const sequenceLagDays = totalPlannedDays;
     const estimatedCompletionDays = processingDays + sequenceLagDays;
     const simulationAnchor = new Date();
+    const estimatedEndDate = addAllowedScheduleDays(simulationAnchor, processingDays, schedule.allowedWeekdays);
+    estimatedEndDate.setDate(estimatedEndDate.getDate() + sequenceLagDays);
     const stepSchedule = sortedSteps.map((step, index) => {
       const runDay = cumulativeDays[index] ?? 0;
       return {
@@ -253,11 +347,13 @@ export default function CampaignJourneyMap({
           <div className="text-right">
             <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Estimated Completion</p>
             <p className="text-2xl font-semibold text-cyan-100">{estimatedCompletionDays}d</p>
-            <p className="text-xs text-muted-foreground">~ {formatDateFromNow(estimatedCompletionDays)}</p>
+            <p className="text-xs text-muted-foreground">
+              ~ {estimatedEndDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+            </p>
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+        <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
           <div className="rounded-lg border border-white/10 bg-slate-950/35 px-3 py-2">
             <div className="text-muted-foreground">Selected Inboxes</div>
             <div className="mt-1 text-base font-semibold text-slate-100">{selectedInboxes.length}</div>
@@ -267,8 +363,19 @@ export default function CampaignJourneyMap({
             <div className="mt-1 text-base font-semibold text-slate-100">{attachableLeadCount}</div>
           </div>
           <div className="rounded-lg border border-white/10 bg-slate-950/35 px-3 py-2">
-            <div className="text-muted-foreground">Daily Capacity</div>
-            <div className="mt-1 text-base font-semibold text-slate-100">{totalDailyCapacity}/day</div>
+            <div className="text-muted-foreground">Total Hourly Capacity</div>
+            <div className="mt-1 text-base font-semibold text-slate-100">{Math.floor(totalHourlyCapacity)}/hour</div>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-slate-950/35 px-3 py-2">
+            <div className="text-muted-foreground">Effective Daily Capacity</div>
+            <div className="mt-1 text-base font-semibold text-slate-100">{Math.floor(totalDailyCapacity)}/day</div>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-slate-950/35 px-3 py-2">
+            <div className="text-muted-foreground">Send Window</div>
+            <div className="mt-1 text-sm font-semibold text-slate-100">
+              {schedule.windowLabel} ({schedule.windowHours.toFixed(1)}h)
+            </div>
+            <div className="text-[10px] text-slate-400">{schedule.timezone}</div>
           </div>
           <div className="rounded-lg border border-white/10 bg-slate-950/35 px-3 py-2">
             <div className="text-muted-foreground">Total Sends</div>
@@ -295,7 +402,7 @@ export default function CampaignJourneyMap({
                     Start Day 0 • {formatDateFromAnchor(simulationAnchor, 0)}
                   </div>
                   <div className="absolute right-0 top-0 text-[11px] text-teal-200 text-right">
-                    End Day {estimatedCompletionDays} • {formatDateFromAnchor(simulationAnchor, estimatedCompletionDays)}
+                    End Day {estimatedCompletionDays} • {estimatedEndDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                   </div>
 
                   {stepSchedule.map((step, index) => {
@@ -352,16 +459,16 @@ export default function CampaignJourneyMap({
 
               <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
                 <div className="rounded-md border border-white/10 px-3 py-2 text-slate-300">
-                  Processing Days: <span className="text-slate-100 font-medium">{processingDays}d</span>
+                  Estimated Sending Hours: <span className="text-slate-100 font-medium">{estimatedSendingHours.toFixed(1)}h</span>
                 </div>
                 <div className="rounded-md border border-white/10 px-3 py-2 text-slate-300">
-                  Sequence Delay Days: <span className="text-slate-100 font-medium">{sequenceLagDays}d</span>
+                  Estimated Processing Days: <span className="text-slate-100 font-medium">{processingDays}d</span>
                 </div>
                 <div className="rounded-md border border-white/10 px-3 py-2 text-slate-300">
                   Total Estimated Duration: <span className="text-slate-100 font-medium">{estimatedCompletionDays}d</span>
                 </div>
                 <div className="rounded-md border border-white/10 px-3 py-2 text-slate-300">
-                  Estimated End Date: <span className="text-slate-100 font-medium">{formatDateFromAnchor(simulationAnchor, estimatedCompletionDays)}</span>
+                  Estimated End Date: <span className="text-slate-100 font-medium">{estimatedEndDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
                 </div>
               </div>
             </div>

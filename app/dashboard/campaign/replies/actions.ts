@@ -19,3 +19,25 @@ export async function reviewReplyInterestAction(input: {
   revalidatePath('/dashboard/campaign/replies');
   return result;
 }
+
+export async function mapUnmatchedReplyAction(input: {
+  replyEventId: string;
+  lead_id?: string;
+  lead_email?: string;
+  campaign_lead_id?: string;
+}) {
+  const result = await serverFetch<{ success: boolean }>(
+    `/operator/replies/unmatched/${input.replyEventId}/map`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({
+        lead_id: input.lead_id ?? null,
+        lead_email: input.lead_email ?? null,
+        campaign_lead_id: input.campaign_lead_id ?? null,
+      }),
+    }
+  );
+
+  revalidatePath('/dashboard/campaign/replies');
+  return result;
+}

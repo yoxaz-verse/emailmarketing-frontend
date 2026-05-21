@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { reviewReplyInterestAction } from './actions';
+import { mapUnmatchedReplyAction, reviewReplyInterestAction } from './actions';
 
 type Reply = {
   id: string;
@@ -27,6 +27,7 @@ type Reply = {
 
 export default function RepliesReviewClient({
   initialReplies,
+  unmatchedReplies,
   campaigns,
   operators,
   isAdmin,
@@ -35,6 +36,14 @@ export default function RepliesReviewClient({
   selectedOperatorId,
 }: {
   initialReplies: Reply[];
+  unmatchedReplies: Array<{
+    id: string;
+    from_email?: string | null;
+    inbox_email?: string | null;
+    message_id?: string | null;
+    message?: string | null;
+    received_at?: string | null;
+  }>;
   campaigns: Array<{ id: string; name: string }>;
   operators: Array<{ id: string; name: string }>;
   isAdmin: boolean;
@@ -43,6 +52,7 @@ export default function RepliesReviewClient({
   selectedOperatorId: string;
 }) {
   const [replies, setReplies] = useState<Reply[]>(initialReplies);
+  const [unmatched, setUnmatched] = useState(unmatchedReplies);
   const [busyLeadId, setBusyLeadId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -76,6 +86,20 @@ export default function RepliesReviewClient({
         )));
       } finally {
         setBusyLeadId(null);
+      }
+    });
+  }
+
+  function mapUnmatched(replyEventId: string, fromEmail?: string | null) {
+    const leadEmail = String(fromEmail ?? '').trim().toLowerCase();
+    if (!leadEmail) return;
+    startTransition(async () => {
+      try {
+        const leadId = replies.find((row) => String(row.email ?? '').toLowerCase() === leadEmail)?.id;
+        await mapUnmatchedReplyAction({ replyEventId, lead_id: leadId, lead_email: leadEmail });
+        setUnmatched((prev) => prev.filter((row) => row.id !== replyEventId));
+      } catch {
+        // keep list as-is on failure
       }
     });
   }
@@ -117,6 +141,27 @@ export default function RepliesReviewClient({
       </div>
       {replies.length === 0 ? (
         <p className="text-sm text-muted-foreground">No replies yet</p>
+      ) : null}
+      {unmatched.length > 0 ? (
+        <div className="space-y-2">
+          <div className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Unmatched / Needs Mapping</div>
+          {unmatched.map((row) => (
+            <div key={row.id} className="rounded border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+              <div className="text-xs text-muted-foreground">
+                From {row.from_email || 'unknown'} via {row.inbox_email || 'unknown inbox'} at {row.received_at ? new Date(row.received_at).toLocaleString() : 'unknown time'}
+              </div>
+              <div className="mt-1 whitespace-pre-wrap">{row.message || '(no message body)'}</div>
+              <button
+                type="button"
+                className="mt-2 text-xs px-2 py-1 rounded border border-border bg-background"
+                onClick={() => mapUnmatched(row.id, row.from_email)}
+                disabled={isPending}
+              >
+                Map By Sender Email
+              </button>
+            </div>
+          ))}
+        </div>
       ) : null}
       {replies.map((r) => {
         const current = r.interest_status ?? 'unreviewed';
