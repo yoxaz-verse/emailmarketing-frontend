@@ -11,6 +11,8 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 
+const EMPTY_DEFAULT_VALUES: Record<string, any> = {};
+
 type Props = {
   table: string;
   row?: any;
@@ -29,7 +31,7 @@ export default function AddEditModal({
   role,
   onClose,
   onSuccess,
-  defaultValues = {},
+  defaultValues = EMPTY_DEFAULT_VALUES,
   onSubmittingChange,
 }: Props) {
   const config = tableConfig[table];
@@ -145,11 +147,18 @@ export default function AddEditModal({
     return collected;
   }
 
+  const defaultValuesSignature = JSON.stringify(defaultValues ?? {});
+  const defaultValuesRef = useRef(defaultValues);
+
+  useEffect(() => {
+    defaultValuesRef.current = defaultValues;
+  }, [defaultValues]);
+
   useEffect(() => {
     const initial: any = {};
 
     // 1️⃣ Inject defaultValues FIRST (hidden FKs, parent context)
-    Object.entries(defaultValues).forEach(([key, value]) => {
+    Object.entries(defaultValuesRef.current ?? {}).forEach(([key, value]) => {
       initial[key] = value;
     });
 
@@ -173,7 +182,7 @@ export default function AddEditModal({
     });
 
     setForm(initial);
-  }, [row, table, defaultValues, config, isEdit]);
+  }, [row, table, defaultValuesSignature, config, isEdit]);
 
   useEffect(() => {
     let cancelled = false;

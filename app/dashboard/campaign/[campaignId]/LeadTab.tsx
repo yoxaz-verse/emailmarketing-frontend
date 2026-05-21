@@ -11,6 +11,8 @@ type Lead = {
   email?: string | null;
   folder_id?: string | null;
   is_blocked?: boolean;
+  is_used?: boolean | null;
+  permanently_failed?: boolean | null;
   free_provider?: boolean | null;
   is_free_provider?: boolean | null;
   email_eligibility?: string | null;
@@ -37,7 +39,8 @@ function bucketLabel(bucket: LeadBucket): string {
 }
 
 function classifyLead(lead: Lead): LeadBucket {
-  if (lead.is_blocked === true) return 'blocked';
+  if (lead.is_blocked === true || lead.permanently_failed === true) return 'blocked';
+  if (lead.is_used === true) return 'used';
 
   const eligibility = String(lead.email_eligibility ?? '').toLowerCase();
   if (eligibility === 'eligible' || eligibility === 'valid' || eligibility === 'validated') return 'valid';
@@ -65,6 +68,9 @@ function getMutationErrorMessage(error: unknown): string {
   if (lower.includes('column') && lower.includes('is_blocked') && lower.includes('does not exist')) {
     return 'Backend schema mismatch: leads.is_blocked is missing. Deploy/restart patched backend and verify NEXT_PUBLIC_API_BASE_URL points to it.';
   }
+  if (lower.includes('unauthorized') || lower.includes('forbidden') || lower.includes('operator access required')) {
+    return 'Session/permission mismatch. Sign in again and verify this campaign belongs to your operator account.';
+  }
   if (lower.includes('backend unavailable')) {
     return 'Backend unavailable. Please ensure API server is running.';
   }
@@ -77,12 +83,18 @@ export default function LeadsTab({
   allLeads,
   campaignLeads,
   leadFolders,
+  mutationHealth,
 }: {
   campaign: { id: string };
   leads: Lead[];
   allLeads: Lead[];
   campaignLeads: { lead_id: string }[];
   leadFolders: { id: string; name: string; lead_count?: number }[];
+  mutationHealth?: {
+    ok: boolean;
+    reason?: string;
+    routeContractVersion?: string;
+  };
 }) {
   const router = useRouter();
 
@@ -241,11 +253,11 @@ export default function LeadsTab({
       const result = await attachLeadsAction(campaign.id, leadIds);
       if (result.inserted > 0) {
         toast.success(
-          `Attached ${result.inserted}. Existing: ${result.skipped_existing}, ineligible: ${result.skipped_ineligible}, missing: ${result.skipped_missing}.`
+          `Attached ${result.inserted}. Existing: ${result.skipped_existing}, ineligible: ${result.skipped_ineligible}, missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`
         );
       } else {
         toast(
-          `No new leads attached. Existing: ${result.skipped_existing}, ineligible: ${result.skipped_ineligible}, missing: ${result.skipped_missing}.`,
+          `No new leads attached. Existing: ${result.skipped_existing}, ineligible: ${result.skipped_ineligible}, missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`,
           { icon: 'ℹ️' }
         );
       }
@@ -275,9 +287,9 @@ export default function LeadsTab({
     try {
       const result = await detachLeadsAction(campaign.id, leadIds);
       if (result.detached > 0) {
-        toast.success(`Removed ${result.detached}. Missing: ${result.skipped_missing}.`);
+        toast.success(`Removed ${result.detached}. Missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`);
       } else {
-        toast(`No leads removed. Missing: ${result.skipped_missing}.`, { icon: 'ℹ️' });
+        toast(`No leads removed. Missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`, { icon: 'ℹ️' });
       }
       setSelectedAttachedIds(new Set());
       setRemoveConfirmOpen(false);
@@ -354,6 +366,17 @@ export default function LeadsTab({
 
   return (
     <div className="border border-border rounded p-4 space-y-4 bg-card">
+      {!mutationHealth?.ok ? (
+        <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          Mutation health check failed: {mutationHealth?.reason ?? 'Route contract mismatch or backend unavailable.'}
+          {' '}Verify backend deployment and `NEXT_PUBLIC_API_BASE_URL`.
+        </div>
+      ) : null}
+      {mutationHealth?.ok ? (
+        <div className="rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-200">
+          Mutation health: OK ({mutationHealth.routeContractVersion ?? 'campaign-mutations-v1'})
+        </div>
+      ) : null}
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-semibold">Campaign Leads</h2>
         <div className="text-xs text-muted-foreground">

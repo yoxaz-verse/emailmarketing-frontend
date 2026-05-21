@@ -12,6 +12,22 @@ export type CampaignAttachSummary = {
   skipped_existing: number;
   skipped_ineligible: number;
   skipped_missing: number;
+  skipped_out_of_scope?: number;
+};
+
+export type CampaignMutationHealth = {
+  ok: boolean;
+  campaign_id: string;
+  diagnostics: {
+    api_base_configured: boolean;
+    route_contract_version: string;
+    required_routes: {
+      attach: string;
+      detach: string;
+      attach_folder: string;
+      campaign_delete: string;
+    };
+  };
 };
 
 export type CampaignInboxSyncSummary = {
@@ -167,4 +183,12 @@ export async function updateCampaignInboxes(
 
   revalidatePath(`/dashboard/campaign/${campaignId}`);
   return result;
+}
+
+export async function getCampaignMutationHealth(
+  campaignId: string
+) {
+  return serverFetch<CampaignMutationHealth>(`/campaigns/${campaignId}/mutation-health`, {
+    method: 'GET',
+  });
 }

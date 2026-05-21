@@ -48,6 +48,7 @@ type Props = {
 };
 
 const MAX_CHAR_LENGTH = 40;
+const EMPTY_DEFAULT_VALUES: Record<string, any> = {};
 
 function truncate(value: any, max = MAX_CHAR_LENGTH) {
   if (typeof value !== 'string') return value;
@@ -82,7 +83,7 @@ export default function DynamicTable({
   data,
   relations = {},
   role,
-  defaultValues = {},
+  defaultValues = EMPTY_DEFAULT_VALUES,
   onSelectionChange,
   onFilterToggle,
   showFilterButton = false,
@@ -217,7 +218,12 @@ export default function DynamicTable({
     startBulkTransition(async () => {
       try {
         const result = await bulkDeleteRows(table, Array.from(selectedIds));
-        toast.success(`Deleted ${result.deletedCount} record(s).`);
+        const filtered = Number(result.filteredCount ?? 0);
+        if (filtered > 0) {
+          toast.success(`Deleted ${result.deletedCount} record(s). ${filtered} were skipped due to scope or missing rows.`);
+        } else {
+          toast.success(`Deleted ${result.deletedCount} record(s).`);
+        }
         setSelectedIds(new Set());
         refresh();
       } catch (error: any) {

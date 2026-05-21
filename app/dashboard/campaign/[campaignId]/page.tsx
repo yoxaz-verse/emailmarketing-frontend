@@ -83,6 +83,26 @@ export default async function CampaignPage({
     const campaignInboxes = await serverFetch<any[]>(
       `/crud/campaign_inboxes?campaign_id=${campaign.id}`
     );
+    let mutationHealth: {
+      ok: boolean;
+      reason?: string;
+      routeContractVersion?: string;
+    } = { ok: false, reason: 'Unknown health check failure' };
+    try {
+      const mutationHealthResponse = await serverFetch<{
+        ok: boolean;
+        diagnostics?: { route_contract_version?: string };
+      }>(`/campaigns/${campaign.id}/mutation-health`);
+      mutationHealth = {
+        ok: mutationHealthResponse.ok === true,
+        routeContractVersion: mutationHealthResponse?.diagnostics?.route_contract_version ?? 'campaign-mutations-v1',
+      };
+    } catch (error: any) {
+      mutationHealth = {
+        ok: false,
+        reason: String(error?.message ?? 'Backend unavailable or stale campaign mutation routes'),
+      };
+    }
     const lockedInboxes = await serverFetch<Array<{
       inbox_id: string;
       blocking_campaign_id: string;
@@ -211,6 +231,7 @@ export default async function CampaignPage({
               allLeads={allLeads}
               campaignLeads={campaignLeads}
               leadFolders={leadFolders?.folders ?? []}
+              mutationHealth={mutationHealth}
             />
             <CampaignJourneyMap
               campaign={campaign}
