@@ -26,10 +26,8 @@ export default function TopBar() {
 
     useEffect(() => {
         let active = true;
-        clientFetch('/auth/me')
-            .then(async (res) => {
-                if (!res.ok) return;
-                const data = (await res.json()) as AuthMeResponse;
+        clientFetch<AuthMeResponse>('/auth/me')
+            .then((data) => {
                 if (!active) return;
                 setEmail(getDisplayEmail(data?.email));
             })

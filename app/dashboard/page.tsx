@@ -73,7 +73,7 @@ export default function OverviewPage() {
       const controller = new AbortController();
       const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       try {
-        const res = await fetch('/api/stats/operations-summary', {
+        const res = await fetch('/api/proxy/stats/operations-summary', {
           method: 'GET',
           cache: 'no-store',
           signal: controller.signal,
@@ -81,10 +81,24 @@ export default function OverviewPage() {
         const body = await res.json().catch(() => null);
 
         if (!res.ok) {
-          const status = String((body as { status?: string } | null)?.status ?? '');
-          if (status === 'backend_unavailable') setConnectionState('backend_unavailable');
-          else if (status === 'route_missing') setConnectionState('route_missing');
-          else setConnectionState('error');
+          const typedBody = (body as { status?: string; error?: string; detail?: string } | null) ?? null;
+          const explicitStatus = String(typedBody?.status ?? '');
+          const errorText = `${typedBody?.error ?? ''} ${typedBody?.detail ?? ''}`.toLowerCase();
+
+          if (
+            explicitStatus === 'backend_unavailable' ||
+            res.status === 503 ||
+            errorText.includes('backend unavailable')
+          ) {
+            setConnectionState('backend_unavailable');
+          } else if (
+            explicitStatus === 'route_missing' ||
+            (res.status === 404 && errorText.includes('operations summary route missing'))
+          ) {
+            setConnectionState('route_missing');
+          } else {
+            setConnectionState('error');
+          }
           const message = String((body as { error?: string } | null)?.error ?? `Failed to load stats (${res.status})`);
           throw new Error(message);
         }
