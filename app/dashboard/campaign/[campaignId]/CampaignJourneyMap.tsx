@@ -40,6 +40,7 @@ type CampaignInbox = {
 type SendingLimitsConfig = {
   schedule_enabled?: boolean;
   schedule_timezone?: string;
+  risky_daily_percent_limit?: number;
   allowed_weekdays?: number[];
   send_window_start?: string;
   send_window_end?: string;
@@ -289,33 +290,79 @@ export default function CampaignJourneyMap({
     );
     const selectedInboxes = inboxes.filter((inbox) => selectedInboxIdSet.has(String(inbox.id ?? '')));
     const schedule = resolveScheduleSettings(sendingLimitsConfig);
-    const capacity = selectedInboxes.reduce((sum, inbox) => {
+    const leadMix = campaignLeads.reduce((mix, row) => {
+      const lead = leadMap.get(String(row.lead_id ?? ''));
+      if (!lead) return mix;
+      if (lead.is_blocked === true || lead.permanently_failed === true) return mix;
+      const status = String(lead.email_eligibility ?? '').toLowerCase();
+      if (status === 'eligible') {
+        return {
+          ...mix,
+          eligible: mix.eligible + 1
+        };
+      }
+      if (status === 'risky') {
+        return {
+          ...mix,
+          risky: mix.risky + 1
+        };
+      }
+      return mix;
+    }, { eligible: 0, risky: 0 });
+    const attachableLeadCount = leadMix.eligible + leadMix.risky;
+    const riskyLeadRatio = attachableLeadCount > 0 ? (leadMix.risky / attachableLeadCount) : 0;
+    const riskyPercentLimit = Math.max(0, Math.min(100, Number(sendingLimitsConfig?.risky_daily_percent_limit ?? 20)));
+
+    const capacity = selectedInboxes.reduce((sum, inbox, index) => {
       const { dailyLimit, hourlyLimit } = resolveInboxEffectiveLimits(inbox, sendingLimitsConfig);
       const hourlyWindowLimitedDaily = hourlyLimit * schedule.windowHours;
-      const effectiveDaily = Math.max(0, Math.min(dailyLimit, hourlyWindowLimitedDaily));
+      const warmupAndWindowDaily = Math.max(0, Math.min(dailyLimit, hourlyWindowLimitedDaily));
+      const riskyCapFromDaily = Math.floor((dailyLimit * riskyPercentLimit) / 100);
+      const riskyDailyCap = Math.max(0, Math.min(warmupAndWindowDaily, riskyCapFromDaily));
+      const riskyAdjustedContribution = riskyLeadRatio > 0
+        ? Math.min(warmupAndWindowDaily, riskyDailyCap / riskyLeadRatio)
+        : warmupAndWindowDaily;
       return {
-        totalDaily: sum.totalDaily + effectiveDaily,
-        totalHourly: sum.totalHourly + Math.max(0, hourlyLimit)
+        totalDailyRaw: sum.totalDailyRaw + warmupAndWindowDaily,
+        totalDailyRiskyCap: sum.totalDailyRiskyCap + riskyDailyCap,
+        totalDailyRealistic: sum.totalDailyRealistic + riskyAdjustedContribution,
+        totalHourly: sum.totalHourly + Math.max(0, hourlyLimit),
+        inboxBreakdown: [
+          ...sum.inboxBreakdown,
+          {
+            key: String(inbox.id ?? `inbox-${index}`),
+            baseDaily: Math.max(0, dailyLimit),
+            baseHourly: Math.max(0, hourlyLimit),
+            warmupAndWindowDaily,
+            riskyDailyCap,
+            riskyAdjustedContribution
+          }
+        ]
       };
-    }, { totalDaily: 0, totalHourly: 0 });
-    const totalDailyCapacity = capacity.totalDaily;
+    }, {
+      totalDailyRaw: 0,
+      totalDailyRiskyCap: 0,
+      totalDailyRealistic: 0,
+      totalHourly: 0,
+      inboxBreakdown: [] as Array<{
+        key: string;
+        baseDaily: number;
+        baseHourly: number;
+        warmupAndWindowDaily: number;
+        riskyDailyCap: number;
+        riskyAdjustedContribution: number;
+      }>
+    });
     const totalHourlyCapacity = capacity.totalHourly;
-
-    const attachableLeadCount = campaignLeads.reduce((count, row) => {
-      const lead = leadMap.get(String(row.lead_id ?? ''));
-      if (!lead) return count;
-      if (lead.is_blocked === true || lead.permanently_failed === true) return count;
-      const status = String(lead.email_eligibility ?? '').toLowerCase();
-      if (status === 'eligible' || status === 'risky') return count + 1;
-      return count;
-    }, 0);
+    const totalDailyCapacity = capacity.totalDailyRaw;
+    const realisticDailyThroughput = capacity.totalDailyRealistic;
 
     const totalSends = attachableLeadCount * stepCount;
-    const estimatedSendingHours = totalDailyCapacity > 0
-      ? totalSends / totalDailyCapacity * schedule.windowHours
+    const estimatedSendingHours = realisticDailyThroughput > 0
+      ? (totalSends / realisticDailyThroughput) * schedule.windowHours
       : 0;
-    const processingDaysExact = totalDailyCapacity > 0
-      ? totalSends / Math.max(totalDailyCapacity, 1)
+    const processingDaysExact = realisticDailyThroughput > 0
+      ? totalSends / Math.max(realisticDailyThroughput, 1)
       : 0;
     const processingDays = Math.ceil(processingDaysExact);
     const sequenceLagDays = totalPlannedDays;
@@ -367,8 +414,11 @@ export default function CampaignJourneyMap({
             <div className="mt-1 text-base font-semibold text-slate-100">{Math.floor(totalHourlyCapacity)}/hour</div>
           </div>
           <div className="rounded-lg border border-white/10 bg-slate-950/35 px-3 py-2">
-            <div className="text-muted-foreground">Effective Daily Capacity</div>
-            <div className="mt-1 text-base font-semibold text-slate-100">{Math.floor(totalDailyCapacity)}/day</div>
+            <div className="text-muted-foreground">Realistic Daily Throughput</div>
+            <div className="mt-1 text-base font-semibold text-slate-100">{Math.floor(realisticDailyThroughput)}/day</div>
+            {Math.floor(totalDailyCapacity) !== Math.floor(realisticDailyThroughput) ? (
+              <div className="text-[10px] text-slate-400">Raw: {Math.floor(totalDailyCapacity)}/day</div>
+            ) : null}
           </div>
           <div className="rounded-lg border border-white/10 bg-slate-950/35 px-3 py-2">
             <div className="text-muted-foreground">Send Window</div>
@@ -389,6 +439,52 @@ export default function CampaignJourneyMap({
           </div>
         ) : (
           <div className="mt-5 space-y-4">
+            <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-xs text-cyan-100">
+              Capacity basis: warmup-adjusted inbox limits + send-window hours + risky-cap policy ({riskyPercentLimit}% per inbox/day) + allowed weekdays.
+              Lead mix: {leadMix.eligible} eligible, {leadMix.risky} risky.
+            </div>
+
+            <div className="rounded-lg border border-white/10 bg-slate-950/35 p-4">
+              <div className="text-xs text-muted-foreground mb-3">
+                Per-Inbox Capacity Breakdown (Full-Day Baseline)
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] text-xs">
+                  <thead>
+                    <tr className="text-left uppercase tracking-[0.08em] text-slate-400 border-b border-white/10">
+                      <th className="py-2 pr-3 font-medium">Inbox</th>
+                      <th className="py-2 pr-3 font-medium">Base Limits</th>
+                      <th className="py-2 pr-3 font-medium">Warmup+Window</th>
+                      <th className="py-2 pr-3 font-medium">Risky Cap</th>
+                      <th className="py-2 font-medium">Final Contribution</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {capacity.inboxBreakdown.map((row) => (
+                      <tr key={`cap-row-${row.key}`} className="border-b border-white/5">
+                        <td className="py-2 pr-3 text-slate-300 font-mono">{row.key.slice(0, 8)}</td>
+                        <td className="py-2 pr-3 text-slate-300">{Math.floor(row.baseDaily)}/day • {Math.floor(row.baseHourly)}/h</td>
+                        <td className="py-2 pr-3 text-slate-300">{Math.floor(row.warmupAndWindowDaily)}/day</td>
+                        <td className="py-2 pr-3 text-slate-300">{Math.floor(row.riskyDailyCap)}/day</td>
+                        <td className="py-2 text-slate-100 font-medium">{Math.floor(row.riskyAdjustedContribution)}/day</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                <div className="rounded-md border border-white/10 px-3 py-2 text-slate-300">
+                  Raw Daily Capacity: <span className="text-slate-100 font-medium">{Math.floor(capacity.totalDailyRaw)}/day</span>
+                </div>
+                <div className="rounded-md border border-white/10 px-3 py-2 text-slate-300">
+                  Risky-Cap Daily Ceiling: <span className="text-slate-100 font-medium">{Math.floor(capacity.totalDailyRiskyCap)}/day</span>
+                </div>
+                <div className="rounded-md border border-white/10 px-3 py-2 text-slate-300">
+                  Realistic Throughput: <span className="text-slate-100 font-medium">{Math.floor(realisticDailyThroughput)}/day</span>
+                </div>
+              </div>
+            </div>
+
             <div className="rounded-lg border border-white/10 bg-slate-950/35 p-4">
               <div className="text-xs text-muted-foreground mb-3">
                 Campaign Schedule Timeline

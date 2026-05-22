@@ -7,6 +7,7 @@ import Link from 'next/link';
 type SendingLimitsConfig = {
   schedule_enabled?: boolean;
   schedule_timezone?: string;
+  risky_daily_percent_limit?: number;
   allowed_weekdays?: number[];
   send_window_start?: string;
   send_window_end?: string;

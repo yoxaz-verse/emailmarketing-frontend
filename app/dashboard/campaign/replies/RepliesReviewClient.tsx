@@ -35,6 +35,7 @@ export default function RepliesReviewClient({
   selectedReviewStatus,
   selectedOperatorId,
   replyCaptureHealth,
+  repliesLoadError,
 }: {
   initialReplies: Reply[];
   unmatchedReplies: Array<{
@@ -54,7 +55,18 @@ export default function RepliesReviewClient({
   replyCaptureHealth?: {
     stale?: boolean;
     last_poll_at?: string | null;
+    failed_inbox_count?: number;
+    active_inbox_count?: number;
+    inboxes?: Array<{
+      inbox_email: string;
+      connect_ok: boolean;
+      auth_ok: boolean;
+      mailbox_open_ok: boolean;
+      last_error?: string | null;
+      last_error_at?: string | null;
+    }>;
   } | null;
+  repliesLoadError?: string | null;
 }) {
   const [replies, setReplies] = useState<Reply[]>(initialReplies);
   const [unmatched, setUnmatched] = useState(unmatchedReplies);
@@ -111,9 +123,33 @@ export default function RepliesReviewClient({
 
   return (
     <div className="space-y-3">
+      {repliesLoadError ? (
+        <div className="rounded border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-xs text-rose-200">
+          Failed to load replies: {repliesLoadError}
+        </div>
+      ) : null}
       {replyCaptureHealth?.stale ? (
         <div className="rounded border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
           Reply capture worker looks stale. Last poll: {replyCaptureHealth.last_poll_at ? new Date(replyCaptureHealth.last_poll_at).toLocaleString() : 'never'}.
+        </div>
+      ) : null}
+      {(replyCaptureHealth?.failed_inbox_count ?? 0) > 0 ? (
+        <div className="rounded border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
+          Reply capture has inbox failures: {replyCaptureHealth?.failed_inbox_count} failed out of {replyCaptureHealth?.active_inbox_count ?? 0} active inboxes.
+          {Array.isArray(replyCaptureHealth?.inboxes)
+            ? (
+              <ul className="mt-1 list-disc pl-4">
+                {replyCaptureHealth.inboxes
+                  .filter((inbox) => inbox.last_error)
+                  .slice(0, 5)
+                  .map((inbox) => (
+                    <li key={inbox.inbox_email}>
+                      {inbox.inbox_email}: {inbox.last_error}
+                    </li>
+                  ))}
+              </ul>
+            )
+            : null}
         </div>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">

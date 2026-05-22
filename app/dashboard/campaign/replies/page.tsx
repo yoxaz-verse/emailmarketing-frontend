@@ -39,6 +39,16 @@ type OperatorOption = {
 type ReplyCaptureHealth = {
   stale?: boolean;
   last_poll_at?: string | null;
+  failed_inbox_count?: number;
+  active_inbox_count?: number;
+  inboxes?: Array<{
+    inbox_email: string;
+    connect_ok: boolean;
+    auth_ok: boolean;
+    mailbox_open_ok: boolean;
+    last_error?: string | null;
+    last_error_at?: string | null;
+  }>;
 };
 
 export default async function OperatorRepliesPage({
@@ -59,6 +69,7 @@ export default async function OperatorRepliesPage({
   let operators: OperatorOption[] = [];
   let selectedOperatorId = requestedOperatorId;
   let replyCaptureHealth: ReplyCaptureHealth | null = null;
+  let repliesLoadError: string | null = null;
 
   if (isAdmin) {
     try {
@@ -86,9 +97,10 @@ export default async function OperatorRepliesPage({
     );
     replies = Array.isArray(response?.replies) ? response.replies : [];
     unmatchedReplies = Array.isArray(response?.unmatched) ? response.unmatched : [];
-  } catch {
+  } catch (error: any) {
     replies = [];
     unmatchedReplies = [];
+    repliesLoadError = String(error?.message ?? 'Failed to load replies. Check backend reply capture health.');
   }
 
   try {
@@ -119,6 +131,7 @@ export default async function OperatorRepliesPage({
         selectedReviewStatus={reviewStatus}
         selectedOperatorId={selectedOperatorId}
         replyCaptureHealth={replyCaptureHealth}
+        repliesLoadError={repliesLoadError}
       />
     </div>
   );
