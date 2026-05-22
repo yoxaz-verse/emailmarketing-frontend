@@ -240,6 +240,14 @@ export default async function CampaignPage({
       open_rate_visible?: boolean;
       open_rate_visibility_reason?: string | null;
       open_confidence?: 'high' | 'medium' | 'low';
+      inferred_replied_count?: number;
+      response_provenance?: {
+        replied_source?: 'tracking_only' | 'hybrid_fallback';
+        fallback_enabled?: boolean;
+      };
+      diagnostics?: {
+        unmatched_events_count?: number;
+      };
       reply_rate: number;
       spam_hints?: string[];
       outcome_rows?: Array<{
@@ -303,6 +311,11 @@ export default async function CampaignPage({
                   <div className="mt-1 text-base font-semibold text-sky-300">
                     {replyOpenAnalytics?.replied ?? totalReplies}
                   </div>
+                  {replyOpenAnalytics?.inferred_replied_count && replyOpenAnalytics.inferred_replied_count > 0 ? (
+                    <div className="mt-1 text-[11px] text-amber-300">
+                      {replyOpenAnalytics.inferred_replied_count} inferred from lead status
+                    </div>
+                  ) : null}
                 </div>
               </div>
               {replyOpenAnalytics ? (
@@ -356,7 +369,15 @@ export default async function CampaignPage({
                     ? `${lowConfidenceOutcomeCount} low-confidence outcomes (fallback match/pixel)`
                     : 'All matched outcomes high confidence'}
                 </span>
+                {replyOpenAnalytics?.response_provenance?.replied_source === 'hybrid_fallback' ? (
+                  <span className="ml-2 text-amber-300">(Hybrid fallback active for replies)</span>
+                ) : null}
               </div>
+              {(replyOpenAnalytics?.diagnostics?.unmatched_events_count ?? 0) > 0 ? (
+                <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
+                  Correlation diagnostics: {replyOpenAnalytics?.diagnostics?.unmatched_events_count} webhook event(s) unmatched to campaign leads.
+                </div>
+              ) : null}
               {replyOpenAnalytics?.open_rate_visible === false && replyOpenAnalytics?.open_rate_visibility_reason ? (
                 <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
                   {replyOpenAnalytics.open_rate_visibility_reason}
