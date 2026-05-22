@@ -149,6 +149,11 @@ export default function RepliesReviewClient({
           </select>
         ) : null}
       </div>
+      {isAdmin && selectedOperatorId ? (
+        <div className="text-xs text-muted-foreground">
+          Operator filter is active. Clear operator filter to see replies from all operators.
+        </div>
+      ) : null}
       {replies.length === 0 && unmatched.length === 0 ? (
         <p className="text-sm text-muted-foreground">No replies yet</p>
       ) : null}

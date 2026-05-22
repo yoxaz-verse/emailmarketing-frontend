@@ -205,8 +205,8 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
   const canForceUnlock = hasActiveRun && (showStalledWarning || stuckProcessing > 0 || (processingNow === 0 && recentUpdates === 0));
   const activeRunLockReason = hasActiveRun
     ? (processingNow === 0 && recentUpdates === 0
-      ? 'Run is active but no rows are currently processing. Use reset to restart cleanly.'
-      : 'Run is actively processing leads.')
+      ? 'Validation process is finalizing. If this persists, use reset to restart cleanly.'
+      : 'Validation process is currently processing leads.')
     : null;
 
   async function handleCreateFolder() {
