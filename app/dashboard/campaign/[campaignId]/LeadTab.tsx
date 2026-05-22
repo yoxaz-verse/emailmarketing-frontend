@@ -79,7 +79,24 @@ function getMutationErrorMessage(error: unknown): string {
     }
     return 'Unknown error';
   })();
+  let parsedCode = '';
+  try {
+    const parsed = JSON.parse(raw) as { code?: unknown; error?: unknown; message?: unknown };
+    if (typeof parsed?.code === 'string') parsedCode = parsed.code;
+  } catch {
+    parsedCode = '';
+  }
   const lower = raw.toLowerCase();
+  if (parsedCode === 'CAMPAIGN_LEAD_TRACKING_CONFLICT' || lower.includes('campaign_lead_tracking_conflict')) {
+    return 'This lead has tracking history linked to it. Run the FK migration for campaign lead tracking (ON DELETE SET NULL), then retry remove.';
+  }
+  if (
+    lower.includes('email_tracking_events_campaign_lead_id_fkey') ||
+    lower.includes('email_logs_campaign_lead_id_fkey') ||
+    (lower.includes('foreign key') && lower.includes('campaign_leads'))
+  ) {
+    return 'Removal blocked by tracking-history foreign key. Apply the FK migration (campaign_lead_id -> ON DELETE SET NULL) and retry.';
+  }
   if (raw.includes('Cannot POST') && raw.includes('/campaigns/') && raw.includes('/leads/detach')) {
     return 'Detach route is unavailable on backend. Please restart/deploy backend and retry.';
   }
