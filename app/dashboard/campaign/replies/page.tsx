@@ -29,6 +29,27 @@ type UnmatchedReply = {
   message_id?: string | null;
   message?: string | null;
   received_at?: string | null;
+  scope_match_source?: string | null;
+  scope_confidence?: string | null;
+};
+
+type RepliesApiResponse = {
+  replies: Reply[];
+  unmatched: UnmatchedReply[];
+  matched_count?: number;
+  unmatched_count?: number;
+  mapping_confidence_breakdown?: {
+    high?: number;
+    medium?: number;
+    low?: number;
+    unknown?: number;
+  };
+  worker_health_snapshot?: {
+    stale?: boolean;
+    failed_inbox_count?: number;
+    active_inbox_count?: number;
+    last_poll_at?: string | null;
+  };
 };
 
 type CampaignOption = { id: string; name: string };
@@ -70,6 +91,7 @@ export default async function OperatorRepliesPage({
   let selectedOperatorId = requestedOperatorId;
   let replyCaptureHealth: ReplyCaptureHealth | null = null;
   let repliesLoadError: string | null = null;
+  let repliesDiagnostics: Omit<RepliesApiResponse, 'replies' | 'unmatched'> | null = null;
 
   if (isAdmin) {
     try {
@@ -92,11 +114,19 @@ export default async function OperatorRepliesPage({
   if (isAdmin && selectedOperatorId) query.set('operator_id', selectedOperatorId);
 
   try {
-    const response = await serverFetch<{ replies: Reply[]; unmatched: UnmatchedReply[] }>(
+    const response = await serverFetch<RepliesApiResponse>(
       `/operator/replies${query.toString() ? `?${query.toString()}&include_unmatched=true` : '?include_unmatched=true'}`
     );
     replies = Array.isArray(response?.replies) ? response.replies : [];
     unmatchedReplies = Array.isArray(response?.unmatched) ? response.unmatched : [];
+    repliesDiagnostics = response
+      ? {
+          matched_count: response.matched_count,
+          unmatched_count: response.unmatched_count,
+          mapping_confidence_breakdown: response.mapping_confidence_breakdown,
+          worker_health_snapshot: response.worker_health_snapshot,
+        }
+      : null;
   } catch (error: any) {
     replies = [];
     unmatchedReplies = [];
@@ -132,6 +162,7 @@ export default async function OperatorRepliesPage({
         selectedOperatorId={selectedOperatorId}
         replyCaptureHealth={replyCaptureHealth}
         repliesLoadError={repliesLoadError}
+        repliesDiagnostics={repliesDiagnostics}
       />
     </div>
   );

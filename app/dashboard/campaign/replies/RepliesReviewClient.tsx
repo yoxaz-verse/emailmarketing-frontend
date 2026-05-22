@@ -36,6 +36,7 @@ export default function RepliesReviewClient({
   selectedOperatorId,
   replyCaptureHealth,
   repliesLoadError,
+  repliesDiagnostics,
 }: {
   initialReplies: Reply[];
   unmatchedReplies: Array<{
@@ -45,6 +46,8 @@ export default function RepliesReviewClient({
     message_id?: string | null;
     message?: string | null;
     received_at?: string | null;
+    scope_match_source?: string | null;
+    scope_confidence?: string | null;
   }>;
   campaigns: Array<{ id: string; name: string }>;
   operators: Array<{ id: string; name: string }>;
@@ -67,6 +70,22 @@ export default function RepliesReviewClient({
     }>;
   } | null;
   repliesLoadError?: string | null;
+  repliesDiagnostics?: {
+    matched_count?: number;
+    unmatched_count?: number;
+    mapping_confidence_breakdown?: {
+      high?: number;
+      medium?: number;
+      low?: number;
+      unknown?: number;
+    };
+    worker_health_snapshot?: {
+      stale?: boolean;
+      failed_inbox_count?: number;
+      active_inbox_count?: number;
+      last_poll_at?: string | null;
+    };
+  } | null;
 }) {
   const [replies, setReplies] = useState<Reply[]>(initialReplies);
   const [unmatched, setUnmatched] = useState(unmatchedReplies);
@@ -123,6 +142,14 @@ export default function RepliesReviewClient({
 
   return (
     <div className="space-y-3">
+      {repliesDiagnostics ? (
+        <div className="rounded border border-border/60 bg-card/60 px-3 py-2 text-xs text-muted-foreground">
+          Replies diagnostics: matched {Number(repliesDiagnostics.matched_count ?? replies.length)} • unmatched {Number(repliesDiagnostics.unmatched_count ?? unmatched.length)}
+          {repliesDiagnostics.mapping_confidence_breakdown
+            ? ` • fallback confidence (H/M/L/U): ${Number(repliesDiagnostics.mapping_confidence_breakdown.high ?? 0)}/${Number(repliesDiagnostics.mapping_confidence_breakdown.medium ?? 0)}/${Number(repliesDiagnostics.mapping_confidence_breakdown.low ?? 0)}/${Number(repliesDiagnostics.mapping_confidence_breakdown.unknown ?? 0)}`
+            : ''}
+        </div>
+      ) : null}
       {repliesLoadError ? (
         <div className="rounded border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-xs text-rose-200">
           Failed to load replies: {repliesLoadError}
@@ -201,6 +228,11 @@ export default function RepliesReviewClient({
               <div className="mb-1 inline-flex rounded border border-amber-500/40 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-amber-300">
                 Unmatched (manual map required)
               </div>
+              {row.scope_match_source ? (
+                <div className="mb-1 text-[11px] text-amber-200/90">
+                  Visible via {row.scope_match_source === 'message_id' ? 'message-id match' : 'recipient+time fallback'} ({row.scope_confidence || 'unknown'} confidence)
+                </div>
+              ) : null}
               <div className="text-xs text-muted-foreground">
                 From {row.from_email || 'unknown'} via {row.inbox_email || 'unknown inbox'} at {row.received_at ? new Date(row.received_at).toLocaleString() : 'unknown time'}
               </div>
