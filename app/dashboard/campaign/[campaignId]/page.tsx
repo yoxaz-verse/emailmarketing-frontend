@@ -243,7 +243,7 @@ export default async function CampaignPage({
       open_confidence?: 'high' | 'medium' | 'low';
       inferred_replied_count?: number;
       response_provenance?: {
-        replied_source?: 'tracking_only' | 'hybrid_fallback';
+        replied_source?: 'tracking_only';
         fallback_enabled?: boolean;
       };
       diagnostics?: {
@@ -351,10 +351,11 @@ export default async function CampaignPage({
                       {replyOpenAnalytics.open_rate_visible === false ? 'Hidden' : `${replyOpenAnalytics.open_rate}%`}
                     </div>
                   </div>
-                  <div className="rounded-lg border border-border px-3 py-2">
-                    <div className="text-muted-foreground text-xs">Reply Rate</div>
-                    <div className="mt-1 text-base font-semibold text-cyan-300">{replyOpenAnalytics.reply_rate}%</div>
-                  </div>
+                <div className="rounded-lg border border-border px-3 py-2">
+                  <div className="text-muted-foreground text-xs">Reply Rate</div>
+                  <div className="mt-1 text-base font-semibold text-cyan-300">{replyOpenAnalytics.reply_rate}%</div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">Strict tracked replies only</div>
+                </div>
                   <div className="rounded-lg border border-border px-3 py-2">
                     <div className="text-muted-foreground text-xs">Bounce Rate</div>
                     <div className="mt-1 text-base font-semibold text-rose-300">{replyOpenAnalytics.bounce_rate}%</div>
@@ -370,8 +371,10 @@ export default async function CampaignPage({
                     ? `${lowConfidenceOutcomeCount} low-confidence outcomes (fallback match/pixel)`
                     : 'All matched outcomes high confidence'}
                 </span>
-                {replyOpenAnalytics?.response_provenance?.replied_source === 'hybrid_fallback' ? (
-                  <span className="ml-2 text-amber-300">(Hybrid fallback active for replies)</span>
+                {replyOpenAnalytics?.inferred_replied_count && replyOpenAnalytics.inferred_replied_count > 0 ? (
+                  <span className="ml-2 text-amber-300">
+                    ({replyOpenAnalytics.inferred_replied_count} inferred reply state not included in reply rate)
+                  </span>
                 ) : null}
               </div>
               {(replyOpenAnalytics?.diagnostics?.unmatched_events_count ?? 0) > 0 ? (
