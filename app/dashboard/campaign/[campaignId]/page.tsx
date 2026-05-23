@@ -81,6 +81,12 @@ export default async function CampaignPage({
       inbox.operator_id === null ||
       inbox.operator_id === campaign.operator_id
     );
+    let sendingDomains: any[] = [];
+    try {
+      sendingDomains = await serverFetch<any[]>('/crud/sending_domains');
+    } catch {
+      sendingDomains = [];
+    }
 
     /**
      * 6️⃣ Load campaign ↔ inbox mappings
@@ -288,6 +294,49 @@ export default async function CampaignPage({
     const hasForbiddenSignoff = (sequenceSteps ?? []).some((step: any) => forbiddenSignoffRegex.test(String(step?.body ?? '')));
     const senderLooksPersonal = /\b(joshua|jacob|alwin|joy)\b/i.test(String(senderSettings.sender_display_name ?? ''));
     const hasSenderMismatchRisk = hasForbiddenSignoff && !String(senderSettings.effective_sender_display_name ?? '').toLowerCase().includes('team');
+    const microsoftDomainRegex = /(?:^|\.)(outlook\.com|hotmail\.com|live\.com|msn\.com)$/i;
+    const attachedLeadEmails = attachedLeadRows
+      .map((lead) => String(lead?.email ?? '').trim().toLowerCase())
+      .filter(Boolean);
+    const microsoftLeadCount = attachedLeadEmails.filter((email) => {
+      const domain = email.includes('@') ? email.split('@').pop() ?? '' : '';
+      return microsoftDomainRegex.test(domain);
+    }).length;
+    const microsoftShare = attachedLeadEmails.length > 0
+      ? Number(((microsoftLeadCount / attachedLeadEmails.length) * 100).toFixed(2))
+      : 0;
+    const campaignInboxIds = new Set(
+      (campaignInboxes ?? []).map((row: any) => String(row?.inbox_id ?? '')).filter(Boolean)
+    );
+    const activeCampaignInboxes = (inboxes ?? []).filter((inbox: any) => campaignInboxIds.has(String(inbox?.id ?? '')));
+    const sendingDomainById = new Map(
+      (sendingDomains ?? []).map((domain: any) => [String(domain?.id ?? ''), domain])
+    );
+    const authReadyInboxCount = activeCampaignInboxes.filter((inbox: any) => {
+      const domain = sendingDomainById.get(String(inbox?.sending_domain_id ?? ''));
+      return Boolean(domain?.spf_verified) && Boolean(domain?.dkim_verified) && Boolean(domain?.dmarc_verified);
+    }).length;
+    const authTotalInboxCount = activeCampaignInboxes.length;
+    const hasHighMicrosoftExposure = microsoftShare >= 40;
+    const hasHighUnmatchedEvents = (replyOpenAnalytics?.diagnostics?.unmatched_events_count ?? 0) >= 10;
+    const hasLowOpenSignal = (replyOpenAnalytics?.opened ?? 0) === 0;
+    const preSendWarnings = [
+      hasHighMicrosoftExposure
+        ? `High Microsoft audience share (${microsoftShare}%). Use first-touch plain mode and lower send ramp.`
+        : null,
+      hasLowOpenSignal
+        ? 'No confirmed open signal yet. Reduce volume and prioritize warmup-safe inboxes.'
+        : null,
+      hasHighUnmatchedEvents
+        ? `Tracking correlation is noisy (${replyOpenAnalytics?.diagnostics?.unmatched_events_count ?? 0} unmatched events). Validate message-id mapping before scaling sends.`
+        : null,
+      authTotalInboxCount > 0 && authReadyInboxCount < authTotalInboxCount
+        ? `${authTotalInboxCount - authReadyInboxCount} campaign inbox(es) are missing SPF/DKIM/DMARC verification in sending-domain records.`
+        : null,
+      hasSenderMismatchRisk
+        ? 'Sender identity mismatch detected. Keep one consistent team identity for cold outreach.'
+        : null,
+    ].filter(Boolean) as string[];
 
     return (
       <div className="-mx-8 -my-8">
@@ -305,6 +354,36 @@ export default async function CampaignPage({
           <div className="space-y-6">
             <section className="rounded-xl border border-border bg-card/50 p-4">
               <div className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Delivery Health</div>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-4 gap-3 text-sm">
+                <div className="rounded-lg border border-border px-3 py-2">
+                  <div className="text-muted-foreground text-xs">Spam Risk</div>
+                  <div className={`mt-1 text-base font-semibold ${preSendWarnings.length > 2 ? 'text-rose-300' : preSendWarnings.length > 0 ? 'text-amber-300' : 'text-emerald-300'}`}>
+                    {preSendWarnings.length > 2 ? 'High' : preSendWarnings.length > 0 ? 'Medium' : 'Low'}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-border px-3 py-2">
+                  <div className="text-muted-foreground text-xs">Microsoft Share</div>
+                  <div className="mt-1 text-base font-semibold text-amber-300">{microsoftShare}%</div>
+                </div>
+                <div className="rounded-lg border border-border px-3 py-2">
+                  <div className="text-muted-foreground text-xs">Auth Ready Inboxes</div>
+                  <div className="mt-1 text-base font-semibold text-emerald-300">{authReadyInboxCount}/{authTotalInboxCount}</div>
+                </div>
+                <div className="rounded-lg border border-border px-3 py-2">
+                  <div className="text-muted-foreground text-xs">Recommended Outlook Ramp</div>
+                  <div className="mt-1 text-base font-semibold text-sky-300">4/hr · 20/day</div>
+                </div>
+              </div>
+              {preSendWarnings.length > 0 ? (
+                <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
+                  <div className="font-medium">Pre-send deliverability warnings</div>
+                  <ul className="mt-1 list-disc pl-4 space-y-0.5">
+                    {preSendWarnings.map((warning, idx) => (
+                      <li key={`warning-${idx}`}>{warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               <div className="mt-3 grid grid-cols-1 sm:grid-cols-4 gap-3 text-sm">
                 <div className="rounded-lg border border-border px-3 py-2">
                   <div className="text-muted-foreground text-xs">Sent</div>

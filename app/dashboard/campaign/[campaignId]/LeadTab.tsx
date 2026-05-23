@@ -30,7 +30,7 @@ type AttachedLeadRow = {
 };
 
 function bucketLabel(bucket: LeadBucket): string {
-  if (bucket === 'valid') return 'eligible';
+  if (bucket === 'valid') return 'qualified';
   if (bucket === 'risky') return 'risky';
   if (bucket === 'used') return 'used';
   if (bucket === 'pending') return 'pending';
@@ -196,7 +196,7 @@ export default function LeadsTab({
 
   const unassignedRows = candidateScopeLeads.filter((lead) => {
     const bucket = classifyLead(lead);
-    return !attachedLeadIdSet.has(String(lead.id)) && (bucket === 'valid' || bucket === 'risky');
+    return !attachedLeadIdSet.has(String(lead.id)) && bucket === 'valid';
   });
 
   const excludedRows = candidateScopeLeads.filter((lead) => {
@@ -237,6 +237,10 @@ export default function LeadsTab({
     }
     return counts;
   }, [excludedRows]);
+  const attachedNonQualifiedCount = useMemo(
+    () => attachedRows.filter((row) => row.bucket !== 'valid').length,
+    [attachedRows]
+  );
 
   const allAttachedVisibleSelected =
     attachedVisibleIds.length > 0 && attachedVisibleIds.every((id) => selectedAttachedIds.has(id));
@@ -332,11 +336,11 @@ export default function LeadsTab({
       }
       if (result.inserted > 0) {
         toast.success(
-          `Attached ${result.inserted} and synced. Existing: ${result.skipped_existing}, ineligible: ${result.skipped_ineligible}, missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`
+          `Attached ${result.inserted} qualified lead(s) and synced. Existing: ${result.skipped_existing}, ineligible: ${result.skipped_ineligible}, missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`
         );
       } else {
         toast(
-          `No new leads attached after sync. Existing: ${result.skipped_existing}, ineligible: ${result.skipped_ineligible}, missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`,
+          `No new qualified leads attached after sync. Existing: ${result.skipped_existing}, ineligible: ${result.skipped_ineligible}, missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`,
           { icon: 'ℹ️' }
         );
       }
@@ -417,7 +421,7 @@ export default function LeadsTab({
     const folderScopeIds = candidateScopeLeads
       .filter((lead) => {
         const bucket = classifyLead(lead);
-        return bucket === 'valid' || bucket === 'risky';
+        return bucket === 'valid';
       })
       .map((lead) => String(lead.id))
       .filter((id) => !attachedLeadIdSet.has(id));
@@ -435,11 +439,11 @@ export default function LeadsTab({
       }
       if (result.inserted > 0) {
         toast.success(
-          `Folder attached: ${result.inserted} and synced. Existing: ${result.skipped_existing}, skipped non-sendable: ${result.skipped_ineligible}, missing: ${result.skipped_missing}.`
+          `Folder attached: ${result.inserted} qualified lead(s) and synced. Existing: ${result.skipped_existing}, skipped non-qualified: ${result.skipped_ineligible}, missing: ${result.skipped_missing}.`
         );
       } else {
         toast(
-          '0 sendable leads attached from this folder after sync. Only eligible/risky and not blocked/used leads are attachable.',
+          '0 qualified leads attached from this folder after sync. Only qualified (eligible/valid/validated) leads are attachable.',
           { icon: '⚠️' }
         );
       }
@@ -564,20 +568,26 @@ export default function LeadsTab({
 
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <span>Attached: {attachedCount}</span>
-        <span>Eligible (Valid): {validCandidates.length}</span>
-        <span>Eligible (Risky): {riskyCandidates.length}</span>
+        <span>Qualified: {validCandidates.length}</span>
+        <span>Risky (excluded): {riskyCandidates.length}</span>
         <span>Ineligible: {excludedRows.length}</span>
       </div>
+      {attachedNonQualifiedCount > 0 ? (
+        <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          {attachedNonQualifiedCount} attached lead(s) are non-qualified (legacy). Remove them to keep campaign strictly qualified-only.
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant={activeEligibilityTab === 'eligible' ? 'default' : 'outline'} onClick={() => setActiveEligibilityTab('eligible')}>
-          Eligible ({unassignedRows.length})
+          Qualified ({unassignedRows.length})
         </Button>
         <Button size="sm" variant={activeEligibilityTab === 'ineligible' ? 'default' : 'outline'} onClick={() => setActiveEligibilityTab('ineligible')}>
           Ineligible ({excludedRows.length})
         </Button>
         {activeEligibilityTab === 'ineligible' ? (
           <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+            {ineligibleBreakdown.risky > 0 ? <span className="rounded-full border border-border px-2 py-0.5">risky: {ineligibleBreakdown.risky}</span> : null}
             {ineligibleBreakdown.used > 0 ? <span className="rounded-full border border-border px-2 py-0.5">used: {ineligibleBreakdown.used}</span> : null}
             {ineligibleBreakdown.pending > 0 ? <span className="rounded-full border border-border px-2 py-0.5">pending: {ineligibleBreakdown.pending}</span> : null}
             {ineligibleBreakdown.invalid > 0 ? <span className="rounded-full border border-border px-2 py-0.5">invalid: {ineligibleBreakdown.invalid}</span> : null}
@@ -649,8 +659,8 @@ export default function LeadsTab({
                   ) : null}
                   {row.bucket === 'valid' ? (
                     <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-1.5 py-0.5 text-emerald-300">
-                      <span className="h-2 w-2 rounded-full bg-emerald-400" title="Eligible" />
-                      eligible
+                      <span className="h-2 w-2 rounded-full bg-emerald-400" title="Qualified" />
+                      qualified
                     </span>
                   ) : null}
                   {row.bucket === 'risky' ? (
@@ -674,7 +684,7 @@ export default function LeadsTab({
         >
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold">
-              {activeEligibilityTab === 'eligible' ? `Eligible (${unassignedRows.length})` : `Ineligible (${excludedRows.length})`}
+              {activeEligibilityTab === 'eligible' ? `Qualified (${unassignedRows.length})` : `Ineligible (${excludedRows.length})`}
             </h3>
             {activeEligibilityTab === 'eligible' ? (
               <div className="flex items-center gap-2">
@@ -701,7 +711,7 @@ export default function LeadsTab({
           ) : null}
           <input
             className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-            placeholder={activeEligibilityTab === 'eligible' ? 'Search eligible...' : 'Search ineligible...'}
+            placeholder={activeEligibilityTab === 'eligible' ? 'Search qualified...' : 'Search ineligible...'}
             value={activeEligibilityTab === 'eligible' ? eligibleSearch : ineligibleSearch}
             onChange={(e) => {
               if (activeEligibilityTab === 'eligible') setEligibleSearch(e.target.value);
@@ -710,7 +720,7 @@ export default function LeadsTab({
           />
           <div className="max-h-[360px] overflow-auto space-y-2">
             {activeEligibilityTab === 'eligible' && unassignedVisible.length === 0 ? (
-              <div className="text-xs text-muted-foreground py-4 text-center">No eligible/risky unassigned leads.</div>
+              <div className="text-xs text-muted-foreground py-4 text-center">No qualified unassigned leads.</div>
             ) : null}
             {activeEligibilityTab === 'eligible' ? unassignedVisible.map((lead) => {
               const bucket = classifyLead(lead);
@@ -738,8 +748,8 @@ export default function LeadsTab({
                     ) : null}
                     {bucket === 'valid' ? (
                       <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-1.5 py-0.5 text-emerald-300">
-                        <span className="h-2 w-2 rounded-full bg-emerald-400" title="Eligible" />
-                        eligible
+                        <span className="h-2 w-2 rounded-full bg-emerald-400" title="Qualified" />
+                        qualified
                       </span>
                     ) : null}
                     {bucket === 'risky' ? (
