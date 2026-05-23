@@ -3,6 +3,22 @@
 import { useState, useTransition } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { mapUnmatchedReplyAction, reviewReplyInterestAction } from './actions';
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  Mail,
+  User,
+  Building,
+  Clock,
+  MessageSquare,
+  ThumbsUp,
+  ThumbsDown,
+  RotateCcw,
+  Activity,
+  Filter,
+  Inbox
+} from 'lucide-react';
 
 type Reply = {
   id: string;
@@ -141,169 +157,324 @@ export default function RepliesReviewClient({
   }
 
   return (
-    <div className="space-y-3">
-      {repliesDiagnostics ? (
-        <div className="rounded border border-border/60 bg-card/60 px-3 py-2 text-xs text-muted-foreground">
-          Replies diagnostics: matched {Number(repliesDiagnostics.matched_count ?? replies.length)} • unmatched {Number(repliesDiagnostics.unmatched_count ?? unmatched.length)}
-          {repliesDiagnostics.mapping_confidence_breakdown
-            ? ` • fallback confidence (H/M/L/U): ${Number(repliesDiagnostics.mapping_confidence_breakdown.high ?? 0)}/${Number(repliesDiagnostics.mapping_confidence_breakdown.medium ?? 0)}/${Number(repliesDiagnostics.mapping_confidence_breakdown.low ?? 0)}/${Number(repliesDiagnostics.mapping_confidence_breakdown.unknown ?? 0)}`
-            : ''}
-        </div>
-      ) : null}
-      {repliesLoadError ? (
-        <div className="rounded border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-xs text-rose-200">
-          Failed to load replies: {repliesLoadError}
-        </div>
-      ) : null}
-      {replyCaptureHealth?.stale ? (
-        <div className="rounded border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
-          Reply capture worker looks stale. Last poll: {replyCaptureHealth.last_poll_at ? new Date(replyCaptureHealth.last_poll_at).toLocaleString() : 'never'}.
-        </div>
-      ) : null}
-      {(replyCaptureHealth?.failed_inbox_count ?? 0) > 0 ? (
-        <div className="rounded border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
-          Reply capture has inbox failures: {replyCaptureHealth?.failed_inbox_count} failed out of {replyCaptureHealth?.active_inbox_count ?? 0} active inboxes.
-          {Array.isArray(replyCaptureHealth?.inboxes)
-            ? (
-              <ul className="mt-1 list-disc pl-4">
-                {replyCaptureHealth.inboxes
-                  .filter((inbox) => inbox.last_error)
-                  .slice(0, 5)
-                  .map((inbox) => (
-                    <li key={inbox.inbox_email}>
-                      {inbox.inbox_email}: {inbox.last_error}
-                    </li>
-                  ))}
-              </ul>
-            )
-            : null}
-        </div>
-      ) : null}
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          value={selectedCampaignId}
-          onChange={(e) => updateFilter({ campaignId: e.target.value })}
-          className="h-9 rounded border border-border bg-background px-2 text-sm"
-        >
-          <option value="">All Campaigns</option>
-          {campaigns.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-        <select
-          value={selectedReviewStatus}
-          onChange={(e) => updateFilter({ reviewStatus: e.target.value })}
-          className="h-9 rounded border border-border bg-background px-2 text-sm"
-        >
-          <option value="all">All Reviews</option>
-          <option value="unreviewed">Unreviewed</option>
-          <option value="reviewed">Reviewed</option>
-        </select>
-        {isAdmin ? (
-          <select
-            value={selectedOperatorId}
-            onChange={(e) => updateFilter({ operatorId: e.target.value })}
-            className="h-9 rounded border border-border bg-background px-2 text-sm"
-          >
-            <option value="">All Operators</option>
-            {operators.map((o) => (
-              <option key={o.id} value={o.id}>{o.name}</option>
-            ))}
-          </select>
-        ) : null}
-      </div>
-      {isAdmin && selectedOperatorId ? (
-        <div className="text-xs text-muted-foreground">
-          Operator filter is active. Clear operator filter to see replies from all operators.
-        </div>
-      ) : null}
-      {replies.length === 0 && unmatched.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No replies yet</p>
-      ) : null}
-      {unmatched.length > 0 ? (
-        <div className="space-y-2">
-          <div className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Unmatched / Needs Mapping</div>
-          {unmatched.map((row) => (
-            <div key={row.id} className="rounded border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
-              <div className="mb-1 inline-flex rounded border border-amber-500/40 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-amber-300">
-                Unmatched (manual map required)
-              </div>
-              {row.scope_match_source ? (
-                <div className="mb-1 text-[11px] text-amber-200/90">
-                  Visible via {row.scope_match_source === 'message_id' ? 'message-id match' : 'recipient+time fallback'} ({row.scope_confidence || 'unknown'} confidence)
-                </div>
-              ) : null}
-              <div className="text-xs text-muted-foreground">
-                From {row.from_email || 'unknown'} via {row.inbox_email || 'unknown inbox'} at {row.received_at ? new Date(row.received_at).toLocaleString() : 'unknown time'}
-              </div>
-              <div className="mt-1 whitespace-pre-wrap">{row.message || '(no message body)'}</div>
-              <button
-                type="button"
-                className="mt-2 text-xs px-2 py-1 rounded border border-border bg-background"
-                onClick={() => mapUnmatched(row.id, row.from_email)}
-                disabled={isPending}
-              >
-                Map By Sender Email
-              </button>
-            </div>
-          ))}
-        </div>
-      ) : null}
-      {replies.map((r) => {
-        const current = r.interest_status ?? 'unreviewed';
-        const disabled = isPending && busyLeadId === r.id;
-        const campaignName = r.campaign_leads?.[0]?.campaigns?.name;
-        return (
-          <div key={r.id} className="border border-border rounded bg-card p-4 space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-sm font-medium">{r.first_name} ({r.email})</div>
-                <div className="text-xs text-muted-foreground">
-                  Company: {r.company} • Replied at {new Date(r.replied_at).toLocaleString()}
-                </div>
-                {campaignName ? (
-                  <div className="mt-1 text-xs text-muted-foreground">Campaign: {campaignName}</div>
-                ) : null}
-                {r.inboxes?.email_address ? (
-                  <div className="mt-1 text-xs text-muted-foreground">Received via {r.inboxes.email_address}</div>
-                ) : null}
-              </div>
-              <span className="text-xs px-2 py-1 rounded border border-border text-muted-foreground">
-                Matched • {current}
-              </span>
-            </div>
-
-            <div className="text-sm whitespace-pre-wrap">{r.reply_message}</div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={disabled}
-                onClick={() => updateInterest(r.id, 'interested')}
-                className="text-xs px-3 py-1.5 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 disabled:opacity-60"
-              >
-                Mark Interested
-              </button>
-              <button
-                type="button"
-                disabled={disabled}
-                onClick={() => updateInterest(r.id, 'not_interested')}
-                className="text-xs px-3 py-1.5 rounded border border-rose-500/30 bg-rose-500/10 text-rose-300 disabled:opacity-60"
-              >
-                Mark Not Interested
-              </button>
-              <button
-                type="button"
-                disabled={disabled}
-                onClick={() => updateInterest(r.id, 'unreviewed')}
-                className="text-xs px-3 py-1.5 rounded border border-border bg-background text-muted-foreground disabled:opacity-60"
-              >
-                Reset
-              </button>
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Diagnostics Section */}
+      <div className="flex flex-col gap-3">
+        {repliesDiagnostics ? (
+          <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-primary-foreground/80 backdrop-blur-md shadow-sm transition-all hover:bg-primary/10">
+            <Activity className="h-5 w-5 text-primary" />
+            <div>
+              <span className="font-medium text-primary">Diagnostics: </span>
+              matched <span className="font-semibold">{Number(repliesDiagnostics.matched_count ?? replies.length)}</span> • 
+              unmatched <span className="font-semibold">{Number(repliesDiagnostics.unmatched_count ?? unmatched.length)}</span>
+              {repliesDiagnostics.mapping_confidence_breakdown
+                ? ` • fallback confidence (H/M/L/U): ${Number(repliesDiagnostics.mapping_confidence_breakdown.high ?? 0)}/${Number(repliesDiagnostics.mapping_confidence_breakdown.medium ?? 0)}/${Number(repliesDiagnostics.mapping_confidence_breakdown.low ?? 0)}/${Number(repliesDiagnostics.mapping_confidence_breakdown.unknown ?? 0)}`
+                : ''}
             </div>
           </div>
-        );
-      })}
+        ) : null}
+
+        {repliesLoadError ? (
+          <div className="flex items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200 backdrop-blur-md shadow-sm">
+            <AlertCircle className="h-5 w-5 text-rose-500 shrink-0" />
+            <div>Failed to load replies: {repliesLoadError}</div>
+          </div>
+        ) : null}
+
+        {replyCaptureHealth?.stale ? (
+          <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200 backdrop-blur-md shadow-sm">
+            <Clock className="h-5 w-5 text-amber-500 shrink-0" />
+            <div>Reply capture worker looks stale. Last poll: <span className="font-semibold">{replyCaptureHealth.last_poll_at ? new Date(replyCaptureHealth.last_poll_at).toLocaleString() : 'never'}</span>.</div>
+          </div>
+        ) : null}
+
+        {(replyCaptureHealth?.failed_inbox_count ?? 0) > 0 ? (
+          <div className="flex flex-col gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200 backdrop-blur-md shadow-sm">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
+              <div>Reply capture has inbox failures: <span className="font-semibold">{replyCaptureHealth?.failed_inbox_count} failed</span> out of {replyCaptureHealth?.active_inbox_count ?? 0} active inboxes.</div>
+            </div>
+            {Array.isArray(replyCaptureHealth?.inboxes)
+              ? (
+                <ul className="mt-2 list-none space-y-1 pl-8">
+                  {replyCaptureHealth.inboxes
+                    .filter((inbox) => inbox.last_error)
+                    .slice(0, 5)
+                    .map((inbox) => (
+                      <li key={inbox.inbox_email} className="flex items-center gap-2 text-xs opacity-80">
+                        <Inbox className="h-3 w-3" /> {inbox.inbox_email}: {inbox.last_error}
+                      </li>
+                    ))}
+                </ul>
+              )
+              : null}
+          </div>
+        ) : null}
+      </div>
+
+      {/* Filters Section */}
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/50 bg-card/30 p-3 backdrop-blur-xl shadow-sm">
+        <div className="flex items-center gap-2 px-2 text-muted-foreground">
+          <Filter className="h-4 w-4" />
+          <span className="text-sm font-medium">Filters</span>
+        </div>
+        <div className="h-6 w-px bg-border/50"></div>
+        
+        <div className="relative group">
+          <select
+            value={selectedCampaignId}
+            onChange={(e) => updateFilter({ campaignId: e.target.value })}
+            className="h-9 w-40 appearance-none rounded-lg border border-border/50 bg-background/50 px-3 pr-8 text-sm outline-none transition-all focus:border-primary/50 focus:ring-1 focus:ring-primary/50 group-hover:bg-background/80"
+          >
+            <option value="">All Campaigns</option>
+            {campaigns.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-muted-foreground">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+          </div>
+        </div>
+
+        <div className="relative group">
+          <select
+            value={selectedReviewStatus}
+            onChange={(e) => updateFilter({ reviewStatus: e.target.value })}
+            className="h-9 w-40 appearance-none rounded-lg border border-border/50 bg-background/50 px-3 pr-8 text-sm outline-none transition-all focus:border-primary/50 focus:ring-1 focus:ring-primary/50 group-hover:bg-background/80"
+          >
+            <option value="all">All Reviews</option>
+            <option value="unreviewed">Unreviewed</option>
+            <option value="reviewed">Reviewed</option>
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-muted-foreground">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+          </div>
+        </div>
+
+        {isAdmin ? (
+          <div className="relative group">
+            <select
+              value={selectedOperatorId}
+              onChange={(e) => updateFilter({ operatorId: e.target.value })}
+              className="h-9 w-40 appearance-none rounded-lg border border-border/50 bg-background/50 px-3 pr-8 text-sm outline-none transition-all focus:border-primary/50 focus:ring-1 focus:ring-primary/50 group-hover:bg-background/80"
+            >
+              <option value="">All Operators</option>
+              {operators.map((o) => (
+                <option key={o.id} value={o.id}>{o.name}</option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-muted-foreground">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+            </div>
+          </div>
+        ) : null}
+
+        {isAdmin && selectedOperatorId ? (
+          <div className="ml-auto flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs text-primary">
+            <User className="h-3 w-3" />
+            Operator filter active
+          </div>
+        ) : null}
+      </div>
+
+      {replies.length === 0 && unmatched.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-border/40 bg-card/20 py-20 backdrop-blur-sm">
+          <Inbox className="mb-3 h-10 w-10 text-muted-foreground/30" />
+          <p className="text-sm font-medium text-muted-foreground">No replies found</p>
+          <p className="mt-1 text-xs text-muted-foreground/60">Try adjusting your filters or check back later.</p>
+        </div>
+      ) : null}
+
+      {/* Unmatched Replies */}
+      {unmatched.length > 0 ? (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="text-xs font-bold uppercase tracking-widest text-amber-500/80">Needs Mapping</div>
+            <div className="h-px flex-1 bg-amber-500/20"></div>
+            <div className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-500">{unmatched.length}</div>
+          </div>
+          
+          <div className="grid gap-4 md:grid-cols-2">
+            {unmatched.map((row, idx) => (
+              <div key={`unmatched-${row.id}-${row.received_at ?? 'na'}-${idx}`} className="group relative overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-transparent p-5 transition-all hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/5">
+                <div className="absolute right-0 top-0 rounded-bl-xl bg-amber-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-500">
+                  Manual Map Required
+                </div>
+                
+                <div className="mb-4 pr-32">
+                  <div className="flex items-center gap-2 text-sm text-foreground/80">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium truncate">{row.from_email || 'Unknown sender'}</span>
+                  </div>
+                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                    <Inbox className="h-3 w-3" /> {row.inbox_email || 'unknown inbox'}
+                  </div>
+                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                    <Clock className="h-3 w-3" /> {row.received_at ? new Date(row.received_at).toLocaleString() : 'unknown time'}
+                  </div>
+                </div>
+
+                {row.scope_match_source ? (
+                  <div className="mb-3 inline-flex items-center gap-1.5 rounded-md bg-background/50 px-2 py-1 text-[11px] text-amber-400 backdrop-blur-sm">
+                    <Activity className="h-3 w-3" />
+                    Visible via {row.scope_match_source === 'message_id' ? 'message-id match' : 'recipient+time fallback'} ({row.scope_confidence || 'unknown'} confidence)
+                  </div>
+                ) : null}
+
+                <div className="mt-2 relative rounded-xl border border-amber-500/10 bg-background/40 p-4 text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap break-words backdrop-blur-md shadow-inner max-h-48 overflow-y-auto">
+                  <MessageSquare className="absolute right-3 top-3 h-4 w-4 opacity-10" />
+                  {row.message || '(no message body)'}
+                </div>
+                
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-lg bg-amber-500/10 px-4 py-2 text-sm font-medium text-amber-500 transition-colors hover:bg-amber-500/20 disabled:opacity-50"
+                    onClick={() => mapUnmatched(row.id, row.from_email)}
+                    disabled={isPending}
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Map By Sender Email
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Matched Replies */}
+      {replies.length > 0 ? (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 pt-2">
+            <div className="text-xs font-bold uppercase tracking-widest text-primary/80">Matched Replies</div>
+            <div className="h-px flex-1 bg-border/50"></div>
+            <div className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{replies.length}</div>
+          </div>
+          
+          <div className="grid gap-4">
+            {replies.map((r, idx) => {
+              const current = r.interest_status ?? 'unreviewed';
+              const disabled = isPending && busyLeadId === r.id;
+              const campaignName = r.campaign_leads?.[0]?.campaigns?.name;
+              
+              const statusColors = {
+                interested: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
+                not_interested: 'border-rose-500/30 bg-rose-500/10 text-rose-400',
+                unreviewed: 'border-border bg-background text-muted-foreground'
+              };
+
+              return (
+                <div key={`reply-${r.id}-${r.replied_at ?? 'na'}-${idx}`} className="group relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-border/40 bg-card/30 p-5 backdrop-blur-xl transition-all hover:border-border/80 hover:shadow-xl hover:shadow-black/5 md:flex-row">
+                  
+                  {/* Left Side / Meta */}
+                  <div className="flex w-full flex-col gap-3 md:w-64 shrink-0">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-primary ring-2 ring-primary/20">
+                        {r.first_name ? r.first_name.charAt(0).toUpperCase() : <User className="h-5 w-5" />}
+                      </div>
+                      <div className="overflow-hidden">
+                        <div className="truncate font-semibold text-foreground">{r.first_name || 'Unknown'}</div>
+                        <div className="truncate text-xs text-muted-foreground">{r.email}</div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 rounded-xl bg-background/40 p-3 text-xs">
+                      {r.company && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Building className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{r.company}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Clock className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{new Date(r.replied_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      {campaignName && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Activity className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{campaignName}</span>
+                        </div>
+                      )}
+                      {r.inboxes?.email_address && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Inbox className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{r.inboxes.email_address}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="mt-auto pt-2 hidden md:block">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${statusColors[current]}`}>
+                        <div className={`h-1.5 w-1.5 rounded-full ${current === 'interested' ? 'bg-emerald-400' : current === 'not_interested' ? 'bg-rose-400' : 'bg-muted-foreground'}`} />
+                        {current.replace('_', ' ')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Right Side / Content & Actions */}
+                  <div className="flex flex-1 flex-col justify-between gap-4">
+                    <div className="relative flex-1 rounded-xl border border-border/50 bg-background/50 p-4 shadow-sm">
+                      <Mail className="absolute right-4 top-4 h-5 w-5 text-muted-foreground/20" />
+                      <div className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap break-words">
+                        {r.reply_message}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <span className={`md:hidden inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${statusColors[current]}`}>
+                        <div className={`h-1.5 w-1.5 rounded-full ${current === 'interested' ? 'bg-emerald-400' : current === 'not_interested' ? 'bg-rose-400' : 'bg-muted-foreground'}`} />
+                        {current.replace('_', ' ')}
+                      </span>
+                      
+                      <div className="flex items-center gap-2 ml-auto">
+                        <button
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => updateInterest(r.id, 'interested')}
+                          className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-medium transition-all ${
+                            current === 'interested' 
+                              ? 'border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
+                              : 'border-emerald-500/30 bg-emerald-500/5 text-emerald-500 hover:bg-emerald-500/10'
+                          } disabled:opacity-50`}
+                        >
+                          <ThumbsUp className="h-4 w-4" />
+                          Interested
+                        </button>
+                        <button
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => updateInterest(r.id, 'not_interested')}
+                          className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-medium transition-all ${
+                            current === 'not_interested' 
+                              ? 'border-rose-500 bg-rose-500 text-white shadow-lg shadow-rose-500/20' 
+                              : 'border-rose-500/30 bg-rose-500/5 text-rose-500 hover:bg-rose-500/10'
+                          } disabled:opacity-50`}
+                        >
+                          <ThumbsDown className="h-4 w-4" />
+                          Not Interested
+                        </button>
+                        {(current === 'interested' || current === 'not_interested') && (
+                          <button
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => updateInterest(r.id, 'unreviewed')}
+                            className="inline-flex items-center justify-center rounded-lg border border-border/50 bg-background/50 p-2 text-muted-foreground transition-all hover:bg-background hover:text-foreground disabled:opacity-50"
+                            title="Reset Status"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

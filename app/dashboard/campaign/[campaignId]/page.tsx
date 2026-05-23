@@ -325,7 +325,7 @@ export default async function CampaignPage({
                   </div>
                   {replyOpenAnalytics?.inferred_replied_count && replyOpenAnalytics.inferred_replied_count > 0 ? (
                     <div className="mt-1 text-[11px] text-amber-300">
-                      {replyOpenAnalytics.inferred_replied_count} inferred from lead status
+                      +{replyOpenAnalytics.inferred_replied_count} inferred from lead status (not counted)
                     </div>
                   ) : null}
                 </div>
@@ -366,7 +366,7 @@ export default async function CampaignPage({
                   <div className="text-muted-foreground text-xs">Reply Rate</div>
                   <div className="mt-1 text-base font-semibold text-cyan-300">{replyOpenAnalytics.reply_rate}%</div>
                   <div className="mt-1 text-[11px] text-muted-foreground">
-                    Hybrid: tracked replies + replied-status fallback
+                    Tracked replies only
                   </div>
                 </div>
                   <div className="rounded-lg border border-border px-3 py-2">
@@ -386,7 +386,7 @@ export default async function CampaignPage({
                 </span>
                 {replyOpenAnalytics?.inferred_replied_count && replyOpenAnalytics.inferred_replied_count > 0 ? (
                   <span className="ml-2 text-amber-300">
-                    ({replyOpenAnalytics.inferred_replied_count} inferred replied lead(s) included via hybrid mode)
+                    ({replyOpenAnalytics.inferred_replied_count} inferred replied lead(s) excluded from Replied/Reply Rate)
                   </span>
                 ) : null}
               </div>
