@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
@@ -135,11 +135,17 @@ export default function LeadsTab({
   const isLeadMutationLocked = String(campaign?.status ?? '').toLowerCase() === 'running';
   const leadMutationLockedMessage = 'Lead changes are locked while this campaign is running. Pause campaign to add or remove leads.';
 
-  const attachedLeadIds = useMemo(
+  const attachedLeadIdsFromProps = useMemo(
     () => Array.from(new Set(campaignLeads.map((cl) => String(cl.lead_id)))),
     [campaignLeads]
   );
-  const attachedLeadIdSet = useMemo(() => new Set(attachedLeadIds), [attachedLeadIds]);
+  const [attachedLeadIdsState, setAttachedLeadIdsState] = useState<string[]>(attachedLeadIdsFromProps);
+  const attachedLeadIdSet = useMemo(() => new Set(attachedLeadIdsState), [attachedLeadIdsState]);
+  const [isMutating, setIsMutating] = useState(false);
+
+  useEffect(() => {
+    setAttachedLeadIdsState(attachedLeadIdsFromProps);
+  }, [attachedLeadIdsFromProps]);
 
   const allLeadMap = useMemo(() => {
     const map = new Map<string, Lead>();
@@ -254,7 +260,7 @@ export default function LeadsTab({
   }
 
   function selectAllAttachedVisible() {
-    if (isLeadMutationLocked) return;
+    if (isLeadMutationLocked || isMutating) return;
     if (attachedVisibleIds.length === 0) return;
     setSelectedAttachedIds((prev) => {
       const next = new Set(prev);
@@ -266,7 +272,7 @@ export default function LeadsTab({
   }
 
   function clearAllAttachedVisible() {
-    if (isLeadMutationLocked) return;
+    if (isLeadMutationLocked || isMutating) return;
     if (attachedVisibleIds.length === 0) return;
     setSelectedAttachedIds((prev) => {
       const next = new Set(prev);
@@ -278,7 +284,7 @@ export default function LeadsTab({
   }
 
   function selectAllUnassignedVisible() {
-    if (isLeadMutationLocked) return;
+    if (isLeadMutationLocked || isMutating) return;
     if (unassignedVisibleIds.length === 0) return;
     setSelectedUnassignedIds((prev) => {
       const next = new Set(prev);
@@ -290,7 +296,7 @@ export default function LeadsTab({
   }
 
   function clearAllUnassignedVisible() {
-    if (isLeadMutationLocked) return;
+    if (isLeadMutationLocked || isMutating) return;
     if (unassignedVisibleIds.length === 0) return;
     setSelectedUnassignedIds((prev) => {
       const next = new Set(prev);
@@ -306,29 +312,41 @@ export default function LeadsTab({
       toast.error(leadMutationLockedMessage);
       return;
     }
+    if (isMutating) return;
     const leadIds = Array.from(selectedUnassignedIds);
     if (leadIds.length === 0) return;
+
+    const priorAttached = attachedLeadIdsState;
+    const optimisticToAttach = leadIds.filter((id) => !attachedLeadIdSet.has(id));
+    if (optimisticToAttach.length > 0) {
+      setAttachedLeadIdsState((prev) => Array.from(new Set([...prev, ...optimisticToAttach])));
+    }
+    setIsMutating(true);
 
     try {
       const result = await attachLeadsAction(campaign.id, leadIds);
       if (!result.success) {
+        setAttachedLeadIdsState(priorAttached);
         toast.error(getMutationErrorMessage(result.error));
         return;
       }
       if (result.inserted > 0) {
         toast.success(
-          `Attached ${result.inserted}. Existing: ${result.skipped_existing}, ineligible: ${result.skipped_ineligible}, missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`
+          `Attached ${result.inserted} and synced. Existing: ${result.skipped_existing}, ineligible: ${result.skipped_ineligible}, missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`
         );
       } else {
         toast(
-          `No new leads attached. Existing: ${result.skipped_existing}, ineligible: ${result.skipped_ineligible}, missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`,
+          `No new leads attached after sync. Existing: ${result.skipped_existing}, ineligible: ${result.skipped_ineligible}, missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`,
           { icon: 'ℹ️' }
         );
       }
       setSelectedUnassignedIds(new Set());
       router.refresh();
     } catch (error) {
+      setAttachedLeadIdsState(priorAttached);
       toast.error(getMutationErrorMessage(error));
+    } finally {
+      setIsMutating(false);
     }
   }
 
@@ -348,6 +366,7 @@ export default function LeadsTab({
       toast.error(leadMutationLockedMessage);
       return;
     }
+    if (isMutating) return;
     const leadIds = Array.from(selectedAttachedIds);
     if (leadIds.length === 0) {
       setRemoveConfirmOpen(false);
@@ -355,25 +374,31 @@ export default function LeadsTab({
     }
 
     setRemovePending(true);
+    const priorAttached = attachedLeadIdsState;
+    setAttachedLeadIdsState((prev) => prev.filter((id) => !leadIds.includes(id)));
+    setIsMutating(true);
 
     try {
       const result = await detachLeadsAction(campaign.id, leadIds);
       if (!result.success) {
+        setAttachedLeadIdsState(priorAttached);
         toast.error(getMutationErrorMessage(result.error));
         return;
       }
       if (result.detached > 0) {
-        toast.success(`Removed ${result.detached}. Missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`);
+        toast.success(`Removed ${result.detached} and synced. Missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`);
       } else {
-        toast(`No leads removed. Missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`, { icon: 'ℹ️' });
+        toast(`No leads removed after sync. Missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`, { icon: 'ℹ️' });
       }
       setSelectedAttachedIds(new Set());
       setRemoveConfirmOpen(false);
       router.refresh();
     } catch (error) {
+      setAttachedLeadIdsState(priorAttached);
       toast.error(getMutationErrorMessage(error));
     } finally {
       setRemovePending(false);
+      setIsMutating(false);
     }
   }
 
@@ -382,31 +407,48 @@ export default function LeadsTab({
       toast.error(leadMutationLockedMessage);
       return;
     }
+    if (isMutating) return;
     if (sourceId === 'all') {
       await attachSelected();
       return;
     }
 
     if (!selectedFolderId) return;
+    const folderScopeIds = candidateScopeLeads
+      .filter((lead) => {
+        const bucket = classifyLead(lead);
+        return bucket === 'valid' || bucket === 'risky';
+      })
+      .map((lead) => String(lead.id))
+      .filter((id) => !attachedLeadIdSet.has(id));
+    const priorAttached = attachedLeadIdsState;
+    if (folderScopeIds.length > 0) {
+      setAttachedLeadIdsState((prev) => Array.from(new Set([...prev, ...folderScopeIds])));
+    }
+    setIsMutating(true);
     try {
       const result = await attachFolderLeadsAction(campaign.id, [selectedFolderId]);
       if (!result.success) {
+        setAttachedLeadIdsState(priorAttached);
         toast.error(getMutationErrorMessage(result.error));
         return;
       }
       if (result.inserted > 0) {
         toast.success(
-          `Folder attached: ${result.inserted}. Existing: ${result.skipped_existing}, skipped non-sendable: ${result.skipped_ineligible}, missing: ${result.skipped_missing}.`
+          `Folder attached: ${result.inserted} and synced. Existing: ${result.skipped_existing}, skipped non-sendable: ${result.skipped_ineligible}, missing: ${result.skipped_missing}.`
         );
       } else {
         toast(
-          '0 sendable leads attached from this folder. Only eligible/risky and not blocked/used leads are attachable.',
+          '0 sendable leads attached from this folder after sync. Only eligible/risky and not blocked/used leads are attachable.',
           { icon: '⚠️' }
         );
       }
       router.refresh();
     } catch (error) {
+      setAttachedLeadIdsState(priorAttached);
       toast.error(getMutationErrorMessage(error));
+    } finally {
+      setIsMutating(false);
     }
   }
 
@@ -415,15 +457,25 @@ export default function LeadsTab({
       toast.error(leadMutationLockedMessage);
       return;
     }
+    if (isMutating) return;
+    const priorAttached = attachedLeadIdsState;
+    if (!attachedLeadIdSet.has(leadId)) {
+      setAttachedLeadIdsState((prev) => Array.from(new Set([...prev, leadId])));
+    }
+    setIsMutating(true);
     try {
       const result = await attachLeadsAction(campaign.id, [leadId]);
       if (!result.success) {
+        setAttachedLeadIdsState(priorAttached);
         toast.error(getMutationErrorMessage(result.error));
         return;
       }
       router.refresh();
     } catch (error) {
+      setAttachedLeadIdsState(priorAttached);
       toast.error(getMutationErrorMessage(error));
+    } finally {
+      setIsMutating(false);
     }
   }
 
@@ -432,20 +484,28 @@ export default function LeadsTab({
       toast.error(leadMutationLockedMessage);
       return;
     }
+    if (isMutating) return;
+    const priorAttached = attachedLeadIdsState;
+    setAttachedLeadIdsState((prev) => prev.filter((id) => id !== leadId));
+    setIsMutating(true);
     try {
       const result = await detachLeadsAction(campaign.id, [leadId]);
       if (!result.success) {
+        setAttachedLeadIdsState(priorAttached);
         toast.error(getMutationErrorMessage(result.error));
         return;
       }
       router.refresh();
     } catch (error) {
+      setAttachedLeadIdsState(priorAttached);
       toast.error(getMutationErrorMessage(error));
+    } finally {
+      setIsMutating(false);
     }
   }
 
   function onDragStart(leadId: string, source: 'attached' | 'unassigned') {
-    if (isLeadMutationLocked) return;
+    if (isLeadMutationLocked || isMutating) return;
     setDraggingLeadId(leadId);
     setDragSource(source);
   }
@@ -457,6 +517,7 @@ export default function LeadsTab({
       setDragSource(null);
       return;
     }
+    if (isMutating) return;
     if (!draggingLeadId || !dragSource || dragSource === target) return;
     if (dragSource === 'unassigned' && target === 'attached') {
       await attachSingleLead(draggingLeadId);
@@ -491,8 +552,13 @@ export default function LeadsTab({
       ) : null}
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-semibold">Campaign Leads</h2>
-        <div className="text-xs text-muted-foreground">
-          {canLaunchLeads ? 'Ready: campaign leads attached.' : 'Blocked: no attached campaign leads.'}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {isMutating ? (
+            <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-blue-200">
+              Updating leads...
+            </span>
+          ) : null}
+          <span>{canLaunchLeads ? 'Ready: campaign leads attached.' : 'Blocked: no attached campaign leads.'}</span>
         </div>
       </div>
 
@@ -533,7 +599,7 @@ export default function LeadsTab({
                 size="sm"
                 variant="outline"
                 onClick={allAttachedVisibleSelected ? clearAllAttachedVisible : selectAllAttachedVisible}
-                disabled={isLeadMutationLocked || attachedVisibleIds.length === 0}
+                disabled={isLeadMutationLocked || isMutating || attachedVisibleIds.length === 0}
               >
                 {allAttachedVisibleSelected ? 'Clear all' : 'Select all'}
               </Button>
@@ -541,7 +607,7 @@ export default function LeadsTab({
                 size="sm"
                 variant="destructive"
                 onClick={requestRemoveSelected}
-                disabled={isLeadMutationLocked || selectedAttachedIds.size === 0}
+                disabled={isLeadMutationLocked || isMutating || selectedAttachedIds.size === 0}
               >
                 Remove Selected
               </Button>
@@ -563,15 +629,15 @@ export default function LeadsTab({
             {attachedVisible.map((row) => (
               <label
                 key={row.id}
-                draggable={!isLeadMutationLocked}
+                draggable={!isLeadMutationLocked && !isMutating}
                 onDragStart={() => onDragStart(row.id, 'attached')}
-                className={`flex items-center gap-2 rounded p-2 bg-muted/20 text-sm ${isLeadMutationLocked ? 'cursor-not-allowed opacity-70' : 'cursor-grab'}`}
+                className={`flex items-center gap-2 rounded p-2 bg-muted/20 text-sm ${isLeadMutationLocked || isMutating ? 'cursor-not-allowed opacity-70' : 'cursor-grab'}`}
               >
                 <input
                   type="checkbox"
                   checked={selectedAttachedIds.has(row.id)}
                   onChange={() => toggleSelected(setSelectedAttachedIds, row.id)}
-                  disabled={isLeadMutationLocked}
+                  disabled={isLeadMutationLocked || isMutating}
                 />
                   <span className="flex-1 truncate">{row.email}</span>
                 <span className="flex items-center gap-2 text-[10px] text-muted-foreground">
@@ -616,14 +682,14 @@ export default function LeadsTab({
                   size="sm"
                   variant="outline"
                   onClick={allUnassignedVisibleSelected ? clearAllUnassignedVisible : selectAllUnassignedVisible}
-                  disabled={isLeadMutationLocked || unassignedVisibleIds.length === 0}
+                  disabled={isLeadMutationLocked || isMutating || unassignedVisibleIds.length === 0}
                 >
                   {allUnassignedVisibleSelected ? 'Clear all' : 'Select all'}
                 </Button>
                 <Button
                   size="sm"
                   onClick={attachSelected}
-                  disabled={isLeadMutationLocked || selectedUnassignedIds.size === 0}
+                  disabled={isLeadMutationLocked || isMutating || selectedUnassignedIds.size === 0}
                 >
                   Attach Selected
                 </Button>
@@ -652,15 +718,15 @@ export default function LeadsTab({
               return (
                 <label
                   key={id}
-                  draggable={!isLeadMutationLocked}
+                  draggable={!isLeadMutationLocked && !isMutating}
                   onDragStart={() => onDragStart(id, 'unassigned')}
-                  className={`flex items-center gap-2 rounded p-2 bg-muted/20 text-sm ${isLeadMutationLocked ? 'cursor-not-allowed opacity-70' : 'cursor-grab'}`}
+                  className={`flex items-center gap-2 rounded p-2 bg-muted/20 text-sm ${isLeadMutationLocked || isMutating ? 'cursor-not-allowed opacity-70' : 'cursor-grab'}`}
                 >
                   <input
                     type="checkbox"
                     checked={selectedUnassignedIds.has(id)}
                     onChange={() => toggleSelected(setSelectedUnassignedIds, id)}
-                    disabled={isLeadMutationLocked}
+                    disabled={isLeadMutationLocked || isMutating}
                   />
                   <span className="flex-1 truncate">{String(lead.email ?? `Unknown lead ${id}`)}</span>
                   <span className="flex items-center gap-2 text-[10px] text-muted-foreground">
@@ -738,6 +804,7 @@ export default function LeadsTab({
           onClick={attachFromSource}
           disabled={
             isLeadMutationLocked ||
+            isMutating ||
             (sourceId === 'all'
               ? selectedUnassignedIds.size === 0 || activeEligibilityTab !== 'eligible'
               : !selectedFolderId)
@@ -765,14 +832,14 @@ export default function LeadsTab({
               <Button
                 variant="outline"
                 onClick={() => setRemoveConfirmOpen(false)}
-                disabled={removePending}
+                disabled={removePending || isMutating}
               >
                 Cancel
               </Button>
               <Button
                 variant="destructive"
                 onClick={() => void removeSelected()}
-                disabled={removePending}
+                disabled={removePending || isMutating}
               >
                 {removePending ? 'Removing...' : 'Remove'}
               </Button>
