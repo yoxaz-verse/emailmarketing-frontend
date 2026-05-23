@@ -242,9 +242,15 @@ export default async function CampaignPage({
       open_rate_visibility_reason?: string | null;
       open_confidence?: 'high' | 'medium' | 'low';
       inferred_replied_count?: number;
+      strict_replied_count?: number;
+      effective_replied_count?: number;
       response_provenance?: {
-        replied_source?: 'tracking_only';
+        mode?: 'hybrid';
+        replied_source?: 'tracking_only' | 'tracking_plus_campaign_status';
         fallback_enabled?: boolean;
+        strict_replied_count?: number;
+        effective_replied_count?: number;
+        inferred_replied_count?: number;
       };
       diagnostics?: {
         unmatched_events_count?: number;
@@ -354,7 +360,9 @@ export default async function CampaignPage({
                 <div className="rounded-lg border border-border px-3 py-2">
                   <div className="text-muted-foreground text-xs">Reply Rate</div>
                   <div className="mt-1 text-base font-semibold text-cyan-300">{replyOpenAnalytics.reply_rate}%</div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">Strict tracked replies only</div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    Hybrid: tracked replies + replied-status fallback
+                  </div>
                 </div>
                   <div className="rounded-lg border border-border px-3 py-2">
                     <div className="text-muted-foreground text-xs">Bounce Rate</div>
@@ -373,7 +381,7 @@ export default async function CampaignPage({
                 </span>
                 {replyOpenAnalytics?.inferred_replied_count && replyOpenAnalytics.inferred_replied_count > 0 ? (
                   <span className="ml-2 text-amber-300">
-                    ({replyOpenAnalytics.inferred_replied_count} inferred reply state not included in reply rate)
+                    ({replyOpenAnalytics.inferred_replied_count} inferred replied lead(s) included via hybrid mode)
                   </span>
                 ) : null}
               </div>
