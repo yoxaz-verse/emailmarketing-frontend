@@ -490,16 +490,16 @@ export default function CampaignJourneyMap({
                 Campaign Schedule Timeline
               </div>
               <div className="overflow-x-auto">
-                <div className="relative min-w-[700px] h-28">
-                  <div className="absolute left-0 right-0 top-11 h-2 rounded-full bg-slate-700/60" />
-                  <div className="absolute left-0 top-11 h-2 rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-teal-300 w-full" />
-
-                  <div className="absolute left-0 top-0 text-[11px] text-cyan-200">
+                <div className="relative min-w-[700px] h-32 pt-2">
+                  <div className="absolute left-0 top-0 text-[11px] font-medium text-cyan-200/80">
                     Start Day 0 • {formatDateFromAnchor(simulationAnchor, 0)}
                   </div>
-                  <div className="absolute right-0 top-0 text-[11px] text-teal-200 text-right">
+                  <div className="absolute right-0 top-0 text-[11px] font-medium text-teal-200/80 text-right">
                     End Day {estimatedCompletionDays} • {estimatedEndDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                   </div>
+
+                  <div className="absolute left-0 right-0 top-16 h-2 rounded-full bg-slate-700/60" />
+                  <div className="absolute left-0 top-16 h-2 rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-teal-300 w-full" />
 
                   {stepSchedule.map((step, index) => {
                     const left = estimatedCompletionDays > 0
@@ -510,12 +510,12 @@ export default function CampaignJourneyMap({
                     return (
                       <div
                         key={`schedule-step-${step.stepNumber}-${index}`}
-                        className="absolute top-11"
+                        className="absolute top-16"
                         style={{ left: `${safeLeft}%`, transform: 'translate(-50%, -50%)' }}
                       >
-                        <div className="h-5 w-5 rounded-full border-2 border-cyan-100 bg-cyan-400 shadow-[0_0_0_3px_rgba(6,182,212,0.25)]" />
+                        <div className="h-4 w-4 rounded-full border-2 border-slate-900 bg-cyan-400 shadow-[0_0_0_3px_rgba(6,182,212,0.25)]" />
                         <div
-                          className={`absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] ${isEven ? 'text-slate-100' : 'text-slate-300'} ${isEven ? '-top-6' : 'top-7'}`}
+                          className={`absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] ${isEven ? 'text-slate-100' : 'text-slate-300'} ${isEven ? '-top-7' : 'top-6'}`}
                         >
                           S{step.stepNumber} • Day {step.runDay} • {step.runDateLabel}
                         </div>

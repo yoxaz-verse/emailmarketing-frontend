@@ -223,6 +223,7 @@ export default async function CampaignPage({
       String((lead?.interest_status ?? '') as InterestStatus).toLowerCase() === 'interested'
     )).length;
     let replyOpenAnalytics: {
+      analytics_version?: string;
       sent: number;
       delivered: number;
       opened: number;
@@ -254,6 +255,10 @@ export default async function CampaignPage({
       };
       diagnostics?: {
         unmatched_events_count?: number;
+        delivered_confirmed?: number;
+        delivered_inferred?: number;
+        delivered_promoted_from_open_reply?: number;
+        delivery_invariant_applied?: boolean;
       };
       reply_rate: number;
       spam_hints?: string[];
@@ -385,6 +390,16 @@ export default async function CampaignPage({
                   </span>
                 ) : null}
               </div>
+              {replyOpenAnalytics?.diagnostics?.delivery_invariant_applied ? (
+                <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-200">
+                  Delivered includes fallback evidence (open/reply promotion). Confirmed: {replyOpenAnalytics?.diagnostics?.delivered_confirmed ?? 0}, inferred: {replyOpenAnalytics?.diagnostics?.delivered_inferred ?? 0}, promoted: {replyOpenAnalytics?.diagnostics?.delivered_promoted_from_open_reply ?? 0}.
+                </div>
+              ) : null}
+              {replyOpenAnalytics && !replyOpenAnalytics.analytics_version ? (
+                <div className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-xs text-rose-200">
+                  Analytics guardrail: backend response is missing `analytics_version`. This usually indicates stale backend deployment or incorrect API base target.
+                </div>
+              ) : null}
               {(replyOpenAnalytics?.diagnostics?.unmatched_events_count ?? 0) > 0 ? (
                 <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
                   Correlation diagnostics: {replyOpenAnalytics?.diagnostics?.unmatched_events_count} webhook event(s) unmatched to campaign leads.

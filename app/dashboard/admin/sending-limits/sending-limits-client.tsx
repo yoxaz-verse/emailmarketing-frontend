@@ -179,6 +179,9 @@ export default function SendingLimitsClient({
         <p className="text-sm text-muted-foreground mt-1">
           Admin-managed limits used directly in send checks and warmup progression.
         </p>
+        <div className="mt-3 rounded-lg border border-cyan-400/40 bg-cyan-400/10 p-3 text-sm text-cyan-100">
+          Campaign throttle is hard-enforced at 1 email/minute per campaign.
+        </div>
       </div>
 
       <div className="rounded-xl border border-border bg-card p-5 space-y-4">
