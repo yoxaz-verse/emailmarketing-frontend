@@ -13,7 +13,7 @@ export type ActionConfig = {
   };
 
 export type BulkActionConfig = {
-  key: 'bulkDelete';
+  key: 'bulkDelete' | 'bulkAssignFolder';
   label: string;
   confirmText?: string;
   variant?: 'default' | 'outline' | 'destructive';
@@ -129,6 +129,19 @@ export type BulkActionConfig = {
       allowCreate: true,
       allowEdit: true,
       allowDelete: true,
+      bulkActions: [
+        {
+          key: 'bulkAssignFolder',
+          label: 'Move To Folder',
+          variant: 'outline',
+        },
+        {
+          key: 'bulkDelete',
+          label: 'Delete Selected',
+          confirmText: 'Delete selected leads? This action cannot be undone.',
+          variant: 'destructive',
+        },
+      ],
       actions: [
         {
           key: 'reuseLead',

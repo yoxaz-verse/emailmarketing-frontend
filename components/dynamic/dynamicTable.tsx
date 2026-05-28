@@ -45,6 +45,8 @@ type Props = {
   onFilterToggle?: () => void;
   showFilterButton?: boolean;
   exportFilename?: string;
+  bulkFolderOptions?: Array<{ id: string; name: string }>;
+  onBulkAssignFolder?: (ids: string[], folderId: string) => Promise<{ inserted?: number } | void>;
 };
 
 const MAX_CHAR_LENGTH = 40;
@@ -88,6 +90,8 @@ export default function DynamicTable({
   onFilterToggle,
   showFilterButton = false,
   exportFilename,
+  bulkFolderOptions = [],
+  onBulkAssignFolder,
 }: Props) {
   const fields = tableConfig[table] ?? [];
   const meta = tableMeta[table] ?? {};
@@ -113,6 +117,7 @@ export default function DynamicTable({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isBulkPending, startBulkTransition] = useTransition();
+  const [bulkFolderId, setBulkFolderId] = useState('');
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -232,6 +237,28 @@ export default function DynamicTable({
     });
   }
 
+  function handleBulkAssignFolder() {
+    if (!onBulkAssignFolder) return;
+    if (selectedCount === 0) return;
+    if (!bulkFolderId) {
+      toast.error('Choose a folder first');
+      return;
+    }
+
+    startBulkTransition(async () => {
+      try {
+        const result = await onBulkAssignFolder(Array.from(selectedIds), bulkFolderId);
+        const assigned = Number(result && typeof result === 'object' ? (result as { inserted?: number }).inserted ?? selectedCount : selectedCount);
+        toast.success(`Moved ${assigned} lead(s) to folder.`);
+        setSelectedIds(new Set());
+        setBulkFolderId('');
+        refresh();
+      } catch (error: any) {
+        toast.error(error?.message || 'Failed to move selected leads');
+      }
+    });
+  }
+
   function resolveRelationValue(row: any, field: any) {
     if (!field.relation) return '—';
 
@@ -309,34 +336,6 @@ export default function DynamicTable({
           </div>
 
           <div className="flex items-center gap-3">
-            {bulkActions.length > 0 && selectedCount > 0 && (
-              <div className="flex items-center gap-2 animate-in slide-in-from-right-4 duration-300">
-                {bulkActions.map((bulkAction) => (
-                  <Button
-                    key={bulkAction.key}
-                    variant={bulkAction.variant ?? 'outline'}
-                    size="sm"
-                    className="h-10 font-bold text-xs px-4 rounded-xl shadow-lg shadow-destructive/10"
-                    disabled={isBulkPending}
-                    onClick={() => {
-                      if (bulkAction.key === 'bulkDelete') {
-                        handleBulkDelete(bulkAction.confirmText);
-                      }
-                    }}
-                  >
-                    {isBulkPending && bulkAction.key === 'bulkDelete' ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Deleting...
-                      </>
-                    ) : (
-                      `${bulkAction.label} (${selectedCount})`
-                    )}
-                  </Button>
-                ))}
-              </div>
-            )}
-            
             {allowCreate && (
               <Button
                 size="sm"
@@ -382,6 +381,66 @@ export default function DynamicTable({
                 >
                   Clear
                 </button>
+              </div>
+            )}
+
+            {bulkActions.length > 0 && selectedCount > 0 && (
+              <div className="flex items-center gap-2 animate-in slide-in-from-right-4 duration-300">
+                {bulkActions.map((bulkAction) => {
+                  if (bulkAction.key === 'bulkAssignFolder') {
+                    const canAssign = bulkFolderOptions.length > 0 && bulkFolderId.length > 0 && Boolean(onBulkAssignFolder);
+                    return (
+                      <div key={bulkAction.key} className="flex items-center gap-2">
+                        <select
+                          className="h-9 rounded-xl border border-border/60 bg-background/40 px-3 text-[11px] font-bold uppercase tracking-wider text-foreground focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-inner"
+                          value={bulkFolderId}
+                          onChange={(e) => setBulkFolderId(e.target.value)}
+                          disabled={isBulkPending || bulkFolderOptions.length === 0 || !onBulkAssignFolder}
+                        >
+                          <option value="">Folder...</option>
+                          {bulkFolderOptions.map((folder) => (
+                            <option key={folder.id} value={folder.id}>
+                              {folder.name}
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          variant={bulkAction.variant ?? 'outline'}
+                          size="sm"
+                          className="h-9 font-bold text-[10px] uppercase tracking-widest px-3 rounded-xl"
+                          disabled={isBulkPending || !canAssign}
+                          onClick={handleBulkAssignFolder}
+                        >
+                          {isBulkPending ? <Loader2 className="h-4 w-4 animate-spin" /> : `${bulkAction.label}`}
+                        </Button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <Button
+                      key={bulkAction.key}
+                      variant={bulkAction.variant ?? 'outline'}
+                      size="sm"
+                      className="h-9 font-bold text-[10px] uppercase tracking-widest px-3 rounded-xl shadow-lg shadow-destructive/10"
+                      disabled={isBulkPending}
+                      onClick={() => {
+                        if (bulkAction.key === 'bulkDelete') {
+                          handleBulkDelete(bulkAction.confirmText);
+                        }
+                      }}
+                    >
+                      {isBulkPending && bulkAction.key === 'bulkDelete' ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Deleting...
+                        </>
+                      ) : (
+                        bulkAction.label
+                      )}
+                    </Button>
+                  );
+                })}
               </div>
             )}
             

@@ -721,6 +721,8 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
           data={filteredLeads}
           role={role}
           relations={relations}
+          bulkFolderOptions={folders.map((folder) => ({ id: folder.id, name: folder.name }))}
+          onBulkAssignFolder={(ids, folderId) => assignLeadsToFolderAction(folderId, ids)}
           onSelectionChange={setSelectedLeadIds}
           onFilterToggle={() => setShowTableFilters((prev) => !prev)}
           showFilterButton
