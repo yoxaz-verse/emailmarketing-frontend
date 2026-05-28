@@ -273,6 +273,9 @@ export default async function CampaignPage({
         outcome: string;
         source?: string;
         confidence?: 'high' | 'medium' | 'low';
+        last_sent_at?: string | null;
+        sender_inbox_id?: string | null;
+        sender_inbox_email?: string | null;
       }>;
     } | null = null;
     try {
@@ -282,10 +285,15 @@ export default async function CampaignPage({
     }
 
     const leadOutcomeByCampaignLeadId = new Map<string, string>();
+    const senderInboxEmailByCampaignLeadId = new Map<string, string | null>();
+    const lastSentAtByCampaignLeadId = new Map<string, string | null>();
     let lowConfidenceOutcomeCount = 0;
     for (const row of replyOpenAnalytics?.outcome_rows ?? []) {
       if (row?.campaign_lead_id) {
-        leadOutcomeByCampaignLeadId.set(String(row.campaign_lead_id), String(row.outcome ?? ''));
+        const campaignLeadId = String(row.campaign_lead_id);
+        leadOutcomeByCampaignLeadId.set(campaignLeadId, String(row.outcome ?? ''));
+        senderInboxEmailByCampaignLeadId.set(campaignLeadId, row.sender_inbox_email ?? null);
+        lastSentAtByCampaignLeadId.set(campaignLeadId, row.last_sent_at ?? null);
       }
       if (row?.confidence === 'low') lowConfidenceOutcomeCount += 1;
     }
@@ -532,6 +540,8 @@ export default async function CampaignPage({
                 campaignInboxes={campaignInboxes}
                 sendingLimitsConfig={sendingLimitsConfig}
                 leadOutcomeByCampaignLeadId={Object.fromEntries(leadOutcomeByCampaignLeadId)}
+                senderInboxEmailByCampaignLeadId={Object.fromEntries(senderInboxEmailByCampaignLeadId)}
+                lastSentAtByCampaignLeadId={Object.fromEntries(lastSentAtByCampaignLeadId)}
               />
           </div>
         </div>

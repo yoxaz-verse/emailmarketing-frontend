@@ -202,7 +202,9 @@ export default function CampaignJourneyMap({
   campaignInboxes,
   sendingLimitsConfig
   ,
-  leadOutcomeByCampaignLeadId
+  leadOutcomeByCampaignLeadId,
+  senderInboxEmailByCampaignLeadId,
+  lastSentAtByCampaignLeadId
 }: {
   campaign: Campaign;
   sequenceId?: string | null;
@@ -216,6 +218,8 @@ export default function CampaignJourneyMap({
   campaignInboxes: CampaignInbox[];
   sendingLimitsConfig: SendingLimitsConfig;
   leadOutcomeByCampaignLeadId?: Record<string, string>;
+  senderInboxEmailByCampaignLeadId?: Record<string, string | null>;
+  lastSentAtByCampaignLeadId?: Record<string, string | null>;
 }) {
   const sortedSteps = [...sequenceSteps].sort(
     (a, b) => (a.step_number ?? 0) - (b.step_number ?? 0)
@@ -624,6 +628,27 @@ export default function CampaignJourneyMap({
     const deliveryOutcome = campaignLeadId
       ? String(leadOutcomeByCampaignLeadId?.[campaignLeadId] ?? 'Not Sent')
       : 'Not Sent';
+    const rawLastSentAt = campaignLeadId
+      ? (lastSentAtByCampaignLeadId?.[campaignLeadId] ?? null)
+      : null;
+    const senderInboxEmailRaw = campaignLeadId
+      ? String(senderInboxEmailByCampaignLeadId?.[campaignLeadId] ?? '').trim()
+      : '';
+    const senderInboxDisplay = rawLastSentAt
+      ? (senderInboxEmailRaw || 'Unknown Inbox')
+      : 'Not Sent Yet';
+    const sentAtDate = rawLastSentAt ? new Date(String(rawLastSentAt)) : null;
+    const lastSentAtDisplay = sentAtDate && !Number.isNaN(sentAtDate.getTime())
+      ? `${new Intl.DateTimeFormat('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Asia/Kolkata'
+      }).format(sentAtDate)} IST`
+      : 'Not Sent Yet';
     return {
       key: `${fallbackLeadId}-${rowIndex}`,
       leadLabel: lead?.email || fallbackLeadId,
@@ -632,6 +657,8 @@ export default function CampaignJourneyMap({
       stepsDone,
       hasProgressMismatch,
       deliveryOutcome,
+      senderInboxDisplay,
+      lastSentAtDisplay,
       stepStates
     };
   });
@@ -854,6 +881,8 @@ export default function CampaignJourneyMap({
                     <th className="py-2 pr-3 font-medium">Steps Done</th>
                     <th className="py-2 pr-3 font-medium">Data Check</th>
                     <th className="py-2 pr-3 font-medium">Delivery Outcome</th>
+                    <th className="py-2 pr-3 font-medium">Sent From Inbox</th>
+                    <th className="py-2 pr-3 font-medium">Last Sent Time</th>
                     {sortedSteps.map((step, index) => (
                       <th key={`lead-header-step-${step.id ?? index}`} className="py-2 pr-3 font-medium">
                         S{step.step_number ?? index + 1}
@@ -881,6 +910,8 @@ export default function CampaignJourneyMap({
                           {row.deliveryOutcome}
                         </span>
                       </td>
+                      <td className="py-2 pr-3 text-slate-200">{row.senderInboxDisplay}</td>
+                      <td className="py-2 pr-3 text-slate-200">{row.lastSentAtDisplay}</td>
                       {row.stepStates.map((state, idx) => (
                         <td key={`${row.key}-state-${idx}`} className="py-2 pr-3">
                           <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] ${stepStatusChipClasses[state]}`}>

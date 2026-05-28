@@ -91,7 +91,6 @@ export default async function OperatorRepliesPage({
   let selectedOperatorId = requestedOperatorId;
   let replyCaptureHealth: ReplyCaptureHealth | null = null;
   let repliesLoadError: string | null = null;
-  let repliesDiagnostics: Omit<RepliesApiResponse, 'replies' | 'unmatched'> | null = null;
 
   if (isAdmin) {
     try {
@@ -119,18 +118,11 @@ export default async function OperatorRepliesPage({
     );
     replies = Array.isArray(response?.replies) ? response.replies : [];
     unmatchedReplies = Array.isArray(response?.unmatched) ? response.unmatched : [];
-    repliesDiagnostics = response
-      ? {
-          matched_count: response.matched_count,
-          unmatched_count: response.unmatched_count,
-          mapping_confidence_breakdown: response.mapping_confidence_breakdown,
-          worker_health_snapshot: response.worker_health_snapshot,
-        }
-      : null;
-  } catch (error: any) {
+  } catch (error: unknown) {
     replies = [];
     unmatchedReplies = [];
-    repliesLoadError = String(error?.message ?? 'Failed to load replies. Check backend reply capture health.');
+    const message = error instanceof Error ? error.message : null;
+    repliesLoadError = String(message ?? 'Failed to load replies. Check backend reply capture health.');
   }
 
   try {
@@ -162,7 +154,6 @@ export default async function OperatorRepliesPage({
         selectedOperatorId={selectedOperatorId}
         replyCaptureHealth={replyCaptureHealth}
         repliesLoadError={repliesLoadError}
-        repliesDiagnostics={repliesDiagnostics}
       />
     </div>
   );

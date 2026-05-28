@@ -20,6 +20,7 @@ import {
   Filter,
   Download,
   Loader2,
+  RefreshCw,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -456,6 +457,17 @@ export default function DynamicTable({
                 <Filter className="h-3.5 w-3.5" /> Filter
               </Button>
             )}
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 w-9 p-0 hover:bg-primary/10 hover:text-primary transition-all rounded-xl"
+              onClick={refresh}
+              aria-label={table === 'leads' ? 'Refresh leads' : 'Refresh'}
+              title="Refresh"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
             
             <Button 
               variant="ghost" 

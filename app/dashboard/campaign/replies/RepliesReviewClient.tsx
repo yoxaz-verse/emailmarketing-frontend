@@ -53,7 +53,6 @@ export default function RepliesReviewClient({
   selectedOperatorId,
   replyCaptureHealth,
   repliesLoadError,
-  repliesDiagnostics,
 }: {
   initialReplies: Reply[];
   unmatchedReplies: Array<{
@@ -87,22 +86,6 @@ export default function RepliesReviewClient({
     }>;
   } | null;
   repliesLoadError?: string | null;
-  repliesDiagnostics?: {
-    matched_count?: number;
-    unmatched_count?: number;
-    mapping_confidence_breakdown?: {
-      high?: number;
-      medium?: number;
-      low?: number;
-      unknown?: number;
-    };
-    worker_health_snapshot?: {
-      stale?: boolean;
-      failed_inbox_count?: number;
-      active_inbox_count?: number;
-      last_poll_at?: string | null;
-    };
-  } | null;
 }) {
   const [replies, setReplies] = useState<Reply[]>(initialReplies);
   const [unmatched, setUnmatched] = useState(unmatchedReplies);
@@ -112,6 +95,7 @@ export default function RepliesReviewClient({
   const pathname = usePathname();
   const [expandedReplies, setExpandedReplies] = useState<Record<string, boolean>>({});
   const [expandedUnmatched, setExpandedUnmatched] = useState<Record<string, boolean>>({});
+  const [activeTab, setActiveTab] = useState<'all' | 'needs_mapping' | 'matched' | 'errors'>('all');
 
   function toggleReply(id: string) {
     setExpandedReplies((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -167,62 +151,14 @@ export default function RepliesReviewClient({
     });
   }
 
+  const hasLoadError = Boolean(repliesLoadError);
+  const hasStaleWorker = Boolean(replyCaptureHealth?.stale);
+  const hasFailedInboxes = (replyCaptureHealth?.failed_inbox_count ?? 0) > 0;
+  const errorCount = Number(hasLoadError) + Number(hasStaleWorker) + Number(hasFailedInboxes);
+  const totalActionableCount = replies.length + unmatched.length;
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Diagnostics Section */}
-      <div className="flex flex-col gap-3">
-        {repliesDiagnostics ? (
-          <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-primary-foreground/80 backdrop-blur-md shadow-sm transition-all hover:bg-primary/10">
-            <Activity className="h-5 w-5 text-primary" />
-            <div>
-              <span className="font-medium text-primary">Diagnostics: </span>
-              matched <span className="font-semibold">{Number(repliesDiagnostics.matched_count ?? replies.length)}</span> • 
-              unmatched <span className="font-semibold">{Number(repliesDiagnostics.unmatched_count ?? unmatched.length)}</span>
-              {repliesDiagnostics.mapping_confidence_breakdown
-                ? ` • fallback confidence (H/M/L/U): ${Number(repliesDiagnostics.mapping_confidence_breakdown.high ?? 0)}/${Number(repliesDiagnostics.mapping_confidence_breakdown.medium ?? 0)}/${Number(repliesDiagnostics.mapping_confidence_breakdown.low ?? 0)}/${Number(repliesDiagnostics.mapping_confidence_breakdown.unknown ?? 0)}`
-                : ''}
-            </div>
-          </div>
-        ) : null}
-
-        {repliesLoadError ? (
-          <div className="flex items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200 backdrop-blur-md shadow-sm">
-            <AlertCircle className="h-5 w-5 text-rose-500 shrink-0" />
-            <div>Failed to load replies: {repliesLoadError}</div>
-          </div>
-        ) : null}
-
-        {replyCaptureHealth?.stale ? (
-          <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200 backdrop-blur-md shadow-sm">
-            <Clock className="h-5 w-5 text-amber-500 shrink-0" />
-            <div>Reply capture worker looks stale. Last poll: <span className="font-semibold">{replyCaptureHealth.last_poll_at ? new Date(replyCaptureHealth.last_poll_at).toLocaleString() : 'never'}</span>.</div>
-          </div>
-        ) : null}
-
-        {(replyCaptureHealth?.failed_inbox_count ?? 0) > 0 ? (
-          <div className="flex flex-col gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200 backdrop-blur-md shadow-sm">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
-              <div>Reply capture has inbox failures: <span className="font-semibold">{replyCaptureHealth?.failed_inbox_count} failed</span> out of {replyCaptureHealth?.active_inbox_count ?? 0} active inboxes.</div>
-            </div>
-            {Array.isArray(replyCaptureHealth?.inboxes)
-              ? (
-                <ul className="mt-2 list-none space-y-1 pl-8">
-                  {replyCaptureHealth.inboxes
-                    .filter((inbox) => inbox.last_error)
-                    .slice(0, 5)
-                    .map((inbox) => (
-                      <li key={inbox.inbox_email} className="flex items-center gap-2 text-xs opacity-80">
-                        <Inbox className="h-3 w-3" /> {inbox.inbox_email}: {inbox.last_error}
-                      </li>
-                    ))}
-                </ul>
-              )
-              : null}
-          </div>
-        ) : null}
-      </div>
-
       {/* Filters Section */}
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/50 bg-card/30 p-3 backdrop-blur-xl shadow-sm">
         <div className="flex items-center gap-2 px-2 text-muted-foreground">
@@ -288,16 +224,84 @@ export default function RepliesReviewClient({
         ) : null}
       </div>
 
-      {replies.length === 0 && unmatched.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-border/40 bg-card/20 py-20 backdrop-blur-sm">
-          <Inbox className="mb-3 h-10 w-10 text-muted-foreground/30" />
-          <p className="text-sm font-medium text-muted-foreground">No replies found</p>
-          <p className="mt-1 text-xs text-muted-foreground/60">Try adjusting your filters or check back later.</p>
+      {/* Tabs */}
+      <div className="rounded-2xl border border-border/50 bg-card/30 p-2 backdrop-blur-xl shadow-sm">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          {[
+            { id: 'all' as const, label: 'All', count: totalActionableCount },
+            { id: 'needs_mapping' as const, label: 'Needs Mapping', count: unmatched.length },
+            { id: 'matched' as const, label: 'Matched', count: replies.length },
+            { id: 'errors' as const, label: 'Errors', count: errorCount },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center justify-between rounded-xl border px-3 py-2 text-sm transition-all ${
+                activeTab === tab.id
+                  ? 'border-primary/40 bg-primary/10 text-primary'
+                  : 'border-border/40 bg-background/30 text-muted-foreground hover:border-border/80 hover:text-foreground'
+              }`}
+            >
+              <span className="font-medium">{tab.label}</span>
+              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${activeTab === tab.id ? 'bg-primary/20' : 'bg-background/60'}`}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeTab === 'errors' ? (
+        <div className="flex flex-col gap-3">
+          {repliesLoadError ? (
+            <div className="flex items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200 backdrop-blur-md shadow-sm">
+              <AlertCircle className="h-5 w-5 text-rose-500 shrink-0" />
+              <div>Failed to load replies: {repliesLoadError}</div>
+            </div>
+          ) : null}
+
+          {replyCaptureHealth?.stale ? (
+            <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200 backdrop-blur-md shadow-sm">
+              <Clock className="h-5 w-5 text-amber-500 shrink-0" />
+              <div>Reply capture worker looks stale. Last poll: <span className="font-semibold">{replyCaptureHealth.last_poll_at ? new Date(replyCaptureHealth.last_poll_at).toLocaleString() : 'never'}</span>.</div>
+            </div>
+          ) : null}
+
+          {(replyCaptureHealth?.failed_inbox_count ?? 0) > 0 ? (
+            <div className="flex flex-col gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200 backdrop-blur-md shadow-sm">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
+                <div>Reply capture has inbox failures: <span className="font-semibold">{replyCaptureHealth?.failed_inbox_count} failed</span> out of {replyCaptureHealth?.active_inbox_count ?? 0} active inboxes.</div>
+              </div>
+              {Array.isArray(replyCaptureHealth?.inboxes)
+                ? (
+                  <ul className="mt-2 list-none space-y-1 pl-8">
+                    {replyCaptureHealth.inboxes
+                      .filter((inbox) => inbox.last_error)
+                      .slice(0, 5)
+                      .map((inbox) => (
+                        <li key={inbox.inbox_email} className="flex items-center gap-2 text-xs opacity-80">
+                          <Inbox className="h-3 w-3" /> {inbox.inbox_email}: {inbox.last_error}
+                        </li>
+                      ))}
+                  </ul>
+                )
+                : null}
+            </div>
+          ) : null}
+
+          {!hasLoadError && !hasStaleWorker && !hasFailedInboxes ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-border/40 bg-card/20 py-20 backdrop-blur-sm">
+              <CheckCircle2 className="mb-3 h-10 w-10 text-emerald-400/70" />
+              <p className="text-sm font-medium text-muted-foreground">No system errors right now</p>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
       {/* Unmatched Replies */}
-      {unmatched.length > 0 ? (
+      {(activeTab === 'all' || activeTab === 'needs_mapping') && unmatched.length > 0 ? (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <div className="text-xs font-bold uppercase tracking-widest text-amber-500/80">Needs Mapping</div>
@@ -305,7 +309,7 @@ export default function RepliesReviewClient({
             <div className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-500">{unmatched.length}</div>
           </div>
           
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid items-start gap-4 md:grid-cols-2">
             {unmatched.map((row, idx) => {
               const isExpanded = !!expandedUnmatched[row.id];
               return (
@@ -375,7 +379,7 @@ export default function RepliesReviewClient({
       ) : null}
 
       {/* Matched Replies */}
-      {replies.length > 0 ? (
+      {(activeTab === 'all' || activeTab === 'matched') && replies.length > 0 ? (
         <div className="space-y-4">
           <div className="flex items-center gap-3 pt-2">
             <div className="text-xs font-bold uppercase tracking-widest text-primary/80">Matched Replies</div>
@@ -534,6 +538,28 @@ export default function RepliesReviewClient({
               );
             })}
           </div>
+        </div>
+      ) : null}
+
+      {activeTab === 'all' && totalActionableCount === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-border/40 bg-card/20 py-20 backdrop-blur-sm">
+          <Inbox className="mb-3 h-10 w-10 text-muted-foreground/30" />
+          <p className="text-sm font-medium text-muted-foreground">No replies found</p>
+          <p className="mt-1 text-xs text-muted-foreground/60">Try adjusting your filters or check back later.</p>
+        </div>
+      ) : null}
+
+      {activeTab === 'needs_mapping' && unmatched.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-border/40 bg-card/20 py-20 backdrop-blur-sm">
+          <Inbox className="mb-3 h-10 w-10 text-muted-foreground/30" />
+          <p className="text-sm font-medium text-muted-foreground">No replies need mapping</p>
+        </div>
+      ) : null}
+
+      {activeTab === 'matched' && replies.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-border/40 bg-card/20 py-20 backdrop-blur-sm">
+          <Inbox className="mb-3 h-10 w-10 text-muted-foreground/30" />
+          <p className="text-sm font-medium text-muted-foreground">No matched replies found</p>
         </div>
       ) : null}
     </div>
