@@ -194,9 +194,9 @@ export default function LeadsTab({
   const validCandidates = candidateScopeLeads.filter((lead) => classifyLead(lead) === 'valid');
   const riskyCandidates = candidateScopeLeads.filter((lead) => classifyLead(lead) === 'risky');
 
-  const unassignedRows = candidateScopeLeads.filter((lead) => {
+  const attachableRows = candidateScopeLeads.filter((lead) => {
     const bucket = classifyLead(lead);
-    return !attachedLeadIdSet.has(String(lead.id)) && bucket === 'valid';
+    return !attachedLeadIdSet.has(String(lead.id)) && (bucket === 'valid' || bucket === 'risky');
   });
 
   const excludedRows = candidateScopeLeads.filter((lead) => {
@@ -218,7 +218,7 @@ export default function LeadsTab({
   const [removePending, setRemovePending] = useState(false);
 
   const attachedVisible = attachedRows.filter((row) => matchesQuery(row.email, attachedSearch));
-  const unassignedVisible = unassignedRows.filter((row) => matchesQuery(String(row.email ?? ''), eligibleSearch));
+  const unassignedVisible = attachableRows.filter((row) => matchesQuery(String(row.email ?? ''), eligibleSearch));
   const excludedVisible = excludedRows.filter((row) => matchesQuery(String(row.email ?? ''), ineligibleSearch));
   const attachedVisibleIds = useMemo(() => attachedVisible.map((row) => row.id), [attachedVisible]);
   const unassignedVisibleIds = useMemo(() => unassignedVisible.map((lead) => String(lead.id)), [unassignedVisible]);
@@ -238,7 +238,7 @@ export default function LeadsTab({
     return counts;
   }, [excludedRows]);
   const attachedNonQualifiedCount = useMemo(
-    () => attachedRows.filter((row) => row.bucket !== 'valid').length,
+    () => attachedRows.filter((row) => row.bucket !== 'valid' && row.bucket !== 'risky').length,
     [attachedRows]
   );
 
@@ -336,11 +336,11 @@ export default function LeadsTab({
       }
       if (result.inserted > 0) {
         toast.success(
-          `Attached ${result.inserted} qualified lead(s) and synced. Existing: ${result.skipped_existing}, ineligible: ${result.skipped_ineligible}, missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`
+          `Attached ${result.inserted} qualified/risky lead(s) and synced. Existing: ${result.skipped_existing}, ineligible: ${result.skipped_ineligible}, missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`
         );
       } else {
         toast(
-          `No new qualified leads attached after sync. Existing: ${result.skipped_existing}, ineligible: ${result.skipped_ineligible}, missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`,
+          `No new qualified/risky leads attached after sync. Existing: ${result.skipped_existing}, ineligible: ${result.skipped_ineligible}, missing: ${result.skipped_missing}, out-of-scope: ${result.skipped_out_of_scope ?? 0}.`,
           { icon: 'ℹ️' }
         );
       }
@@ -421,7 +421,7 @@ export default function LeadsTab({
     const folderScopeIds = candidateScopeLeads
       .filter((lead) => {
         const bucket = classifyLead(lead);
-        return bucket === 'valid';
+        return bucket === 'valid' || bucket === 'risky';
       })
       .map((lead) => String(lead.id))
       .filter((id) => !attachedLeadIdSet.has(id));
@@ -439,11 +439,11 @@ export default function LeadsTab({
       }
       if (result.inserted > 0) {
         toast.success(
-          `Folder attached: ${result.inserted} qualified lead(s) and synced. Existing: ${result.skipped_existing}, skipped non-qualified: ${result.skipped_ineligible}, missing: ${result.skipped_missing}.`
+          `Folder attached: ${result.inserted} qualified/risky lead(s) and synced. Existing: ${result.skipped_existing}, skipped non-attachable: ${result.skipped_ineligible}, missing: ${result.skipped_missing}.`
         );
       } else {
         toast(
-          '0 qualified leads attached from this folder after sync. Only qualified (eligible/valid/validated) leads are attachable.',
+          '0 attachable leads attached from this folder after sync. Only qualified/risky (eligible/valid/validated/risky) leads are attachable.',
           { icon: '⚠️' }
         );
       }
@@ -569,18 +569,18 @@ export default function LeadsTab({
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <span>Attached: {attachedCount}</span>
         <span>Qualified: {validCandidates.length}</span>
-        <span>Risky (excluded): {riskyCandidates.length}</span>
+        <span>Risky (attachable): {riskyCandidates.length}</span>
         <span>Ineligible: {excludedRows.length}</span>
       </div>
       {attachedNonQualifiedCount > 0 ? (
         <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-          {attachedNonQualifiedCount} attached lead(s) are non-qualified (legacy). Remove them to keep campaign strictly qualified-only.
+          {attachedNonQualifiedCount} attached lead(s) are non-attachable (legacy). Remove them to keep campaign within qualified/risky policy.
         </div>
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant={activeEligibilityTab === 'eligible' ? 'default' : 'outline'} onClick={() => setActiveEligibilityTab('eligible')}>
-          Qualified ({unassignedRows.length})
+          Qualified + Risky ({attachableRows.length})
         </Button>
         <Button size="sm" variant={activeEligibilityTab === 'ineligible' ? 'default' : 'outline'} onClick={() => setActiveEligibilityTab('ineligible')}>
           Ineligible ({excludedRows.length})
@@ -684,7 +684,7 @@ export default function LeadsTab({
         >
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold">
-              {activeEligibilityTab === 'eligible' ? `Qualified (${unassignedRows.length})` : `Ineligible (${excludedRows.length})`}
+              {activeEligibilityTab === 'eligible' ? `Qualified + Risky (${attachableRows.length})` : `Ineligible (${excludedRows.length})`}
             </h3>
             {activeEligibilityTab === 'eligible' ? (
               <div className="flex items-center gap-2">
@@ -711,7 +711,7 @@ export default function LeadsTab({
           ) : null}
           <input
             className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-            placeholder={activeEligibilityTab === 'eligible' ? 'Search qualified...' : 'Search ineligible...'}
+            placeholder={activeEligibilityTab === 'eligible' ? 'Search qualified/risky...' : 'Search ineligible...'}
             value={activeEligibilityTab === 'eligible' ? eligibleSearch : ineligibleSearch}
             onChange={(e) => {
               if (activeEligibilityTab === 'eligible') setEligibleSearch(e.target.value);
@@ -720,7 +720,7 @@ export default function LeadsTab({
           />
           <div className="max-h-[360px] overflow-auto space-y-2">
             {activeEligibilityTab === 'eligible' && unassignedVisible.length === 0 ? (
-              <div className="text-xs text-muted-foreground py-4 text-center">No qualified unassigned leads.</div>
+              <div className="text-xs text-muted-foreground py-4 text-center">No qualified/risky unassigned leads.</div>
             ) : null}
             {activeEligibilityTab === 'eligible' ? unassignedVisible.map((lead) => {
               const bucket = classifyLead(lead);
