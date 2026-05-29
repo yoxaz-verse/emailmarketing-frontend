@@ -594,6 +594,18 @@ badge: {
               required: true,
             },
             {
+              key: 'purpose',
+              label: 'Purpose',
+              type: 'select',
+              inTable: false,
+              inForm: true,
+              required: true,
+              values: [
+                { key: 'campaign', value: 'Campaign' },
+                { key: 'newsletter', value: 'Newsletter' },
+              ],
+            },
+            {
               key: 'provider',
               label: 'Provider',
               type: 'text',
@@ -751,6 +763,9 @@ badge: {
                 table: 'inboxes',
                 labelKey: 'email_address',
                 valueKey: 'id',
+                filters: {
+                  purpose: 'campaign',
+                },
               },
               inTable: true,
               inForm: true,

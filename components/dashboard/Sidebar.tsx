@@ -45,10 +45,10 @@ const newsletterItems = [
     { label: 'Newsletter Logs', href: '/dashboard/newsletter_send_logs', icon: Mail },
 ];
 
-const contentItems = [
+const socialMediaItems = [
     { label: 'Social Scheduling', href: '/dashboard/social-scheduling', icon: CalendarClock },
     { label: 'Social Connectors', href: '/dashboard/social-connectors', icon: Link2 },
-    { label: 'Blog Distribution', href: '/dashboard/blog-distribution', icon: Newspaper },
+    { label: 'Blog Scheduler', href: '/dashboard/blog-distribution', icon: Newspaper },
 ];
 
 const emailItems = [
@@ -158,10 +158,10 @@ const renderNavItem = (item: NavItem, isActive: boolean) => (
                 {isAdmin && (
                     <div>
                         <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                            Content
+                            Social Media
                         </h3>
                         <ul className="space-y-1">
-                            {contentItems.map((item) => renderNavItem(item, pathname === item.href))}
+                            {socialMediaItems.map((item) => renderNavItem(item, pathname === item.href))}
                         </ul>
                     </div>
                 )}
