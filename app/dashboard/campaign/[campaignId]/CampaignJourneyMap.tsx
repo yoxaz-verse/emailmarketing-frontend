@@ -388,7 +388,7 @@ export default function CampaignJourneyMap({
       <section className="rounded-xl border border-border bg-[radial-gradient(130%_100%_at_8%_0%,rgba(34,211,238,0.14),rgba(15,23,42,0.08)_45%,rgba(2,6,23,0.02)_80%)] p-5 overflow-hidden">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-200/80">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-700 dark:text-cyan-200/80">
               Campaign Journey Simulation
             </p>
             <p className="text-sm text-muted-foreground mt-1">
@@ -397,7 +397,7 @@ export default function CampaignJourneyMap({
           </div>
           <div className="text-right">
             <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Estimated Completion</p>
-            <p className="text-2xl font-semibold text-cyan-100">{estimatedCompletionDays}d</p>
+            <p className="text-2xl font-semibold text-cyan-700 dark:text-cyan-100">{estimatedCompletionDays}d</p>
             <p className="text-xs text-muted-foreground">
               ~ {estimatedEndDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
             </p>
@@ -405,57 +405,57 @@ export default function CampaignJourneyMap({
         </div>
 
         <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
-          <div className="rounded-lg border border-white/10 bg-slate-950/35 px-3 py-2">
+          <div className="rounded-lg border border-border/60 bg-card/80 dark:bg-slate-950/35 px-3 py-2">
             <div className="text-muted-foreground">Selected Inboxes</div>
-            <div className="mt-1 text-base font-semibold text-slate-100">{selectedInboxes.length}</div>
+            <div className="mt-1 text-base font-semibold text-foreground dark:text-slate-100">{selectedInboxes.length}</div>
           </div>
-          <div className="rounded-lg border border-white/10 bg-slate-950/35 px-3 py-2">
+          <div className="rounded-lg border border-border/60 bg-card/80 dark:bg-slate-950/35 px-3 py-2">
             <div className="text-muted-foreground">Attachable Leads</div>
-            <div className="mt-1 text-base font-semibold text-slate-100">{attachableLeadCount}</div>
+            <div className="mt-1 text-base font-semibold text-foreground dark:text-slate-100">{attachableLeadCount}</div>
           </div>
-          <div className="rounded-lg border border-white/10 bg-slate-950/35 px-3 py-2">
+          <div className="rounded-lg border border-border/60 bg-card/80 dark:bg-slate-950/35 px-3 py-2">
             <div className="text-muted-foreground">Total Hourly Capacity</div>
-            <div className="mt-1 text-base font-semibold text-slate-100">{Math.floor(totalHourlyCapacity)}/hour</div>
+            <div className="mt-1 text-base font-semibold text-foreground dark:text-slate-100">{Math.floor(totalHourlyCapacity)}/hour</div>
           </div>
-          <div className="rounded-lg border border-white/10 bg-slate-950/35 px-3 py-2">
+          <div className="rounded-lg border border-border/60 bg-card/80 dark:bg-slate-950/35 px-3 py-2">
             <div className="text-muted-foreground">Realistic Daily Throughput</div>
-            <div className="mt-1 text-base font-semibold text-slate-100">{Math.floor(realisticDailyThroughput)}/day</div>
+            <div className="mt-1 text-base font-semibold text-foreground dark:text-slate-100">{Math.floor(realisticDailyThroughput)}/day</div>
             {Math.floor(totalDailyCapacity) !== Math.floor(realisticDailyThroughput) ? (
-              <div className="text-[10px] text-slate-400">Raw: {Math.floor(totalDailyCapacity)}/day</div>
+              <div className="text-[10px] text-muted-foreground dark:text-slate-400">Raw: {Math.floor(totalDailyCapacity)}/day</div>
             ) : null}
           </div>
-          <div className="rounded-lg border border-white/10 bg-slate-950/35 px-3 py-2">
+          <div className="rounded-lg border border-border/60 bg-card/80 dark:bg-slate-950/35 px-3 py-2">
             <div className="text-muted-foreground">Send Window</div>
-            <div className="mt-1 text-sm font-semibold text-slate-100">
+            <div className="mt-1 text-sm font-semibold text-foreground dark:text-slate-100">
               {schedule.windowLabel} ({schedule.windowHours.toFixed(1)}h)
             </div>
-            <div className="text-[10px] text-slate-400">{schedule.timezone}</div>
+            <div className="text-[10px] text-muted-foreground dark:text-slate-400">{schedule.timezone}</div>
           </div>
-          <div className="rounded-lg border border-white/10 bg-slate-950/35 px-3 py-2">
+          <div className="rounded-lg border border-border/60 bg-card/80 dark:bg-slate-950/35 px-3 py-2">
             <div className="text-muted-foreground">Total Sends</div>
-            <div className="mt-1 text-base font-semibold text-slate-100">{totalSends}</div>
+            <div className="mt-1 text-base font-semibold text-foreground dark:text-slate-100">{totalSends}</div>
           </div>
         </div>
 
         {selectedInboxes.length === 0 ? (
-          <div className="mt-5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          <div className="mt-5 rounded-lg border border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-200">
             Select at least one inbox to simulate campaign end date.
           </div>
         ) : (
           <div className="mt-5 space-y-4">
-            <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-xs text-cyan-100">
+            <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-xs text-cyan-700 dark:text-cyan-100">
               Capacity basis: warmup-adjusted inbox limits + send-window hours + risky-cap policy ({riskyPercentLimit}% per inbox/day) + allowed weekdays.
               Lead mix: {leadMix.eligible} eligible, {leadMix.risky} risky.
             </div>
 
-            <div className="rounded-lg border border-white/10 bg-slate-950/35 p-4">
+            <div className="rounded-lg border border-border/60 bg-card/80 dark:bg-slate-950/35 p-4">
               <div className="text-xs text-muted-foreground mb-3">
                 Per-Inbox Capacity Breakdown (Full-Day Baseline)
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[760px] text-xs">
                   <thead>
-                    <tr className="text-left uppercase tracking-[0.08em] text-slate-400 border-b border-white/10">
+                    <tr className="text-left uppercase tracking-[0.08em] text-muted-foreground dark:text-slate-400 border-b border-border/60">
                       <th className="py-2 pr-3 font-medium">Inbox</th>
                       <th className="py-2 pr-3 font-medium">Base Limits</th>
                       <th className="py-2 pr-3 font-medium">Warmup+Window</th>
@@ -465,44 +465,44 @@ export default function CampaignJourneyMap({
                   </thead>
                   <tbody>
                     {capacity.inboxBreakdown.map((row) => (
-                      <tr key={`cap-row-${row.key}`} className="border-b border-white/5">
-                        <td className="py-2 pr-3 text-slate-300 font-mono">{row.key.slice(0, 8)}</td>
-                        <td className="py-2 pr-3 text-slate-300">{Math.floor(row.baseDaily)}/day • {Math.floor(row.baseHourly)}/h</td>
-                        <td className="py-2 pr-3 text-slate-300">{Math.floor(row.warmupAndWindowDaily)}/day</td>
-                        <td className="py-2 pr-3 text-slate-300">{Math.floor(row.riskyDailyCap)}/day</td>
-                        <td className="py-2 text-slate-100 font-medium">{Math.floor(row.riskyAdjustedContribution)}/day</td>
+                      <tr key={`cap-row-${row.key}`} className="border-b border-border/40">
+                        <td className="py-2 pr-3 text-muted-foreground dark:text-slate-300 font-mono">{row.key.slice(0, 8)}</td>
+                        <td className="py-2 pr-3 text-muted-foreground dark:text-slate-300">{Math.floor(row.baseDaily)}/day • {Math.floor(row.baseHourly)}/h</td>
+                        <td className="py-2 pr-3 text-muted-foreground dark:text-slate-300">{Math.floor(row.warmupAndWindowDaily)}/day</td>
+                        <td className="py-2 pr-3 text-muted-foreground dark:text-slate-300">{Math.floor(row.riskyDailyCap)}/day</td>
+                        <td className="py-2 text-foreground dark:text-slate-100 font-medium">{Math.floor(row.riskyAdjustedContribution)}/day</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
               <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
-                <div className="rounded-md border border-white/10 px-3 py-2 text-slate-300">
-                  Raw Daily Capacity: <span className="text-slate-100 font-medium">{Math.floor(capacity.totalDailyRaw)}/day</span>
+                <div className="rounded-md border border-border/60 px-3 py-2 text-muted-foreground dark:text-slate-300">
+                  Raw Daily Capacity: <span className="text-foreground dark:text-slate-100 font-medium">{Math.floor(capacity.totalDailyRaw)}/day</span>
                 </div>
-                <div className="rounded-md border border-white/10 px-3 py-2 text-slate-300">
-                  Risky-Cap Daily Ceiling: <span className="text-slate-100 font-medium">{Math.floor(capacity.totalDailyRiskyCap)}/day</span>
+                <div className="rounded-md border border-border/60 px-3 py-2 text-muted-foreground dark:text-slate-300">
+                  Risky-Cap Daily Ceiling: <span className="text-foreground dark:text-slate-100 font-medium">{Math.floor(capacity.totalDailyRiskyCap)}/day</span>
                 </div>
-                <div className="rounded-md border border-white/10 px-3 py-2 text-slate-300">
-                  Realistic Throughput: <span className="text-slate-100 font-medium">{Math.floor(realisticDailyThroughput)}/day</span>
+                <div className="rounded-md border border-border/60 px-3 py-2 text-muted-foreground dark:text-slate-300">
+                  Realistic Throughput: <span className="text-foreground dark:text-slate-100 font-medium">{Math.floor(realisticDailyThroughput)}/day</span>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-lg border border-white/10 bg-slate-950/35 p-4">
+            <div className="rounded-lg border border-border/60 bg-card/80 dark:bg-slate-950/35 p-4">
               <div className="text-xs text-muted-foreground mb-3">
                 Campaign Schedule Timeline
               </div>
               <div className="overflow-x-auto">
                 <div className="relative min-w-[700px] h-32 pt-2">
-                  <div className="absolute left-0 top-0 text-[11px] font-medium text-cyan-200/80">
+                  <div className="absolute left-0 top-0 text-[11px] font-medium text-cyan-700 dark:text-cyan-200/80">
                     Start Day 0 • {formatDateFromAnchor(simulationAnchor, 0)}
                   </div>
                   <div className="absolute right-0 top-0 text-[11px] font-medium text-teal-200/80 text-right">
                     End Day {estimatedCompletionDays} • {estimatedEndDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                   </div>
 
-                  <div className="absolute left-0 right-0 top-16 h-2 rounded-full bg-slate-700/60" />
+                  <div className="absolute left-0 right-0 top-16 h-2 rounded-full bg-muted/70 dark:bg-slate-700/60" />
                   <div className="absolute left-0 top-16 h-2 rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-teal-300 w-full" />
 
                   {stepSchedule.map((step, index) => {
@@ -519,7 +519,7 @@ export default function CampaignJourneyMap({
                       >
                         <div className="h-4 w-4 rounded-full border-2 border-slate-900 bg-cyan-400 shadow-[0_0_0_3px_rgba(6,182,212,0.25)]" />
                         <div
-                          className={`absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] ${isEven ? 'text-slate-100' : 'text-slate-300'} ${isEven ? '-top-7' : 'top-6'}`}
+                          className={`absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] ${isEven ? 'text-foreground dark:text-slate-100' : 'text-muted-foreground dark:text-slate-300'} ${isEven ? '-top-7' : 'top-6'}`}
                         >
                           S{step.stepNumber} • Day {step.runDay} • {step.runDateLabel}
                         </div>
@@ -530,14 +530,14 @@ export default function CampaignJourneyMap({
               </div>
             </div>
 
-            <div className="rounded-lg border border-white/10 bg-slate-950/35 p-4">
+            <div className="rounded-lg border border-border/60 bg-card/80 dark:bg-slate-950/35 p-4">
               <div className="text-xs text-muted-foreground mb-3">
                 Sequence Schedule
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[640px] text-sm">
                   <thead>
-                    <tr className="text-left text-xs uppercase tracking-[0.08em] text-slate-400 border-b border-white/10">
+                    <tr className="text-left text-xs uppercase tracking-[0.08em] text-muted-foreground dark:text-slate-400 border-b border-border/60">
                       <th className="py-2 pr-4 font-medium">Sequence</th>
                       <th className="py-2 pr-4 font-medium">Delay After Previous</th>
                       <th className="py-2 pr-4 font-medium">Runs On Day</th>
@@ -546,11 +546,11 @@ export default function CampaignJourneyMap({
                   </thead>
                   <tbody>
                     {stepSchedule.map((step, index) => (
-                      <tr key={`schedule-row-${step.stepNumber}-${index}`} className="border-b border-white/5">
-                        <td className="py-2 pr-4 text-slate-100">S{step.stepNumber}</td>
-                        <td className="py-2 pr-4 text-slate-300">+{step.delayAfterPrevious}d</td>
-                        <td className="py-2 pr-4 text-slate-300">Day {step.runDay}</td>
-                        <td className="py-2 text-slate-200">{step.runDateLabel}</td>
+                      <tr key={`schedule-row-${step.stepNumber}-${index}`} className="border-b border-border/40">
+                        <td className="py-2 pr-4 text-foreground dark:text-slate-100">S{step.stepNumber}</td>
+                        <td className="py-2 pr-4 text-muted-foreground dark:text-slate-300">+{step.delayAfterPrevious}d</td>
+                        <td className="py-2 pr-4 text-muted-foreground dark:text-slate-300">Day {step.runDay}</td>
+                        <td className="py-2 text-foreground/90 dark:text-slate-200">{step.runDateLabel}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -558,17 +558,17 @@ export default function CampaignJourneyMap({
               </div>
 
               <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
-                <div className="rounded-md border border-white/10 px-3 py-2 text-slate-300">
-                  Estimated Sending Hours: <span className="text-slate-100 font-medium">{estimatedSendingHours.toFixed(1)}h</span>
+                <div className="rounded-md border border-border/60 px-3 py-2 text-muted-foreground dark:text-slate-300">
+                  Estimated Sending Hours: <span className="text-foreground dark:text-slate-100 font-medium">{estimatedSendingHours.toFixed(1)}h</span>
                 </div>
-                <div className="rounded-md border border-white/10 px-3 py-2 text-slate-300">
-                  Estimated Processing Days: <span className="text-slate-100 font-medium">{processingDays}d</span>
+                <div className="rounded-md border border-border/60 px-3 py-2 text-muted-foreground dark:text-slate-300">
+                  Estimated Processing Days: <span className="text-foreground dark:text-slate-100 font-medium">{processingDays}d</span>
                 </div>
-                <div className="rounded-md border border-white/10 px-3 py-2 text-slate-300">
-                  Total Estimated Duration: <span className="text-slate-100 font-medium">{estimatedCompletionDays}d</span>
+                <div className="rounded-md border border-border/60 px-3 py-2 text-muted-foreground dark:text-slate-300">
+                  Total Estimated Duration: <span className="text-foreground dark:text-slate-100 font-medium">{estimatedCompletionDays}d</span>
                 </div>
-                <div className="rounded-md border border-white/10 px-3 py-2 text-slate-300">
-                  Estimated End Date: <span className="text-slate-100 font-medium">{estimatedEndDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                <div className="rounded-md border border-border/60 px-3 py-2 text-muted-foreground dark:text-slate-300">
+                  Estimated End Date: <span className="text-foreground dark:text-slate-100 font-medium">{estimatedEndDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
                 </div>
               </div>
             </div>
@@ -705,10 +705,10 @@ export default function CampaignJourneyMap({
     not_started: 'fill-slate-500/80 stroke-slate-300/70'
   };
   const stepStatusChipClasses: Record<StepProgressState, string> = {
-    sent: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200',
-    in_progress: 'border-cyan-500/30 bg-cyan-500/15 text-cyan-200',
-    failed: 'border-rose-500/30 bg-rose-500/15 text-rose-200',
-    pending: 'border-slate-500/30 bg-slate-500/15 text-slate-200'
+    sent: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-200',
+    in_progress: 'border-cyan-500/30 bg-cyan-500/15 text-cyan-700 dark:text-cyan-200',
+    failed: 'border-rose-500/30 bg-rose-500/15 text-rose-700 dark:text-rose-200',
+    pending: 'border-slate-500/30 bg-slate-500/15 text-foreground/90 dark:text-slate-200'
   };
   const stepStatusLabel: Record<StepProgressState, string> = {
     sent: 'Sent',
@@ -718,20 +718,20 @@ export default function CampaignJourneyMap({
   };
   const outcomeChipClass = (value: string): string => {
     const normalized = String(value).toLowerCase();
-    if (normalized.includes('replied')) return 'border-cyan-500/30 bg-cyan-500/15 text-cyan-200';
-    if (normalized.includes('hard bounce')) return 'border-rose-500/30 bg-rose-500/15 text-rose-200';
-    if (normalized.includes('soft bounce')) return 'border-orange-500/30 bg-orange-500/15 text-orange-200';
-    if (normalized.includes('opened')) return 'border-sky-500/30 bg-sky-500/15 text-sky-200';
-    if (normalized.includes('delivered')) return 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200';
-    if (normalized.includes('pending')) return 'border-amber-500/30 bg-amber-500/15 text-amber-200';
-    return 'border-slate-500/30 bg-slate-500/15 text-slate-200';
+    if (normalized.includes('replied')) return 'border-cyan-500/30 bg-cyan-500/15 text-cyan-700 dark:text-cyan-200';
+    if (normalized.includes('hard bounce')) return 'border-rose-500/30 bg-rose-500/15 text-rose-700 dark:text-rose-200';
+    if (normalized.includes('soft bounce')) return 'border-orange-500/30 bg-orange-500/15 text-orange-700 dark:text-orange-200';
+    if (normalized.includes('opened')) return 'border-sky-500/30 bg-sky-500/15 text-sky-700 dark:text-sky-200';
+    if (normalized.includes('delivered')) return 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-200';
+    if (normalized.includes('pending')) return 'border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-200';
+    return 'border-slate-500/30 bg-slate-500/15 text-foreground/90 dark:text-slate-200';
   };
 
   return (
     <section className="rounded-xl border border-border bg-[radial-gradient(130%_100%_at_8%_0%,rgba(34,211,238,0.14),rgba(15,23,42,0.08)_45%,rgba(2,6,23,0.02)_80%)] p-5 overflow-hidden">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-200/80">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-700 dark:text-cyan-200/80">
             Campaign Journey
           </p>
           <p className="text-sm text-muted-foreground mt-1">
@@ -742,13 +742,13 @@ export default function CampaignJourneyMap({
           <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
             Total Planned
           </p>
-          <p className="text-2xl font-semibold text-cyan-100">
+          <p className="text-2xl font-semibold text-cyan-700 dark:text-cyan-100">
             {totalPlannedDays}d
           </p>
         </div>
       </div>
 
-      <div className="mt-5 rounded-lg border border-white/10 bg-slate-950/35 p-3">
+      <div className="mt-5 rounded-lg border border-border/60 bg-card/80 dark:bg-slate-950/35 p-3">
         <div className="hidden md:block">
           <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-auto">
             <defs>
@@ -788,12 +788,12 @@ export default function CampaignJourneyMap({
                     cx={pt.x}
                     cy={pt.y}
                     r="18"
-                    className="stroke-white/10 fill-transparent"
+                    className="stroke-border/60 fill-transparent"
                   />
-                  <text x={pt.x} y={pt.y - 26} textAnchor="middle" className="fill-slate-200 text-[11px]">
+                  <text x={pt.x} y={pt.y - 26} textAnchor="middle" className="fill-muted-foreground dark:fill-slate-200 text-[11px]">
                     Day {cumulativeDays[index]}
                   </text>
-                  <text x={pt.x} y={pt.y + 34} textAnchor="middle" className="fill-slate-300 text-[11px]">
+                  <text x={pt.x} y={pt.y + 34} textAnchor="middle" className="fill-muted-foreground dark:fill-slate-300 text-[11px]">
                     S{sortedSteps[index].step_number ?? index + 1}
                   </text>
                 </g>
@@ -804,7 +804,7 @@ export default function CampaignJourneyMap({
 
         <div className="md:hidden overflow-x-auto">
           <div className="min-w-[640px] relative py-10 px-2">
-            <div className="absolute left-2 right-2 top-1/2 h-[5px] -translate-y-1/2 rounded-full bg-slate-700/60" />
+            <div className="absolute left-2 right-2 top-1/2 h-[5px] -translate-y-1/2 rounded-full bg-muted/70 dark:bg-slate-700/60" />
             <div
               className="absolute left-2 top-1/2 h-[5px] -translate-y-1/2 rounded-full bg-gradient-to-r from-cyan-400 to-teal-300 transition-all duration-500"
               style={{ width: `${Math.max(4, overallProgress * 100)}%` }}
@@ -815,8 +815,8 @@ export default function CampaignJourneyMap({
                 return (
                   <div key={step.id ?? index} className="text-center">
                     <div className={`mx-auto h-5 w-5 rounded-full border-2 ${stateClasses[state]}`} />
-                    <div className="mt-2 text-[10px] text-slate-300">S{step.step_number ?? index + 1}</div>
-                    <div className="text-[10px] text-slate-400">Day {cumulativeDays[index]}</div>
+                    <div className="mt-2 text-[10px] text-muted-foreground dark:text-slate-300">S{step.step_number ?? index + 1}</div>
+                    <div className="text-[10px] text-muted-foreground dark:text-slate-400">Day {cumulativeDays[index]}</div>
                   </div>
                 );
               })}
@@ -825,14 +825,14 @@ export default function CampaignJourneyMap({
         </div>
       </div>
 
-      <div className="mt-4 h-1.5 w-full rounded-full bg-slate-700/60 overflow-hidden">
+      <div className="mt-4 h-1.5 w-full rounded-full bg-muted/70 dark:bg-slate-700/60 overflow-hidden">
         <div
           className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-teal-300 transition-all duration-500"
           style={{ width: `${overallProgress * 100}%` }}
         />
       </div>
 
-      <div className="mt-5 rounded-lg border border-white/10 bg-slate-950/35 p-4 space-y-4">
+      <div className="mt-5 rounded-lg border border-border/60 bg-card/80 dark:bg-slate-950/35 p-4 space-y-4">
         <div className="text-xs text-muted-foreground">
           Step Progress Details
         </div>
@@ -840,7 +840,7 @@ export default function CampaignJourneyMap({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px] text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-[0.08em] text-slate-400 border-b border-white/10">
+              <tr className="text-left text-xs uppercase tracking-[0.08em] text-muted-foreground dark:text-slate-400 border-b border-border/60">
                 <th className="py-2 pr-4 font-medium">Step</th>
                 <th className="py-2 pr-4 font-medium">Sent</th>
                 <th className="py-2 pr-4 font-medium">Pending</th>
@@ -853,13 +853,13 @@ export default function CampaignJourneyMap({
               {sortedSteps.map((step, index) => {
                 const summary = stepProgressSummary[index];
                 return (
-                  <tr key={`step-progress-summary-${step.id ?? index}`} className="border-b border-white/5">
-                    <td className="py-2 pr-4 text-slate-100">S{step.step_number ?? index + 1}</td>
-                    <td className="py-2 pr-4 text-emerald-200">{summary.sent}</td>
-                    <td className="py-2 pr-4 text-slate-200">{summary.pending}</td>
-                    <td className="py-2 pr-4 text-rose-200">{summary.failed}</td>
-                    <td className="py-2 pr-4 text-cyan-200">{summary.in_progress}</td>
-                    <td className="py-2 text-slate-100">{campaignLeads.length}</td>
+                  <tr key={`step-progress-summary-${step.id ?? index}`} className="border-b border-border/40">
+                    <td className="py-2 pr-4 text-foreground dark:text-slate-100">S{step.step_number ?? index + 1}</td>
+                    <td className="py-2 pr-4 text-emerald-700 dark:text-emerald-200">{summary.sent}</td>
+                    <td className="py-2 pr-4 text-foreground/90 dark:text-slate-200">{summary.pending}</td>
+                    <td className="py-2 pr-4 text-rose-700 dark:text-rose-200">{summary.failed}</td>
+                    <td className="py-2 pr-4 text-cyan-700 dark:text-cyan-200">{summary.in_progress}</td>
+                    <td className="py-2 text-foreground dark:text-slate-100">{campaignLeads.length}</td>
                   </tr>
                 );
               })}
@@ -867,16 +867,16 @@ export default function CampaignJourneyMap({
           </table>
         </div>
 
-        <details open className="rounded-md border border-white/10 bg-slate-900/35">
-          <summary className="cursor-pointer list-none px-3 py-2 text-sm text-slate-200 flex items-center justify-between">
+        <details open className="rounded-md border border-border/60 bg-card/70 dark:bg-slate-900/35">
+          <summary className="cursor-pointer list-none px-3 py-2 text-sm text-foreground/90 dark:text-slate-200 flex items-center justify-between">
             <span>Lead-Level Step Status ({leadProgressRows.length})</span>
-            <span className="text-xs text-slate-400">Expand/Collapse</span>
+            <span className="text-xs text-muted-foreground dark:text-slate-400">Expand/Collapse</span>
           </summary>
           <div className="px-3 pb-3">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[980px] text-sm">
                 <thead>
-                  <tr className="text-left text-xs uppercase tracking-[0.08em] text-slate-400 border-b border-white/10">
+                  <tr className="text-left text-xs uppercase tracking-[0.08em] text-muted-foreground dark:text-slate-400 border-b border-border/60">
                     <th className="py-2 pr-3 font-medium">Lead</th>
                     <th className="py-2 pr-3 font-medium">Steps Done</th>
                     <th className="py-2 pr-3 font-medium">Data Check</th>
@@ -893,16 +893,16 @@ export default function CampaignJourneyMap({
                 </thead>
                 <tbody>
                   {leadProgressRows.map((row) => (
-                    <tr key={row.key} className="border-b border-white/5">
-                      <td className="py-2 pr-3 text-slate-100">{row.leadLabel}</td>
-                      <td className="py-2 pr-3 text-slate-200">{row.stepsDone}/{stepCount}</td>
+                    <tr key={row.key} className="border-b border-border/40">
+                      <td className="py-2 pr-3 text-foreground dark:text-slate-100">{row.leadLabel}</td>
+                      <td className="py-2 pr-3 text-foreground/90 dark:text-slate-200">{row.stepsDone}/{stepCount}</td>
                       <td className="py-2 pr-3">
                         {row.hasProgressMismatch ? (
-                          <span className="inline-flex rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-200">
+                          <span className="inline-flex rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-700 dark:text-amber-200">
                             Status/Step mismatch
                           </span>
                         ) : (
-                          <span className="text-slate-500 text-[11px]">OK</span>
+                          <span className="text-muted-foreground/80 dark:text-slate-500 text-[11px]">OK</span>
                         )}
                       </td>
                       <td className="py-2 pr-3">
@@ -910,8 +910,8 @@ export default function CampaignJourneyMap({
                           {row.deliveryOutcome}
                         </span>
                       </td>
-                      <td className="py-2 pr-3 text-slate-200">{row.senderInboxDisplay}</td>
-                      <td className="py-2 pr-3 text-slate-200">{row.lastSentAtDisplay}</td>
+                      <td className="py-2 pr-3 text-foreground/90 dark:text-slate-200">{row.senderInboxDisplay}</td>
+                      <td className="py-2 pr-3 text-foreground/90 dark:text-slate-200">{row.lastSentAtDisplay}</td>
                       {row.stepStates.map((state, idx) => (
                         <td key={`${row.key}-state-${idx}`} className="py-2 pr-3">
                           <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] ${stepStatusChipClasses[state]}`}>
@@ -919,7 +919,7 @@ export default function CampaignJourneyMap({
                           </span>
                         </td>
                       ))}
-                      <td className="py-2 text-slate-300">{row.rawStatus}</td>
+                      <td className="py-2 text-muted-foreground dark:text-slate-300">{row.rawStatus}</td>
                     </tr>
                   ))}
                 </tbody>

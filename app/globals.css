@@ -157,16 +157,26 @@
 
 /* Glassmorphism Utilities */
 .glass {
-  @apply bg-white/40 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-xl dark:shadow-2xl;
+  @apply bg-white/40 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10 dark:shadow-2xl;
 }
 .glass-panel {
-  @apply bg-white/70 dark:bg-[#1a1b26]/70 backdrop-blur-2xl border border-white/50 dark:border-white/5 shadow-2xl;
+  @apply bg-white/70 dark:bg-[#1a1b26]/70 backdrop-blur-2xl border border-white/50 dark:border-white/5 dark:shadow-2xl;
 }
 .glass-card {
-  @apply bg-white/50 dark:bg-white/[0.02] backdrop-blur-lg border border-black/5 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.12)];
+  @apply bg-white/50 dark:bg-white/[0.02] backdrop-blur-lg border border-black/5 dark:border-white/10 dark:shadow-[0_8px_30px_rgb(0,0,0,0.12)];
 }
 .text-gradient {
   @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-500 dark:to-cyan-400;
+}
+
+@layer utilities {
+  :root:not(.dark) .light-shadow-none {
+    box-shadow: none !important;
+  }
+
+  :root:not(.dark) .light-shadow-none-hover:hover {
+    box-shadow: none !important;
+  }
 }
 
 /* Keyframes for micro-animations */

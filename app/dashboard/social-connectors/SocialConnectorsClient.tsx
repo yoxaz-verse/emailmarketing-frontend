@@ -174,7 +174,7 @@ function statusBadge(status: SocialConnectionStatus | 'manual_assisted' | 'api_e
   if (status === 'expired') return 'bg-amber-600 text-white';
   if (status === 'missing_scope') return 'bg-orange-600 text-white';
   if (status === 'manual_assisted') return 'bg-blue-600 text-white';
-  return 'bg-slate-600 text-white';
+  return 'bg-muted text-foreground dark:bg-slate-600 dark:text-white';
 }
 
 function statusLabel(status: UiStatus): string {
@@ -318,7 +318,7 @@ export default function SocialConnectorsClient({
             <div className="mb-4 space-y-2">
               <label className="block text-xs font-medium text-muted-foreground">Operator Context (required for connect)</label>
               <select
-                className="w-full rounded-md border border-white/15 bg-black/20 px-3 py-2 text-sm outline-none focus:border-white/40"
+                className="w-full rounded-md border border-border/60 bg-muted/40 dark:bg-black/20 px-3 py-2 text-sm outline-none focus:border-ring/60"
                 value={selectedOperatorId}
                 onChange={(e) => setSelectedOperatorId(e.target.value)}
               >
@@ -330,13 +330,13 @@ export default function SocialConnectorsClient({
                 ))}
               </select>
               {!selectedOperatorId && (
-                <p className="text-xs text-amber-300">Select an operator to start LinkedIn connect flow.</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">Select an operator to start LinkedIn connect flow.</p>
               )}
               {isAdmin && hasOperatorLoadFailure && (
-                <p className="text-xs text-red-300">{operatorLoadError}</p>
+                <p className="text-xs text-rose-700 dark:text-rose-300">{operatorLoadError}</p>
               )}
               {isAdmin && !hasOperatorLoadFailure && !hasOperators && (
-                <p className="text-xs text-amber-300">No operators available. Add/create operators first.</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">No operators available. Add/create operators first.</p>
               )}
               {isAdmin && operatorLoadErrorKind === 'backend_unavailable' && (
                 <p className="text-xs text-muted-foreground">
@@ -347,13 +347,13 @@ export default function SocialConnectorsClient({
           )}
 
           {successMessage && (
-            <div className="mb-4 rounded border border-green-500/30 bg-green-500/10 p-2 text-sm text-green-300">{successMessage}</div>
+            <div className="mb-4 rounded border border-green-500/30 bg-emerald-500/10 p-2 text-sm text-emerald-700 dark:text-emerald-300">{successMessage}</div>
           )}
           {error && (
-            <div className="mb-4 rounded border border-red-500/30 bg-red-500/10 p-2 text-sm text-red-300">
+            <div className="mb-4 rounded border border-red-500/30 bg-rose-500/10 p-2 text-sm text-rose-700 dark:text-rose-300">
               <p>{error}</p>
-              {errorHint && <p className="mt-1 text-xs text-red-200/80">Technical hint: {errorHint}</p>}
-              <p className="mt-1 text-xs text-red-200/80">Retry: use Refresh after backend/service health is restored.</p>
+              {errorHint && <p className="mt-1 text-xs text-rose-700/80 dark:text-rose-200/80">Technical hint: {errorHint}</p>}
+              <p className="mt-1 text-xs text-rose-700/80 dark:text-rose-200/80">Retry: use Refresh after backend/service health is restored.</p>
             </div>
           )}
 
@@ -379,7 +379,7 @@ export default function SocialConnectorsClient({
               const isExpanded = expandedPlatform === connector.code;
 
               return (
-                <div key={connector.code} className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+                <div key={connector.code} className="rounded-lg border border-border/60 bg-muted/30 dark:bg-white/[0.02] p-3">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-semibold">{connector.name || toTitle(connector.code)}</p>
                     <Badge className={statusBadge(effectiveStatus)}>
@@ -390,24 +390,24 @@ export default function SocialConnectorsClient({
                   <p className="mt-2 text-xs text-muted-foreground">{guide.support}</p>
 
                   <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-                    <span className="rounded border border-white/10 px-2 py-0.5">Auth: {connector.auth_type}</span>
-                    <span className="rounded border border-white/10 px-2 py-0.5">Schedule: {connector.can_schedule ? 'Yes' : 'No'}</span>
-                    <span className="rounded border border-white/10 px-2 py-0.5">Publish: {connector.can_publish ? 'Yes' : 'No'}</span>
+                    <span className="rounded border border-border/60 px-2 py-0.5">Auth: {connector.auth_type}</span>
+                    <span className="rounded border border-border/60 px-2 py-0.5">Schedule: {connector.can_schedule ? 'Yes' : 'No'}</span>
+                    <span className="rounded border border-border/60 px-2 py-0.5">Publish: {connector.can_publish ? 'Yes' : 'No'}</span>
                   </div>
 
                   {conn?.reason && (
-                    <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-200">
+                    <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-200">
                       <p className="font-medium">Why not connected?</p>
                       <p className="mt-1">{conn.reason}</p>
                     </div>
                   )}
                   {isOauthSupported && isAdmin && selectedOperatorId && !oauthAppConfigured && (
-                    <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-200">
+                    <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-200">
                       LinkedIn app credentials are not configured for this operator. Configure in admin social app settings.
                     </div>
                   )}
                   {isAdmin && selectedOperatorId && !appConfigured && missingFields.length > 0 && (
-                    <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-200">
+                    <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-200">
                       Missing app config fields: {missingFields.join(', ')}
                     </div>
                   )}
@@ -484,7 +484,7 @@ export default function SocialConnectorsClient({
                   </div>
 
                   {isExpanded && (
-                    <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-3 text-xs">
+                    <div className="mt-3 rounded-lg border border-border/60 bg-muted/40 dark:bg-black/20 p-3 text-xs">
                       <p className="font-medium text-sm">Integration Guide</p>
                       <p className="mt-1 text-muted-foreground">{guide.intro}</p>
 
@@ -501,7 +501,7 @@ export default function SocialConnectorsClient({
                         <p className="font-medium">What to paste / keep ready</p>
                         <ul className="mt-1 space-y-1 text-muted-foreground">
                           {guide.requiredValues.map((valueKey) => (
-                            <li key={valueKey} className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[11px]">
+                            <li key={valueKey} className="rounded border border-border/60 bg-muted/30 dark:bg-white/[0.02] px-2 py-1 font-mono text-[11px]">
                               {valueKey}
                             </li>
                           ))}

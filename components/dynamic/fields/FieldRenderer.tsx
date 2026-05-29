@@ -74,13 +74,13 @@ function renderRelationField(
 
   return (
     <div className={cn(campaignUi ? 'space-y-2' : 'space-y-1')}>
-      <label className={cn('text-sm font-medium', campaignUi ? 'text-slate-100' : '')}>{field.label}</label>
+      <label className={cn('text-sm font-medium', campaignUi ? 'text-foreground dark:text-slate-100' : '')}>{field.label}</label>
       <div className="flex items-center gap-2">
         <select
           className={cn(
             'w-full rounded border p-2',
             campaignUi
-              ? 'border-slate-700 bg-slate-900/70 text-slate-100 shadow-inner shadow-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/70'
+              ? 'border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/70 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:shadow-inner dark:shadow-slate-900'
               : 'border-border bg-card text-foreground'
           )}
           value={value ?? ''}
@@ -109,7 +109,7 @@ function renderRelationField(
         )}
       </div>
       {field.description ? (
-        <p className={cn('text-xs', campaignUi ? 'text-slate-400' : 'text-muted-foreground')}>{field.description}</p>
+        <p className={cn('text-xs', campaignUi ? 'text-muted-foreground dark:text-slate-400' : 'text-muted-foreground')}>{field.description}</p>
       ) : null}
     </div>
   );
@@ -134,7 +134,7 @@ export function TextField({ field, value, onChange, uiVariant = 'default' }: any
   const campaignUi = uiVariant === 'campaign';
   return (
     <div className={cn(campaignUi ? 'space-y-2' : 'space-y-1')}>
-      <label className={cn('text-sm font-medium', campaignUi ? 'text-slate-100' : '')}>{field.label}</label>
+      <label className={cn('text-sm font-medium', campaignUi ? 'text-foreground dark:text-slate-100' : '')}>{field.label}</label>
       <Input
         type={field.type}
         value={value ?? ''}
@@ -142,13 +142,13 @@ export function TextField({ field, value, onChange, uiVariant = 'default' }: any
         required={field.required}
         className={cn(
           campaignUi
-            ? 'h-11 border-slate-700 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 focus-visible:ring-blue-500/70'
+            ? 'h-11 border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-blue-500/70 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500'
             : ''
         )}
         onChange={(e) => onChange(e.target.value)}
       />
       {field.description ? (
-        <p className={cn('text-xs', campaignUi ? 'text-slate-400' : 'text-muted-foreground')}>{field.description}</p>
+        <p className={cn('text-xs', campaignUi ? 'text-muted-foreground dark:text-slate-400' : 'text-muted-foreground')}>{field.description}</p>
       ) : null}
     </div>
   );
@@ -158,14 +158,14 @@ export function PasswordField({ field, value, onChange, uiVariant = 'default' }:
   const campaignUi = uiVariant === 'campaign';
   return (
     <div className={cn(campaignUi ? 'space-y-2' : 'space-y-1')}>
-      <label className={cn('text-sm font-medium', campaignUi ? 'text-slate-100' : '')}>{field.label}</label>
+      <label className={cn('text-sm font-medium', campaignUi ? 'text-foreground dark:text-slate-100' : '')}>{field.label}</label>
       <Input
         type="password"
         value={value ?? ''}
         required={field.required}
         className={cn(
           campaignUi
-            ? 'h-11 border-slate-700 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 focus-visible:ring-blue-500/70'
+            ? 'h-11 border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-blue-500/70 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500'
             : ''
         )}
         onChange={(e) => onChange(e.target.value)}
@@ -178,20 +178,20 @@ export function TextAreaField({ field, value, onChange, uiVariant = 'default' }:
   const campaignUi = uiVariant === 'campaign';
   return (
     <div className={cn(campaignUi ? 'space-y-2' : 'space-y-1')}>
-      <label className={cn('text-sm font-medium', campaignUi ? 'text-slate-100' : '')}>{field.label}</label>
+      <label className={cn('text-sm font-medium', campaignUi ? 'text-foreground dark:text-slate-100' : '')}>{field.label}</label>
       <Textarea
         value={value ?? ''}
         placeholder={field.placeholder ?? field.label}
         required={field.required}
         className={cn(
           campaignUi
-            ? 'border-slate-700 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 focus-visible:ring-blue-500/70'
+            ? 'border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-blue-500/70 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500'
             : ''
         )}
         onChange={(e) => onChange(e.target.value)}
       />
       {field.description ? (
-        <p className={cn('text-xs', campaignUi ? 'text-slate-400' : 'text-muted-foreground')}>{field.description}</p>
+        <p className={cn('text-xs', campaignUi ? 'text-muted-foreground dark:text-slate-400' : 'text-muted-foreground')}>{field.description}</p>
       ) : null}
     </div>
   );

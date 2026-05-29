@@ -3,7 +3,6 @@ import { Outfit } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "@/components/theme-provider";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 const outfit = Outfit({ 
   subsets: ["latin"],
@@ -37,9 +36,6 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
-          <div className="fixed bottom-6 right-6 z-50">
-            <ThemeToggle />
-          </div>
           <Toaster 
             position="top-right" 
             toastOptions={{

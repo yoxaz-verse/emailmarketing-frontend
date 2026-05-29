@@ -213,7 +213,7 @@ export default function RunningAgentsClient() {
           <p>{parsedError.message}</p>
           {parsedError.details ? (
             <details className="mt-2">
-              <summary className="cursor-pointer text-red-300">Technical details</summary>
+              <summary className="cursor-pointer text-rose-700 dark:text-rose-300">Technical details</summary>
               <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-red-200">
                 {parsedError.details}
               </pre>
@@ -274,12 +274,12 @@ export default function RunningAgentsClient() {
               {agent.missions.length > 0 ? (
                 <div className="space-y-2">
                   {agent.missions.slice(0, 4).map((mission) => (
-                    <div key={mission.id} className="rounded border border-white/10 p-3">
+                    <div key={mission.id} className="rounded border border-border/60 p-3">
                       <div className="flex items-center justify-between gap-2">
                         <div className="text-sm font-medium">{mission.name}</div>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline">{mission.execution_policy}</Badge>
-                          <Badge className={mission.active ? 'bg-emerald-500/20 text-emerald-300' : 'bg-zinc-500/20 text-zinc-300'}>
+                          <Badge className={mission.active ? 'bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : 'bg-muted text-muted-foreground dark:bg-zinc-500/20 dark:text-zinc-300'}>
                             {mission.active ? 'active' : 'paused'}
                           </Badge>
                         </div>
@@ -326,7 +326,7 @@ export default function RunningAgentsClient() {
             </div>
           ))}
           {rows.length === 0 ? (
-            <div className="rounded border border-dashed border-white/15 p-4 space-y-3">
+            <div className="rounded border border-dashed border-border/60 p-4 space-y-3">
               <p className="text-sm text-muted-foreground">
                 No agents found yet. Create your employee-team in one click, then missions will run automatically on schedule.
               </p>
@@ -360,11 +360,11 @@ function deriveAgentState(agent: RuntimeAgent): DerivedState {
 
 function StateBadge({ state }: { state: DerivedState }) {
   if (state === 'stale') return <Badge variant="destructive">stale</Badge>;
-  if (state === 'busy') return <Badge className="bg-amber-500/20 text-amber-300">busy</Badge>;
-  if (state === 'paused') return <Badge className="bg-zinc-500/20 text-zinc-300">paused</Badge>;
-  if (state === 'error') return <Badge className="bg-rose-500/20 text-rose-300">error</Badge>;
-  if (state === 'active') return <Badge className="bg-cyan-500/20 text-cyan-300">active</Badge>;
-  return <Badge className="bg-emerald-500/20 text-emerald-300">idle</Badge>;
+  if (state === 'busy') return <Badge className="bg-amber-500/15 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">busy</Badge>;
+  if (state === 'paused') return <Badge className="bg-muted text-muted-foreground dark:bg-zinc-500/20 dark:text-zinc-300">paused</Badge>;
+  if (state === 'error') return <Badge className="bg-rose-500/15 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">error</Badge>;
+  if (state === 'active') return <Badge className="bg-cyan-500/15 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300">active</Badge>;
+  return <Badge className="bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">idle</Badge>;
 }
 
 const messageFromUnknown = (err: unknown, fallback: string) => {

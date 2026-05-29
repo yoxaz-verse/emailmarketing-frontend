@@ -25,12 +25,12 @@ export default function SelectField({ field, value, onChange, form, uiVariant = 
 
   return (
     <div className={cn(campaignUi ? 'space-y-2' : 'space-y-1')}>
-      <label className={cn('text-sm font-medium', campaignUi ? 'text-slate-100' : '')}>{field.label}</label>
+      <label className={cn('text-sm font-medium', campaignUi ? 'text-foreground dark:text-slate-100' : '')}>{field.label}</label>
       <select
         className={cn(
           'w-full rounded-md border px-3 py-2 text-sm',
           campaignUi
-            ? 'h-11 border-slate-700 bg-slate-900/70 text-slate-100 shadow-inner shadow-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/70'
+            ? 'h-11 border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/70 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:shadow-inner dark:shadow-slate-900'
             : 'border-input bg-background'
         )}
         value={value ?? ''}

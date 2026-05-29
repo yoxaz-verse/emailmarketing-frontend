@@ -7,6 +7,7 @@ import {
 import { Button } from '@/components/ui/button';
 import NotificationPanel from './NotificationPanel';
 import { clientFetch } from '@/lib/client-fetch';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 type AuthMeResponse = {
     id?: string;
@@ -66,6 +67,7 @@ export default function TopBar() {
 
             <div className="flex items-center gap-4">
                 <NotificationPanel />
+                <ThemeToggle />
                 <p className="text-sm font-medium text-foreground max-w-[320px] truncate" title={email || 'Signed in'}>
                     {email || 'Signed in'}
                 </p>

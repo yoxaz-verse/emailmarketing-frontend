@@ -330,7 +330,7 @@ export default function DynamicTable({
               <h2 className="text-3xl font-black tracking-tighter text-foreground capitalize">
                 {table.replace('_', ' ')}
               </h2>
-              <div className="px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest shadow-sm">
+              <div className="px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest dark:shadow-sm">
                 {data.length} {data.length === 1 ? 'Record' : 'Records'}
               </div>
             </div>
@@ -340,7 +340,7 @@ export default function DynamicTable({
             {allowCreate && (
               <Button
                 size="sm"
-                className="h-10 gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs px-5 rounded-xl shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                className="h-10 gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs px-5 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] dark:shadow-xl dark:shadow-primary/20"
                 onClick={() => {
                   setPendingRowActionId(null);
                   setPendingActionType(null);
@@ -355,7 +355,7 @@ export default function DynamicTable({
         </div>
 
         {/* Bottom Tier: Toolbar & Search */}
-        <div className="flex flex-col md:flex-row items-center gap-4 bg-card/30 backdrop-blur-xl border border-border/40 p-2 rounded-2xl shadow-inner">
+        <div className="flex flex-col md:flex-row items-center gap-4 bg-card/30 backdrop-blur-xl border border-border/40 p-2 rounded-2xl dark:shadow-inner">
           <div className="relative flex-1 group w-full">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input
@@ -393,7 +393,7 @@ export default function DynamicTable({
                     return (
                       <div key={bulkAction.key} className="flex items-center gap-2">
                         <select
-                          className="h-9 rounded-xl border border-border/60 bg-background/40 px-3 text-[11px] font-bold uppercase tracking-wider text-foreground focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-inner"
+                          className="h-9 rounded-xl border border-border/60 bg-background/40 px-3 text-[11px] font-bold uppercase tracking-wider text-foreground focus:ring-2 focus:ring-primary/20 outline-none transition-all dark:shadow-inner"
                           value={bulkFolderId}
                           onChange={(e) => setBulkFolderId(e.target.value)}
                           disabled={isBulkPending || bulkFolderOptions.length === 0 || !onBulkAssignFolder}
@@ -423,7 +423,7 @@ export default function DynamicTable({
                       key={bulkAction.key}
                       variant={bulkAction.variant ?? 'outline'}
                       size="sm"
-                      className="h-9 font-bold text-[10px] uppercase tracking-widest px-3 rounded-xl shadow-lg shadow-destructive/10"
+                      className="h-9 font-bold text-[10px] uppercase tracking-widest px-3 rounded-xl dark:shadow-lg dark:shadow-destructive/10"
                       disabled={isBulkPending}
                       onClick={() => {
                         if (bulkAction.key === 'bulkDelete') {
@@ -482,7 +482,7 @@ export default function DynamicTable({
       </div>
 
       {/* Table Container Redesign */}
-      <div className="rounded-3xl border border-border/40 bg-card/20 backdrop-blur-md shadow-2xl overflow-hidden transition-all duration-500">
+      <div className="rounded-3xl border border-border/40 bg-card/20 backdrop-blur-md overflow-hidden transition-all duration-500 dark:shadow-2xl">
         <div className="overflow-x-auto min-h-[400px] custom-scrollbar">
           <Table>
             <TableHeader className="bg-muted/30">
@@ -654,7 +654,7 @@ export default function DynamicTable({
             Previous
           </Button>
           
-          <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-background/40 border border-border/40 shadow-inner font-mono text-[10px] font-bold">
+          <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-background/40 border border-border/40 font-mono text-[10px] font-bold dark:shadow-inner">
             <span className="text-primary">{currentPage}</span>
             <span className="text-muted-foreground/40 mx-1">/</span>
             <span className="text-muted-foreground">{totalPages || 1}</span>

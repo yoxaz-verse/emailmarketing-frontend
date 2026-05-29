@@ -435,23 +435,23 @@ export default function AddEditModal({
     <div
       className={cn(
         'fixed inset-0 flex items-center justify-center px-4 py-6',
-        isCampaignModal ? 'bg-slate-950/80 backdrop-blur-sm' : 'bg-black/50'
+        isCampaignModal ? 'bg-background/85 dark:bg-slate-950/80 backdrop-blur-sm' : 'bg-black/40 dark:bg-black/50'
       )}
     >
       <div
         className={cn(
           'w-full max-h-[90vh] overflow-auto',
           isCampaignModal
-            ? 'max-w-2xl rounded-2xl border border-slate-700/70 bg-gradient-to-b from-slate-900 to-slate-950 p-6 shadow-2xl shadow-slate-950/80 sm:p-8'
+            ? 'max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-2xl sm:p-8 dark:border-slate-700/70 dark:bg-gradient-to-b dark:from-slate-900 dark:to-slate-950 dark:shadow-slate-950/80'
             : 'w-[520px] rounded border border-border bg-card p-6 text-card-foreground'
         )}
       >
         <div className={cn(isCampaignModal ? 'space-y-1 pb-3' : 'space-y-0')}>
-          <h2 className={cn('font-semibold', isCampaignModal ? 'text-2xl text-slate-100' : 'text-lg')}>
+          <h2 className={cn('font-semibold', isCampaignModal ? 'text-2xl text-foreground dark:text-slate-100' : 'text-lg')}>
             {isEdit ? 'Edit' : 'Add'} {table.replace('_', ' ')}
           </h2>
           {isCampaignModal ? (
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-muted-foreground dark:text-slate-400">
               Set the campaign name, assign a sequence, and choose the operator to start automation.
             </p>
           ) : null}
@@ -485,7 +485,7 @@ export default function AddEditModal({
             className={cn(
               'transition-colors',
               isCampaignModal
-                ? 'rounded-md px-4 py-2 text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                ? 'rounded-md px-4 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground dark:text-slate-300 dark:hover:bg-slate-800/80 dark:hover:text-white'
                 : 'text-muted-foreground hover:text-foreground'
             )}
             onClick={onClose}

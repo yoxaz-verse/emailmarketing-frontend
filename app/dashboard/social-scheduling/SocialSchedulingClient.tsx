@@ -46,11 +46,11 @@ const PLATFORM_LABELS: Record<PlatformCode, string> = {
   whatsapp: 'WhatsApp',
 };
 const PLATFORM_COLORS: Record<PlatformCode, string> = {
-  meta: 'bg-blue-600/20 text-blue-300 border-blue-500/30',
-  linkedin: 'bg-cyan-600/20 text-cyan-300 border-cyan-500/30',
-  reddit: 'bg-orange-600/20 text-orange-300 border-orange-500/30',
-  telegram: 'bg-sky-600/20 text-sky-300 border-sky-500/30',
-  whatsapp: 'bg-green-600/20 text-green-300 border-green-500/30',
+  meta: 'bg-blue-500/15 text-blue-700 border-blue-500/30 dark:bg-blue-600/20 dark:text-blue-300 dark:border-blue-500/30',
+  linkedin: 'bg-cyan-500/15 text-cyan-700 border-cyan-500/30 dark:bg-cyan-600/20 dark:text-cyan-300 dark:border-cyan-500/30',
+  reddit: 'bg-orange-500/15 text-orange-700 border-orange-500/30 dark:bg-orange-600/20 dark:text-orange-300 dark:border-orange-500/30',
+  telegram: 'bg-sky-500/15 text-sky-700 border-sky-500/30 dark:bg-sky-600/20 dark:text-sky-300 dark:border-sky-500/30',
+  whatsapp: 'bg-green-500/15 text-green-700 border-green-500/30 dark:bg-green-600/20 dark:text-green-300 dark:border-green-500/30',
 };
 
 function startOfMonth(date: Date): Date {
@@ -478,7 +478,7 @@ export default function SocialSchedulingClient() {
             openComposerForEdit(post);
           }
         }}
-        className="w-full cursor-pointer rounded border border-white/10 bg-white/5 px-2 py-1 text-left text-xs hover:border-blue-400/60"
+        className="w-full cursor-pointer rounded border border-border/60 bg-muted/40 dark:bg-white/5 px-2 py-1 text-left text-xs hover:border-blue-400/60"
       >
         <div className="flex items-center justify-between gap-2">
           <span className="font-medium">{formatTime(date)}</span>
@@ -494,7 +494,7 @@ export default function SocialSchedulingClient() {
             </span>
           ))}
           {post.platforms.length > 2 && (
-            <span className="rounded border border-white/20 px-1.5 py-0.5 text-[10px] text-muted-foreground">+{post.platforms.length - 2}</span>
+            <span className="rounded border border-border/70 px-1.5 py-0.5 text-[10px] text-muted-foreground">+{post.platforms.length - 2}</span>
           )}
         </div>
       </div>
@@ -512,17 +512,17 @@ export default function SocialSchedulingClient() {
         <CardHeader>
           <div className="flex flex-col gap-4">
             <CardTitle>Calendar</CardTitle>
-            <div className="sticky top-2 z-10 rounded-xl border border-white/10 bg-background/80 p-3 backdrop-blur">
+            <div className="sticky top-2 z-10 rounded-xl border border-border/60 bg-background/80 p-3 backdrop-blur">
               <div className="flex flex-wrap items-center gap-3 md:gap-4">
-                <div className="rounded-lg border border-white/10 p-2">
+                <div className="rounded-lg border border-border/60 p-2">
                   <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">View</p>
-                  <div className="inline-flex rounded-md border border-white/10 p-1">
+                  <div className="inline-flex rounded-md border border-border/60 p-1">
                     <Button size="sm" variant={view === 'month' ? 'default' : 'ghost'} onClick={() => setView('month')}>Month</Button>
                     <Button size="sm" variant={view === 'week' ? 'default' : 'ghost'} onClick={() => setView('week')}>Week</Button>
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-white/10 p-2 md:min-w-[170px]">
+                <div className="rounded-lg border border-border/60 p-2 md:min-w-[170px]">
                   <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">Period</p>
                   <p className="text-sm font-medium">
                     {view === 'month' ? formatMonthLabel(anchorDate) : formatWeekLabel(weekStart)}
@@ -530,14 +530,14 @@ export default function SocialSchedulingClient() {
                 </div>
 
                 <div className="rounded-lg border border-blue-500/20 bg-blue-500/[0.03] p-2 md:border-l-2 md:border-l-blue-400/70">
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-blue-200">Navigate</p>
-                  <div className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] p-1.5">
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-200">Navigate</p>
+                  <div className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 dark:bg-white/[0.02] p-1.5">
                     <Button
                       size="sm"
                       variant="outline"
                       title="Previous period"
                       aria-label="Previous period"
-                      className="h-9 min-w-10 border-white/20 bg-white/5 px-3 transition hover:-translate-y-0.5 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-blue-400"
+                      className="h-9 min-w-10 border-border/70 bg-muted/40 dark:bg-white/5 px-3 transition hover:-translate-y-0.5 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-blue-400"
                       onClick={() => changeAnchor('prev')}
                     >
                       <ChevronLeft className="h-4 w-4" />
@@ -556,7 +556,7 @@ export default function SocialSchedulingClient() {
                       variant="outline"
                       title="Next period"
                       aria-label="Next period"
-                      className="h-9 min-w-10 border-white/20 bg-white/5 px-3 transition hover:-translate-y-0.5 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-blue-400"
+                      className="h-9 min-w-10 border-border/70 bg-muted/40 dark:bg-white/5 px-3 transition hover:-translate-y-0.5 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-blue-400"
                       onClick={() => changeAnchor('next')}
                     >
                       <ChevronRight className="h-4 w-4" />
@@ -564,7 +564,7 @@ export default function SocialSchedulingClient() {
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-white/10 p-2">
+                <div className="rounded-lg border border-border/60 p-2">
                   <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">Jump to month/year</p>
                   <div className="flex items-center gap-2">
                     <select
@@ -600,7 +600,7 @@ export default function SocialSchedulingClient() {
                   </div>
                 </div>
 
-                <div className="ml-auto rounded-lg border border-white/10 p-2">
+                <div className="ml-auto rounded-lg border border-border/60 p-2">
                   <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">Action</p>
                   <Button
                     size="sm"
@@ -640,10 +640,10 @@ export default function SocialSchedulingClient() {
                     className={`min-h-[130px] rounded-lg border p-2 text-left transition ${
                       isPastDayCell ? '' : 'hover:border-blue-400/60'
                     } ${
-                      isCurrentMonth ? 'border-white/10 bg-white/5' : 'border-white/5 bg-white/[0.02]'
+                      isCurrentMonth ? 'border-border/60 bg-muted/40 dark:bg-white/5' : 'border-border/40 bg-muted/30 dark:bg-white/[0.02]'
                     } ${isTodayCell && !isPastDayCell ? 'ring-1 ring-blue-500/70' : ''} ${
                       isPastDayCell
-                        ? 'cursor-not-allowed border-red-400/70 bg-red-500/20 text-red-100'
+                        ? 'cursor-not-allowed border-red-400/70 bg-rose-500/15 text-rose-700 dark:bg-red-500/20 dark:text-red-100'
                         : ''
                     }`}
                   >
@@ -670,7 +670,7 @@ export default function SocialSchedulingClient() {
               <div className="grid grid-cols-8 gap-2">
                 <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Time</div>
                 {weekDays.map((d) => (
-                  <div key={d.toISOString()} className={`rounded px-2 py-1 text-xs font-semibold ${isSameDay(d, today) ? 'bg-blue-600/20 text-blue-200' : 'text-muted-foreground'}`}>
+                  <div key={d.toISOString()} className={`rounded px-2 py-1 text-xs font-semibold ${isSameDay(d, today) ? 'bg-blue-600/20 text-blue-700 dark:text-blue-200' : 'text-muted-foreground'}`}>
                     {new Intl.DateTimeFormat('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }).format(d)}
                   </div>
                 ))}
@@ -702,9 +702,9 @@ export default function SocialSchedulingClient() {
                           aria-disabled={slotDisabled}
                           className={`min-h-[64px] rounded border p-1 text-left ${
                             slotDisabled ? '' : 'hover:border-blue-400/60'
-                          } ${nowLine ? 'border-blue-500/60 bg-blue-500/10' : 'border-white/10 bg-white/5'} ${
+                          } ${nowLine ? 'border-blue-500/60 bg-blue-500/10' : 'border-border/60 bg-muted/40 dark:bg-white/5'} ${
                             slotDisabled
-                              ? 'cursor-not-allowed border-red-400/70 bg-red-500/20 text-red-100'
+                              ? 'cursor-not-allowed border-red-400/70 bg-rose-500/15 text-rose-700 dark:bg-red-500/20 dark:text-red-100'
                               : ''
                           }`}
                         >
@@ -736,7 +736,7 @@ export default function SocialSchedulingClient() {
           {upcoming.map((post) => {
             const at = new Date(post.scheduledAtUtc);
             return (
-              <div key={post.id} className="rounded border border-white/10 bg-white/5 p-3">
+              <div key={post.id} className="rounded border border-border/60 bg-muted/40 dark:bg-white/5 p-3">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-medium">{new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(at)}</p>
                   <Badge variant="secondary">{post.status === 'queued' ? 'Queued' : 'Manual Assisted'}</Badge>
@@ -756,8 +756,8 @@ export default function SocialSchedulingClient() {
       </Card>
 
       {composerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-3xl rounded-xl border border-white/10 bg-background p-5 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60 p-4">
+          <div className="w-full max-w-3xl rounded-xl border border-border/60 bg-background p-5 shadow-2xl">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold">{dialogMode === 'edit' ? 'Edit Scheduled Post' : 'Create Scheduled Post'}</h3>
@@ -766,12 +766,12 @@ export default function SocialSchedulingClient() {
               <Button variant="ghost" onClick={() => setComposerOpen(false)}>Close</Button>
             </div>
 
-            <div className="mb-4 inline-flex rounded-md border border-white/10 p-1">
+            <div className="mb-4 inline-flex rounded-md border border-border/60 p-1">
               <Button size="sm" variant={dialogStep === 1 ? 'default' : 'ghost'} onClick={() => setDialogStep(1)}>1. Schedule</Button>
               <Button size="sm" variant={dialogStep === 2 ? 'default' : 'ghost'} onClick={() => setDialogStep(2)}>2. Content</Button>
             </div>
 
-            {error && <div className="mb-3 rounded border border-red-500/30 bg-red-500/10 p-2 text-sm text-red-300">{error}</div>}
+            {error && <div className="mb-3 rounded border border-red-500/30 bg-red-500/10 p-2 text-sm text-rose-700 dark:text-rose-300">{error}</div>}
 
             {dialogStep === 1 && (
               <div className="space-y-4">
@@ -816,7 +816,7 @@ export default function SocialSchedulingClient() {
                   <p className="mb-2 text-sm font-medium">Platforms</p>
                   <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
                     {(Object.keys(PLATFORM_LABELS) as PlatformCode[]).map((platform) => (
-                      <label key={platform} className="flex items-center gap-2 rounded border border-white/10 p-2 text-sm">
+                      <label key={platform} className="flex items-center gap-2 rounded border border-border/60 p-2 text-sm">
                         <input
                           type="checkbox"
                           checked={draft.platforms[platform]}
@@ -831,7 +831,7 @@ export default function SocialSchedulingClient() {
                   </div>
                 </div>
 
-                <div className="rounded border border-white/10 bg-white/5 p-3 text-sm">
+                <div className="rounded border border-border/60 bg-muted/40 dark:bg-white/5 p-3 text-sm">
                   <span className="text-muted-foreground">Status preview:</span> <span className="font-medium">Queued (manual-assisted publish flow)</span>
                 </div>
               </div>
