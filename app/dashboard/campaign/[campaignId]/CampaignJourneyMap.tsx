@@ -10,6 +10,7 @@ type CampaignLead = {
   status?: string | null;
   current_step?: number | null;
   lead_id?: string | null;
+  last_sent_at?: string | null;
 };
 
 type Campaign = {
@@ -52,7 +53,7 @@ type SendingLimitsConfig = {
 } | null;
 
 type NodeState = 'completed' | 'active' | 'failed' | 'pending' | 'not_started';
-type StepProgressState = 'sent' | 'in_progress' | 'failed' | 'pending';
+type StepProgressState = 'sent' | 'in_progress' | 'failed' | 'pending' | 'pending_delay';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -172,7 +173,9 @@ function getLeadStepState(
   leadStatus: string,
   currentStep: number,
   stepIndex: number,
-  stepCount: number
+  stepCount: number,
+  delayDaysByStep: number[],
+  lastSentAtRaw?: string | null
 ): StepProgressState {
   const sentSteps = clamp(currentStep - 1, 0, stepCount);
   const currentIndex = sentSteps;
@@ -182,6 +185,16 @@ function getLeadStepState(
 
   if (leadStatus === 'processing') return 'in_progress';
   if (leadStatus === 'failed') return 'failed';
+  if (stepIndex === currentIndex && (leadStatus === 'queued' || leadStatus === 'pending')) {
+    if (currentStep > 1) {
+      const delayDays = Math.max(0, Number(delayDaysByStep[currentStep - 1] ?? 0));
+      const lastSentAt = new Date(String(lastSentAtRaw ?? ''));
+      if (!Number.isNaN(lastSentAt.getTime())) {
+        const nextEligibleAt = new Date(lastSentAt.getTime() + (delayDays * 24 * 60 * 60 * 1000));
+        if (Date.now() < nextEligibleAt.getTime()) return 'pending_delay';
+      }
+    }
+  }
   if (leadStatus === 'completed' || leadStatus === 'replied') {
     return currentStep > stepCount ? 'sent' : 'pending';
   }
@@ -601,7 +614,7 @@ export default function CampaignJourneyMap({
     const currentStep = Number(row.current_step ?? 1);
     const lead = leadById.get(String(row.lead_id ?? ''));
     const stepStates = Array.from({ length: stepCount }, (_, stepIndex) =>
-      getLeadStepState(status, currentStep, stepIndex, stepCount)
+      getLeadStepState(status, currentStep, stepIndex, stepCount, delayDays, row.last_sent_at)
     );
 
     for (let i = 0; i < stepCount; i += 1) {
@@ -622,7 +635,8 @@ export default function CampaignJourneyMap({
     }
 
     const stepsDone = stepStates.filter((state) => state === 'sent').length;
-    const hasProgressMismatch = (status === 'completed' || status === 'replied') && currentStep <= stepCount;
+    const isDelayBlocked = stepStates.includes('pending_delay');
+    const hasProgressMismatch = (status === 'completed' || status === 'replied') && currentStep <= stepCount && !isDelayBlocked;
     const fallbackLeadId = String(row.lead_id ?? `row-${rowIndex + 1}`);
     const campaignLeadId = String(row.id ?? '');
     const deliveryOutcome = campaignLeadId
@@ -708,13 +722,15 @@ export default function CampaignJourneyMap({
     sent: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-200',
     in_progress: 'border-cyan-500/30 bg-cyan-500/15 text-cyan-700 dark:text-cyan-200',
     failed: 'border-rose-500/30 bg-rose-500/15 text-rose-700 dark:text-rose-200',
-    pending: 'border-slate-500/30 bg-slate-500/15 text-foreground/90 dark:text-slate-200'
+    pending: 'border-slate-500/30 bg-slate-500/15 text-foreground/90 dark:text-slate-200',
+    pending_delay: 'border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-200'
   };
   const stepStatusLabel: Record<StepProgressState, string> = {
     sent: 'Sent',
     in_progress: 'In Progress',
     failed: 'Failed',
-    pending: 'Pending'
+    pending: 'Pending',
+    pending_delay: 'Pending (Delay)'
   };
   const outcomeChipClass = (value: string): string => {
     const normalized = String(value).toLowerCase();
