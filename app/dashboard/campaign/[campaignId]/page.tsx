@@ -19,6 +19,23 @@ type SendingLimitsConfig = {
 };
 
 type InterestStatus = 'unreviewed' | 'interested' | 'not_interested';
+type CampaignDiagnostics = {
+  deliverability?: {
+    provider_distribution?: {
+      microsoft?: number;
+      google?: number;
+      yahoo_aol?: number;
+      generic?: number;
+    };
+    provider_safe_auth_ready?: {
+      ready_count?: number;
+      total_count?: number;
+    };
+    unsubscribe_ready?: boolean;
+    deliverability_policy_blocked_count?: number;
+    tracking_downgrade_count?: number;
+  };
+};
 
 export default async function CampaignPage({
   params
@@ -210,6 +227,12 @@ export default async function CampaignPage({
         schema_ready: false,
       };
     }
+    let campaignDiagnostics: CampaignDiagnostics | null = null;
+    try {
+      campaignDiagnostics = await serverFetch<CampaignDiagnostics>(`/execution/campaigns/${campaign.id}/diagnostics`);
+    } catch {
+      campaignDiagnostics = null;
+    }
 
     const leadById = new Map<string, any>();
     for (const lead of allLeads) {
@@ -326,11 +349,26 @@ export default async function CampaignPage({
     }).length;
     const authTotalInboxCount = activeCampaignInboxes.length;
     const hasHighMicrosoftExposure = microsoftShare >= 40;
+    const yahooShare = attachedLeadEmails.length > 0
+      ? Number((((campaignDiagnostics?.deliverability?.provider_distribution?.yahoo_aol ?? 0) / attachedLeadEmails.length) * 100).toFixed(2))
+      : 0;
+    const googleShare = attachedLeadEmails.length > 0
+      ? Number((((campaignDiagnostics?.deliverability?.provider_distribution?.google ?? 0) / attachedLeadEmails.length) * 100).toFixed(2))
+      : 0;
     const hasHighUnmatchedEvents = (replyOpenAnalytics?.diagnostics?.unmatched_events_count ?? 0) >= 10;
     const hasLowOpenSignal = (replyOpenAnalytics?.opened ?? 0) === 0;
+    const providerSafeReadyCount = Number(campaignDiagnostics?.deliverability?.provider_safe_auth_ready?.ready_count ?? authReadyInboxCount);
+    const providerSafeTotalCount = Number(campaignDiagnostics?.deliverability?.provider_safe_auth_ready?.total_count ?? authTotalInboxCount);
+    const unsubscribeReady = campaignDiagnostics?.deliverability?.unsubscribe_ready !== false;
     const preSendWarnings = [
       hasHighMicrosoftExposure
         ? `High Microsoft audience share (${microsoftShare}%). Use first-touch plain mode and lower send ramp.`
+        : null,
+      yahooShare >= 20
+        ? `Yahoo/AOL audience share is ${yahooShare}%. Keep content plain and include unsubscribe support.`
+        : null,
+      googleShare >= 20
+        ? `Gmail audience share is ${googleShare}%. Keep complaint risk low and maintain clean sender identity.`
         : null,
       hasLowOpenSignal
         ? 'No confirmed open signal yet. Reduce volume and prioritize warmup-safe inboxes.'
@@ -340,6 +378,12 @@ export default async function CampaignPage({
         : null,
       authTotalInboxCount > 0 && authReadyInboxCount < authTotalInboxCount
         ? `${authTotalInboxCount - authReadyInboxCount} campaign inbox(es) are missing SPF/DKIM/DMARC verification in sending-domain records.`
+        : null,
+      providerSafeTotalCount > 0 && providerSafeReadyCount < providerSafeTotalCount
+        ? `${providerSafeTotalCount - providerSafeReadyCount} sending domain(s) are not provider-safe yet (enforced DMARC missing or weak). Sensitive-provider sends may be blocked.`
+        : null,
+      !unsubscribeReady
+        ? 'Campaign unsubscribe is not configured yet. Set the public backend/app URL before scaling Gmail or Yahoo sends.'
         : null,
       hasSenderMismatchRisk
         ? 'Sender identity mismatch detected. Keep one consistent team identity for cold outreach.'
@@ -378,8 +422,8 @@ export default async function CampaignPage({
                   <div className="mt-1 text-base font-semibold text-emerald-300">{authReadyInboxCount}/{authTotalInboxCount}</div>
                 </div>
                 <div className="rounded-lg border border-border px-3 py-2">
-                  <div className="text-muted-foreground text-xs">Recommended Outlook Ramp</div>
-                  <div className="mt-1 text-base font-semibold text-sky-300">4/hr · 20/day</div>
+                  <div className="text-muted-foreground text-xs">Unsubscribe Ready</div>
+                  <div className={`mt-1 text-base font-semibold ${unsubscribeReady ? 'text-emerald-300' : 'text-rose-300'}`}>{unsubscribeReady ? 'Yes' : 'No'}</div>
                 </div>
               </div>
               {preSendWarnings.length > 0 ? (
