@@ -1,16 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { clearAuthCookies } from '@/lib/auth-session';
 
 function isAuthLikeError(message: string): boolean {
   return /unauthorized|invalid token|token expired|jwt expired|invalid signature|authentication required|session expired|sign(?:ed)? in again|user disabled|forbidden/i.test(message);
-}
-
-function clearAuthCookies(response: NextResponse): NextResponse {
-  response.cookies.delete('auth_token');
-  response.cookies.delete('user_role');
-  response.cookies.delete('operator_id');
-  response.cookies.delete('login_error');
-  return response;
 }
 
 function pickSafeResponseHeaders(upstream: Response): Headers {

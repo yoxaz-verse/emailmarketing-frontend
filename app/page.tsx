@@ -1,10 +1,12 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { ArrowRight, ShieldCheck, Mail, Network, BarChart3, Fingerprint, Zap } from "lucide-react";
+import { isTokenExpired } from "@/lib/auth-session";
 
 export default async function LandingPage() {
   const cookieStore = await cookies();
-  const hasToken = Boolean(cookieStore.get('auth_token'));
+  const token = cookieStore.get('auth_token')?.value;
+  const hasToken = Boolean(token) && !isTokenExpired(token);
 
   const ctaHref = hasToken ? '/dashboard' : '/login';
   const ctaLabel = hasToken ? 'Go to Dashboard' : 'Sign in';

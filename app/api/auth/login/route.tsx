@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { authCookieMaxAge } from '@/lib/auth-session';
 
 type LoginBackendResponse = {
   token?: string;
@@ -107,6 +108,15 @@ export async function POST(req: Request) {
   }
 
   const data = backendData;
+  const maxAge = authCookieMaxAge(data.token);
+  if (maxAge <= 0) {
+    const errorMessage = 'Login failed. Backend returned an expired or invalid session token.';
+    if (contentType.includes('application/json')) {
+      return NextResponse.json({ error: errorMessage }, { status: 401 });
+    }
+    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(errorMessage)}`, req.url));
+  }
+
   const cookieStore = await cookies();
   const isSecureRequest = new URL(req.url).protocol === 'https:';
   const shouldUseSecureCookies = process.env.NODE_ENV === 'production' || isSecureRequest;
@@ -118,7 +128,7 @@ export async function POST(req: Request) {
     path: '/',
     sameSite: 'lax',
     secure: shouldUseSecureCookies,
-    maxAge: 60 * 60 * 24 * 7, // 1 week
+    maxAge,
   });
 
   cookieStore.set('user_role', data.user.role, {
@@ -126,7 +136,7 @@ export async function POST(req: Request) {
     path: '/',
     sameSite: 'lax',
     secure: shouldUseSecureCookies,
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge,
   });
 
   if (data.user.operator_id) {
@@ -135,8 +145,10 @@ export async function POST(req: Request) {
       path: '/',
       sameSite: 'lax',
       secure: shouldUseSecureCookies,
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge,
     });
+  } else {
+    cookieStore.delete('operator_id');
   }
 
   if (contentType.includes('application/json')) {
@@ -146,6 +158,7 @@ export async function POST(req: Request) {
       shouldUseSecureCookies,
       sameSite: 'lax',
       hasOperatorId: Boolean(data.user.operator_id),
+      maxAge,
     });
     return NextResponse.json({ success: true, user: data.user });
   }
@@ -156,6 +169,7 @@ export async function POST(req: Request) {
     shouldUseSecureCookies,
     sameSite: 'lax',
     hasOperatorId: Boolean(data.user.operator_id),
+    maxAge,
   });
   return NextResponse.redirect(new URL('/dashboard', req.url), { status: 303 });
 }
