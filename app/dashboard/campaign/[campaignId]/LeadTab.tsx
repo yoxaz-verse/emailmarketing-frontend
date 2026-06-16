@@ -558,7 +558,7 @@ export default function LeadsTab({
         <h2 className="font-semibold">Campaign Leads</h2>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {isMutating ? (
-            <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-blue-200">
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-primary">
               Updating leads...
             </span>
           ) : null}
@@ -652,8 +652,8 @@ export default function LeadsTab({
                   <span className="flex-1 truncate">{row.email}</span>
                 <span className="flex items-center gap-2 text-[10px] text-muted-foreground">
                   {row.freeProvider ? (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-blue-400/40 bg-blue-500/10 px-1.5 py-0.5 text-blue-300">
-                      <span className="h-2 w-2 rounded-full bg-blue-400" title="Free provider" />
+                    <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
+                      <span className="h-2 w-2 rounded-full bg-primary" title="Free provider" />
                       free
                     </span>
                   ) : null}
@@ -741,8 +741,8 @@ export default function LeadsTab({
                   <span className="flex-1 truncate">{String(lead.email ?? `Unknown lead ${id}`)}</span>
                   <span className="flex items-center gap-2 text-[10px] text-muted-foreground">
                     {isFreeProvider(lead) ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-blue-400/40 bg-blue-500/10 px-1.5 py-0.5 text-blue-300">
-                        <span className="h-2 w-2 rounded-full bg-blue-400" title="Free provider" />
+                      <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
+                        <span className="h-2 w-2 rounded-full bg-primary" title="Free provider" />
                         free
                       </span>
                     ) : null}

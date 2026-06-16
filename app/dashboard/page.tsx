@@ -171,7 +171,7 @@ export default function OverviewPage() {
             <RefreshCcw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} /> Refresh
           </Button>
           <Link href="/dashboard/leads">
-            <Button className="bg-blue-600 hover:bg-blue-700">
+            <Button>
               <Users className="mr-2 h-4 w-4" /> Import Leads
             </Button>
           </Link>
@@ -189,10 +189,10 @@ export default function OverviewPage() {
       {/* Main Metrics Grid */}
       <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <Card className="border border-border shadow-sm bg-card overflow-hidden">
-          <div className="h-1 bg-yellow-500" />
+          <div className="h-1 bg-primary" />
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2 uppercase tracking-wider">
-              <Clock className="h-4 w-4 text-yellow-500" /> Running Campaigns
+              <Clock className="h-4 w-4 text-primary" /> Running Campaigns
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -204,10 +204,10 @@ export default function OverviewPage() {
         </Card>
 
         <Card className="border border-border shadow-sm bg-card overflow-hidden">
-          <div className="h-1 bg-blue-500" />
+          <div className="h-1 bg-primary/80" />
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2 uppercase tracking-wider">
-              <Mail className="h-4 w-4 text-blue-500" /> Active Inboxes
+              <Mail className="h-4 w-4 text-primary" /> Active Inboxes
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -221,10 +221,10 @@ export default function OverviewPage() {
         </Card>
 
         <Card className="border border-border shadow-sm bg-card overflow-hidden">
-          <div className="h-1 bg-indigo-500" />
+          <div className="h-1 bg-primary/70" />
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2 uppercase tracking-wider">
-              <Mail className="h-4 w-4 text-indigo-500" /> In-Use Inboxes
+              <Mail className="h-4 w-4 text-primary" /> In-Use Inboxes
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -238,10 +238,10 @@ export default function OverviewPage() {
         </Card>
 
         <Card className="border border-border shadow-sm bg-card overflow-hidden">
-          <div className="h-1 bg-cyan-500" />
+          <div className="h-1 bg-primary/60" />
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2 uppercase tracking-wider">
-              <Mail className="h-4 w-4 text-cyan-500" /> Idle Inboxes
+              <Mail className="h-4 w-4 text-primary" /> Idle Inboxes
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -255,14 +255,14 @@ export default function OverviewPage() {
         </Card>
 
         <Card className="border border-border shadow-sm bg-card overflow-hidden">
-          <div className="h-1 bg-green-500" />
+          <div className="h-1 bg-primary/50" />
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2 uppercase tracking-wider">
-              <TrendingUp className="h-4 w-4 text-green-500" /> Daily Capacity
+              <TrendingUp className="h-4 w-4 text-primary" /> Daily Capacity
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-green-600">
+            <div className="text-3xl font-bold text-primary">
               {operations ? operations.capacity.total_daily_capacity.toLocaleString() : '—'}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -272,10 +272,10 @@ export default function OverviewPage() {
         </Card>
 
         <Card className="border border-border shadow-sm bg-card overflow-hidden">
-          <div className="h-1 bg-pink-500" />
+          <div className="h-1 bg-primary/40" />
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2 uppercase tracking-wider">
-              <CheckCircle2 className="h-4 w-4 text-pink-500" /> Replies
+              <CheckCircle2 className="h-4 w-4 text-primary" /> Replies
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -381,9 +381,9 @@ export default function OverviewPage() {
                   {operations ? `${operations.replies.interested_replies} / ${operations.replies.unreviewed_replies}` : '—'}
                 </span>
               </div>
-              <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3">
+              <div className="rounded-lg border border-primary/40 bg-primary/10 p-3">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-yellow-300" />
+                  <AlertTriangle className="h-4 w-4 text-primary" />
                   <p className="text-sm font-medium text-foreground">Delivery Watch</p>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">

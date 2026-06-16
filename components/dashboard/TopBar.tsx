@@ -49,18 +49,18 @@ export default function TopBar() {
     };
 
     return (
-        <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 sticky top-0 z-30">
+        <header className="h-16 bg-card/95 border-b border-border flex items-center justify-between px-8 sticky top-0 z-30 backdrop-blur-xl">
             <div className="flex items-center gap-8">
                 <h1 className="text-xl font-bold text-foreground border-r border-border pr-8 h-8 flex items-center">
-                    OBT
+                    <span className="text-primary">OBAOL</span>
                     {/* {getPageTitle(pathname)} */}
                 </h1>
 
                 {/* <div className="relative group hidden md:block">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     <Input
                         placeholder="Search dashboard..."
-                        className="pl-9 w-[300px] h-9 border-none bg-gray-50 focus:bg-white focus:ring-1 focus:ring-blue-100 rounded-lg text-sm transition-all"
+                        className="pl-9 w-[300px] h-9 border-none bg-muted focus:bg-card focus:ring-1 focus:ring-primary/30 rounded-lg text-sm transition-all"
                     />
                 </div> */}
             </div>

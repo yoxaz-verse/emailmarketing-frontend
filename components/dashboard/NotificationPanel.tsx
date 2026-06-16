@@ -56,7 +56,7 @@ export default function NotificationPanel() {
     return (
         <DropdownMenu onOpenChange={(open) => open && fetchNotifications()}>
             <DropdownMenuTrigger asChild>
-                <button className="relative p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors outline-none cursor-pointer group">
+                <button className="relative p-2 text-muted-foreground hover:text-primary rounded-full hover:bg-accent/60 transition-colors outline-none cursor-pointer group">
                     <Bell className="h-5 w-5 transform group-hover:rotate-12 transition-transform" />
                     {notifications.length > 0 && (
                         <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-background animate-pulse"></span>
@@ -67,7 +67,7 @@ export default function NotificationPanel() {
                 <DropdownMenuLabel className="p-4 bg-muted/40 border-b border-border">
                     <div className="flex items-center justify-between">
                         <span className="font-bold text-foreground tracking-tight">Notifications</span>
-                        <span className="text-[10px] font-bold text-blue-300 bg-blue-500/10 px-2.5 py-1 rounded-full uppercase tracking-widest ring-1 ring-blue-500/20">
+                        <span className="text-[10px] font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full uppercase tracking-widest ring-1 ring-primary/20">
                             Activity
                         </span>
                     </div>
@@ -76,7 +76,7 @@ export default function NotificationPanel() {
                 <div className="max-h-[380px] overflow-y-auto">
                     {loading && notifications.length === 0 ? (
                         <div className="p-12 text-center">
-                            <div className="animate-spin h-6 w-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
+                            <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3" />
                             <p className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Updating feed...</p>
                         </div>
                     ) : notifications.length === 0 ? (
@@ -93,7 +93,7 @@ export default function NotificationPanel() {
                                 <div key={n.id} className="p-4 hover:bg-muted/60 transition-all cursor-default group/item">
                                     <div className="flex gap-3">
                                         <div className="mt-1 flex-shrink-0">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 group-hover/item:scale-125 transition-transform" />
+                                            <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 group-hover/item:scale-125 transition-transform" />
                                         </div>
                                         <div className="flex-1">
                                             <p className="text-sm text-foreground leading-relaxed font-medium">
@@ -119,7 +119,7 @@ export default function NotificationPanel() {
                 <DropdownMenuSeparator className="m-0" />
                 <button
                     onClick={() => setNotifications([])}
-                    className="w-full p-3.5 text-[10px] font-bold text-muted-foreground hover:text-blue-300 hover:bg-blue-500/10 transition-all uppercase tracking-[0.2em] border-t border-border"
+                    className="w-full p-3.5 text-[10px] font-bold text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all uppercase tracking-[0.2em] border-t border-border"
                 >
                     Mark all as read
                 </button>

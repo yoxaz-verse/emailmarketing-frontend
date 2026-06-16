@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, CheckCircle2, Lock, Mail, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -103,7 +104,14 @@ export default function ForgotPasswordPage() {
             <div className="w-full max-w-md">
                 {/* BRANDING */}
                 <div className="mb-10 text-center">
-                    <h1 className="text-3xl font-bold tracking-tighter text-foreground">OBAOL</h1>
+                    <Image
+                        src="/logo.png"
+                        alt="OBAOL"
+                        width={190}
+                        height={99}
+                        priority
+                        className="mx-auto h-auto w-40"
+                    />
                     <p className="text-muted-foreground text-sm mt-1">SECURITY INFRASTRUCTURE</p>
                 </div>
 
@@ -117,7 +125,7 @@ export default function ForgotPasswordPage() {
                             </div>
                             <h2 className="text-2xl font-bold text-center">Forgot Password?</h2>
                             <p className="text-muted-foreground text-center text-sm mt-2 mb-8">
-                                Enter your email and we'll send you a 6-digit code to reset your password.
+                                Enter your email and we&apos;ll send you a 6-digit code to reset your password.
                             </p>
                             <form onSubmit={handleRequest} className="space-y-4">
                                 <div>
@@ -147,7 +155,7 @@ export default function ForgotPasswordPage() {
                             </div>
                             <h2 className="text-2xl font-bold text-center">Enter Code</h2>
                             <p className="text-muted-foreground text-center text-sm mt-2 mb-8">
-                                We've sent a code to <span className="font-semibold text-foreground">{email}</span>.
+                                We&apos;ve sent a code to <span className="font-semibold text-foreground">{email}</span>.
                             </p>
                             <form onSubmit={handleVerify} className="space-y-4">
                                 <div>

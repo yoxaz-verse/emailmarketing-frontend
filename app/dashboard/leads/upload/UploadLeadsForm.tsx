@@ -252,7 +252,7 @@ export default function UploadLeadsForm({
 
   return (
     <section className="rounded-2xl border border-border/40 bg-card/30 backdrop-blur-md p-6 shadow-xl space-y-8 relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 via-blue-500/50 to-primary/50" />
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/30 via-primary/80 to-primary/30" />
 
       <div className="flex items-center justify-between gap-3">
         <div className="flex flex-col">
@@ -501,7 +501,7 @@ export default function UploadLeadsForm({
                     Valid Combination Logic
                   </li>
                   <li className="flex items-center gap-2 text-xs text-foreground/80">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                     {duplicateMode === 'replace' ? 'Duplicates replace existing leads' : 'Duplicates are skipped safely'}
                   </li>
                 </ul>

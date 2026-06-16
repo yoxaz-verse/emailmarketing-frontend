@@ -498,7 +498,7 @@ export default function AddEditModal({
             className={cn(
               'rounded px-4 transition-colors',
               isCampaignModal
-                ? 'bg-blue-500 px-5 py-2 font-semibold text-white hover:bg-blue-400'
+                ? 'bg-primary px-5 py-2 font-semibold text-primary-foreground hover:bg-primary/90'
                 : 'bg-primary py-1 text-primary-foreground'
             )}
             onClick={submit}

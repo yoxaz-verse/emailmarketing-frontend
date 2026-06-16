@@ -1,12 +1,11 @@
 
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -40,18 +39,27 @@ export default function LoginPage() {
       setTimeout(() => {
         window.location.href = '/dashboard';
       }, 1500);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Login failed');
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 bg-neutral-950 text-white">
+    <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 bg-background text-foreground">
       {/* LEFT BRAND PANEL */}
-      <div className="hidden md:flex flex-col justify-between p-12 bg-gradient-to-br from-neutral-900 via-neutral-900 to-black">
+      <div className="hidden md:flex flex-col justify-between p-12 bg-gradient-to-br from-[#15120d] via-[#080808] to-black text-white relative overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent" />
+        <div className="absolute -left-24 top-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-white">OBAOL</h1>
+          <Image
+            src="/logo.png"
+            alt="OBAOL"
+            width={220}
+            height={114}
+            priority
+            className="h-auto w-44"
+          />
           <p className="mt-2 text-sm text-neutral-400">
             Cold Email Marketing · Execution Infrastructure
           </p>
@@ -61,7 +69,7 @@ export default function LoginPage() {
           <h2 className="text-4xl font-semibold leading-tight text-white">
             Cold Email Marketing
             <br />
-            <span className="text-neutral-400">Ultimate Tool</span>
+            <span className="text-primary">Ultimate Tool</span>
           </h2>
 
           <p className="mt-6 text-neutral-400 leading-relaxed">
@@ -71,10 +79,10 @@ export default function LoginPage() {
             tracking, and execution — engineered for scale.
           </p>
 
-          <div className="mt-8 space-y-3 text-sm text-neutral-500">
-            <p>• No gimmicks. No templates spam.</p>
-            <p>• Infrastructure, not just campaigns.</p>
-            <p>• Designed for real outbound teams.</p>
+          <div className="mt-8 space-y-3 text-sm text-neutral-400">
+            <p><span className="text-primary">•</span> No gimmicks. No templates spam.</p>
+            <p><span className="text-primary">•</span> Infrastructure, not just campaigns.</p>
+            <p><span className="text-primary">•</span> Designed for real outbound teams.</p>
           </div>
         </div>
 
@@ -88,6 +96,13 @@ export default function LoginPage() {
         <div className="w-full max-w-md bg-card text-card-foreground rounded-2xl shadow-xl p-8 border border-border">
 
           <div className="mb-8 text-center">
+            <Image
+              src="/logo.png"
+              alt="OBAOL"
+              width={180}
+              height={94}
+              className="mx-auto mb-6 h-auto w-36 md:hidden"
+            />
             <h2 className="text-2xl font-semibold tracking-tight">
               Sign in to OBAOL
             </h2>

@@ -297,11 +297,11 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
     <div className="flex flex-col gap-6 pb-8 max-w-[1600px] mx-auto">
       {/* KPI Dashboard */}
       <section className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4">
-        <KpiCard label="Total Imported" value={kpis.total} icon={<Database className="w-4 h-4 text-blue-400" />} color="blue" />
+        <KpiCard label="Total Imported" value={kpis.total} icon={<Database className="w-4 h-4 text-primary" />} color="gold" />
         <KpiCard label="Valid" value={kpis.validated} icon={<CheckCircle className="w-4 h-4 text-green-400" />} color="green" />
         <KpiCard label="Invalid" value={kpis.invalid} icon={<AlertTriangle className="w-4 h-4 text-red-400" />} color="red" />
         <KpiCard label="Duplicate" value={kpis.duplicate} icon={<Filter className="w-4 h-4 text-yellow-400" />} color="yellow" />
-        <KpiCard label="Pending" value={kpis.pending} icon={<Clock className="w-4 h-4 text-purple-400" />} color="purple" />
+        <KpiCard label="Pending" value={kpis.pending} icon={<Clock className="w-4 h-4 text-primary" />} color="gold" />
         <KpiCard label="Blocked" value={kpis.blocked} icon={<AlertTriangle className="w-4 h-4 text-orange-400" />} color="orange" />
         <KpiCard label="Used" value={kpis.used} icon={<CheckCircle className="w-4 h-4 text-gray-400" />} color="gray" />
         <KpiCard label="Free" value={kpis.free} icon={<Database className="w-4 h-4 text-teal-400" />} color="teal" />
@@ -457,7 +457,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
       {/* Main Controls */}
       <div className="space-y-4">
         <section className="rounded-2xl border border-border/40 bg-card/30 backdrop-blur-md p-5 shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 via-blue-500/50 to-primary/50" />
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/30 via-primary/80 to-primary/30" />
           <div className="space-y-4">
             <h3 className="text-xl font-bold tracking-tight flex items-center gap-2 text-foreground">
               <UploadCloud className="h-5 w-5 text-primary" /> Bulk Upload
@@ -639,7 +639,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-black uppercase tracking-wider text-foreground flex items-center gap-2">
-              <Filter className="h-4 w-4 text-blue-400" /> Table Filters
+              <Filter className="h-4 w-4 text-primary" /> Table Filters
             </h3>
             <Button
               variant="ghost"
@@ -685,7 +685,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-2">
                 <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Provider</label>
-                <select className="w-full h-10 rounded-xl border border-border/60 bg-background/40 px-3 text-xs font-medium focus:ring-2 focus:ring-blue-500/20 outline-none transition-all shadow-inner" value={providerFilter} onChange={(e) => setProviderFilter(e.target.value)}>
+                <select className="w-full h-10 rounded-xl border border-border/60 bg-background/40 px-3 text-xs font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-inner" value={providerFilter} onChange={(e) => setProviderFilter(e.target.value)}>
                   <option value="">All Providers</option>
                   {providers.map((provider) => (
                     <option key={provider} value={provider}>{provider}</option>
@@ -695,7 +695,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
 
               <div className="space-y-2">
                 <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Source</label>
-                <select className="w-full h-10 rounded-xl border border-border/60 bg-background/40 px-3 text-xs font-medium focus:ring-2 focus:ring-blue-500/20 outline-none transition-all shadow-inner" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}>
+                <select className="w-full h-10 rounded-xl border border-border/60 bg-background/40 px-3 text-xs font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-inner" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}>
                   <option value="">All Sources</option>
                   {sources.map((source) => (
                     <option key={source} value={source}>{source}</option>
@@ -735,11 +735,10 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
 
 function KpiCard({ label, value, icon, color }: { label: string; value: number; icon: React.ReactNode; color: string }) {
   const colorMap: Record<string, string> = {
-    blue: "from-blue-500/20 to-transparent border-blue-500/30",
+    gold: "from-primary/20 to-transparent border-primary/30",
     green: "from-green-500/20 to-transparent border-green-500/30",
     red: "from-red-500/20 to-transparent border-red-500/30",
     yellow: "from-yellow-500/20 to-transparent border-yellow-500/30",
-    purple: "from-purple-500/20 to-transparent border-purple-500/30",
     orange: "from-orange-500/20 to-transparent border-orange-500/30",
     gray: "from-gray-500/20 to-transparent border-gray-500/30",
     teal: "from-teal-500/20 to-transparent border-teal-500/30",

@@ -30,7 +30,7 @@ export default function SelectField({ field, value, onChange, form, uiVariant = 
         className={cn(
           'w-full rounded-md border px-3 py-2 text-sm',
           campaignUi
-            ? 'h-11 border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/70 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:shadow-inner dark:shadow-slate-900'
+            ? 'h-11 border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/70 dark:border-border dark:bg-background/70 dark:text-foreground dark:placeholder:text-muted-foreground dark:shadow-inner dark:shadow-black'
             : 'border-input bg-background'
         )}
         value={value ?? ''}

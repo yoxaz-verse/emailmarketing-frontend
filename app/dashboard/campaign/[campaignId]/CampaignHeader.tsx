@@ -434,7 +434,7 @@ export default function CampaignHeader({
 
                     <div className="flex items-center gap-2 pl-8 relative z-10">
                       {inbox.operator_id == null && (
-                        <span className="px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-semibold tracking-widest uppercase">
+                        <span className="px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20 text-primary text-[10px] font-semibold tracking-widest uppercase">
                           Public
                         </span>
                       )}

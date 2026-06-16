@@ -495,7 +495,7 @@ export default function DynamicTable({
                     onChange={(e) => toggleSelectAll(e.target.checked)}
                     disabled={!selectionEnabled}
                     aria-label="Select all rows"
-                    className="h-4 w-4 rounded border-border bg-card accent-blue-500 disabled:opacity-40"
+                    className="h-4 w-4 rounded border-border bg-card accent-primary disabled:opacity-40"
                   />
                 </TableHead>
                 {visibleFields.map((f) => (
@@ -538,7 +538,7 @@ export default function DynamicTable({
                         }}
                         disabled={typeof row?.id !== 'string' || !selectionEnabled}
                         aria-label={`Select row ${row?.id ?? ''}`}
-                        className="h-4 w-4 rounded border-border bg-card accent-blue-500 disabled:opacity-40"
+                        className="h-4 w-4 rounded border-border bg-card accent-primary disabled:opacity-40"
                       />
                     </TableCell>
                     {visibleFields.map((f) => {
@@ -580,7 +580,7 @@ export default function DynamicTable({
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-8 w-8 text-muted-foreground/70 hover:text-blue-300 hover:bg-blue-500/10"
+                              className="h-8 w-8 text-muted-foreground/70 hover:text-primary hover:bg-primary/10"
                               disabled={
                                 isModalSubmitting ||
                                 (pendingRowActionId === row.id && pendingActionType === 'edit')

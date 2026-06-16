@@ -80,7 +80,7 @@ function renderRelationField(
           className={cn(
             'w-full rounded border p-2',
             campaignUi
-              ? 'border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/70 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:shadow-inner dark:shadow-slate-900'
+              ? 'border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/70 dark:border-border dark:bg-background/70 dark:text-foreground dark:placeholder:text-muted-foreground dark:shadow-inner dark:shadow-black'
               : 'border-border bg-card text-foreground'
           )}
           value={value ?? ''}
@@ -101,7 +101,7 @@ function renderRelationField(
         {options.length === 0 && (
           <a
             href={`/dashboard/${rel.table}`}
-            className="whitespace-nowrap rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800"
+            className="whitespace-nowrap rounded border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-medium text-primary hover:text-primary/80"
             title={`Add new ${field.label}`}
           >
             + Add New
@@ -142,7 +142,7 @@ export function TextField({ field, value, onChange, uiVariant = 'default' }: any
         required={field.required}
         className={cn(
           campaignUi
-            ? 'h-11 border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-blue-500/70 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500'
+            ? 'h-11 border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/70 dark:border-border dark:bg-background/70 dark:text-foreground dark:placeholder:text-muted-foreground'
             : ''
         )}
         onChange={(e) => onChange(e.target.value)}
@@ -165,7 +165,7 @@ export function PasswordField({ field, value, onChange, uiVariant = 'default' }:
         required={field.required}
         className={cn(
           campaignUi
-            ? 'h-11 border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-blue-500/70 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500'
+            ? 'h-11 border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/70 dark:border-border dark:bg-background/70 dark:text-foreground dark:placeholder:text-muted-foreground'
             : ''
         )}
         onChange={(e) => onChange(e.target.value)}
@@ -185,7 +185,7 @@ export function TextAreaField({ field, value, onChange, uiVariant = 'default' }:
         required={field.required}
         className={cn(
           campaignUi
-            ? 'border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-blue-500/70 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500'
+            ? 'border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/70 dark:border-border dark:bg-background/70 dark:text-foreground dark:placeholder:text-muted-foreground'
             : ''
         )}
         onChange={(e) => onChange(e.target.value)}
