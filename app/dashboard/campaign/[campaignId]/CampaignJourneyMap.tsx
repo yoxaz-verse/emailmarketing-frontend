@@ -8,9 +8,11 @@ type SequenceStep = {
 type CampaignLead = {
   id?: string | null;
   status?: string | null;
+  status_reason?: string | null;
   current_step?: number | null;
   lead_id?: string | null;
   last_sent_at?: string | null;
+  assigned_inbox_id?: string | null;
 };
 
 type Campaign = {
@@ -28,6 +30,7 @@ type Lead = {
 
 type Inbox = {
   id?: string;
+  email_address?: string | null;
   daily_limit?: number | null;
   hourly_limit?: number | null;
   warmup_enabled?: boolean | null;
@@ -200,6 +203,58 @@ function getLeadStepState(
   }
 
   return 'pending';
+}
+
+function formatStatusReason(reasonRaw?: string | null): string | null {
+  const reason = String(reasonRaw ?? '').trim().toLowerCase();
+  if (!reason) return null;
+  const labels: Record<string, string> = {
+    auth_not_provider_safe: 'Auth not provider-safe',
+    auth_provider_safe_requeued: 'Auth checked, requeued',
+    sequence_delay_not_elapsed: 'Waiting for sequence delay',
+    user_unsubscribed_campaign: 'Unsubscribed',
+    no_eligible_sender: 'No eligible sender',
+    inbox_paused: 'Inbox paused',
+    inbox_temp_paused_until: 'Inbox cooling down',
+    domain_gated: 'Domain gated',
+    missing_smtp: 'Missing SMTP',
+  };
+  return labels[reason] ?? reason
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function formatStatusLabel(statusRaw?: string | null, reasonRaw?: string | null): string {
+  const status = String(statusRaw ?? 'pending').trim().toLowerCase() || 'pending';
+  const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+  const reasonLabel = formatStatusReason(reasonRaw);
+  return reasonLabel ? `${statusLabel} - ${reasonLabel}` : statusLabel;
+}
+
+function getNextDelayEligibleAt(
+  currentStep: number,
+  delayDaysByStep: number[],
+  lastSentAtRaw?: string | null
+): Date | null {
+  if (currentStep <= 1) return null;
+  const delayDays = Math.max(0, Number(delayDaysByStep[currentStep - 1] ?? 0));
+  const lastSentAt = new Date(String(lastSentAtRaw ?? ''));
+  if (Number.isNaN(lastSentAt.getTime())) return null;
+  return new Date(lastSentAt.getTime() + (delayDays * 24 * 60 * 60 * 1000));
+}
+
+function formatIstDateTime(date: Date): string {
+  return `${new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kolkata'
+  }).format(date)} IST`;
 }
 
 export default function CampaignJourneyMap({
@@ -608,9 +663,16 @@ export default function CampaignJourneyMap({
   for (const lead of allLeads) {
     if (lead.id) leadById.set(String(lead.id), lead);
   }
+  const inboxEmailById = new Map<string, string>();
+  for (const inbox of inboxes) {
+    const inboxId = String(inbox?.id ?? '').trim();
+    const email = String(inbox?.email_address ?? '').trim();
+    if (inboxId && email) inboxEmailById.set(inboxId, email);
+  }
 
   const leadProgressRows = campaignLeads.map((row, rowIndex) => {
     const status = String(row.status ?? '').toLowerCase();
+    const statusReason = String(row.status_reason ?? '').trim();
     const currentStep = Number(row.current_step ?? 1);
     const lead = leadById.get(String(row.lead_id ?? ''));
     const stepStates = Array.from({ length: stepCount }, (_, stepIndex) =>
@@ -639,35 +701,42 @@ export default function CampaignJourneyMap({
     const hasProgressMismatch = (status === 'completed' || status === 'replied') && currentStep <= stepCount && !isDelayBlocked;
     const fallbackLeadId = String(row.lead_id ?? `row-${rowIndex + 1}`);
     const campaignLeadId = String(row.id ?? '');
-    const deliveryOutcome = campaignLeadId
-      ? String(leadOutcomeByCampaignLeadId?.[campaignLeadId] ?? 'Not Sent')
-      : 'Not Sent';
-    const rawLastSentAt = campaignLeadId
+    const analyticsOutcome = campaignLeadId
+      ? String(leadOutcomeByCampaignLeadId?.[campaignLeadId] ?? '').trim()
+      : '';
+    const analyticsLastSentAt = campaignLeadId
       ? (lastSentAtByCampaignLeadId?.[campaignLeadId] ?? null)
       : null;
-    const senderInboxEmailRaw = campaignLeadId
+    const rowLastSentAt = row.last_sent_at ?? null;
+    const rawLastSentAt = analyticsLastSentAt || rowLastSentAt;
+    const hasUnloggedSendEvidence = !analyticsLastSentAt && Boolean(rowLastSentAt);
+    const deliveryOutcome = analyticsOutcome || (hasUnloggedSendEvidence ? 'Sent (Unlogged)' : 'Not Sent');
+    const analyticsSenderInboxEmailRaw = campaignLeadId
       ? String(senderInboxEmailByCampaignLeadId?.[campaignLeadId] ?? '').trim()
       : '';
+    const fallbackSenderInboxEmail = row.assigned_inbox_id
+      ? (inboxEmailById.get(String(row.assigned_inbox_id)) ?? '')
+      : '';
+    const senderInboxEmailRaw = analyticsSenderInboxEmailRaw || fallbackSenderInboxEmail;
     const senderInboxDisplay = rawLastSentAt
       ? (senderInboxEmailRaw || 'Unknown Inbox')
       : 'Not Sent Yet';
     const sentAtDate = rawLastSentAt ? new Date(String(rawLastSentAt)) : null;
     const lastSentAtDisplay = sentAtDate && !Number.isNaN(sentAtDate.getTime())
-      ? `${new Intl.DateTimeFormat('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-        timeZone: 'Asia/Kolkata'
-      }).format(sentAtDate)} IST`
+      ? `${formatIstDateTime(sentAtDate)}${hasUnloggedSendEvidence ? ' (unlogged)' : ''}`
       : 'Not Sent Yet';
+    const nextDelayEligibleAt = isDelayBlocked
+      ? getNextDelayEligibleAt(currentStep, delayDays, row.last_sent_at)
+      : null;
+    const currentStatusDisplay = nextDelayEligibleAt
+      ? `${formatStatusLabel(status, statusReason)} until ${formatIstDateTime(nextDelayEligibleAt)}`
+      : formatStatusLabel(status, statusReason);
     return {
       key: `${fallbackLeadId}-${rowIndex}`,
       leadLabel: lead?.email || fallbackLeadId,
       leadId: fallbackLeadId,
       rawStatus: status || 'pending',
+      currentStatusDisplay,
       stepsDone,
       hasProgressMismatch,
       deliveryOutcome,
@@ -739,6 +808,8 @@ export default function CampaignJourneyMap({
     if (normalized.includes('soft bounce')) return 'border-orange-500/30 bg-orange-500/15 text-orange-700 dark:text-orange-200';
     if (normalized.includes('opened')) return 'border-sky-500/30 bg-sky-500/15 text-sky-700 dark:text-sky-200';
     if (normalized.includes('delivered')) return 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-200';
+    if (normalized.includes('unlogged')) return 'border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-200';
+    if (normalized.includes('sent')) return 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-200';
     if (normalized.includes('pending')) return 'border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-200';
     return 'border-slate-500/30 bg-slate-500/15 text-foreground/90 dark:text-slate-200';
   };
@@ -935,7 +1006,7 @@ export default function CampaignJourneyMap({
                           </span>
                         </td>
                       ))}
-                      <td className="py-2 text-muted-foreground dark:text-slate-300">{row.rawStatus}</td>
+                      <td className="py-2 text-muted-foreground dark:text-slate-300">{row.currentStatusDisplay}</td>
                     </tr>
                   ))}
                 </tbody>
