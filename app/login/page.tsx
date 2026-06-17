@@ -2,13 +2,21 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginPageContent() {
+  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const sessionMessage =
+    searchParams.get('reason') === 'session-expired'
+      ? 'Your session expired. Please sign in again.'
+      : null;
+  const urlError = searchParams.get('error');
+  const visibleError = error || urlError;
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -111,9 +119,15 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {error && (
+          {sessionMessage && !visibleError && (
+            <div className="mb-6 rounded-lg border border-primary/40 bg-primary/10 px-4 py-3 text-sm text-primary font-medium animate-in fade-in slide-in-from-top-2">
+              {sessionMessage}
+            </div>
+          )}
+
+          {visibleError && (
             <div className="mb-6 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive font-medium animate-in fade-in slide-in-from-top-2">
-              {error}
+              {visibleError}
             </div>
           )}
 
@@ -186,5 +200,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginPageContent />
+    </Suspense>
   );
 }

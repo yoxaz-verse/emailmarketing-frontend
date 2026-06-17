@@ -43,7 +43,7 @@ export async function serverFetch<T>(
   console.log('[serverFetch] status:', res.status);
 
   if (res.status === 401 || res.status === 403) {
-    redirect('/api/auth/logout');
+    redirect('/api/auth/logout?reason=session-expired');
   }
 
   if (!res.ok) {

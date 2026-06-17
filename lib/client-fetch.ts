@@ -99,7 +99,7 @@ export async function clientFetch<T>(
     if (typeof window !== 'undefined') {
       if (!hasTriggeredAuthRedirect) {
         hasTriggeredAuthRedirect = true;
-        window.location.href = '/api/auth/logout';
+        window.location.href = '/api/auth/logout?reason=session-expired';
       }
       throw new Error('UNAUTHORIZED');
     }

@@ -5,6 +5,7 @@ const DEFAULT_CLOCK_SKEW_SECONDS = 30;
 type CookieClearingResponse = {
   cookies: {
     delete: (name: string) => unknown;
+    set?: (name: string, value: string, options: { path: string; maxAge: number }) => unknown;
   };
 };
 
@@ -65,6 +66,7 @@ export function authCookieMaxAge(token: string | undefined | null): number {
 export function clearAuthCookies<T extends CookieClearingResponse>(response: T): T {
   for (const name of AUTH_COOKIE_NAMES) {
     response.cookies.delete(name);
+    response.cookies.set?.(name, '', { path: '/', maxAge: 0 });
   }
   return response;
 }

@@ -9,7 +9,7 @@ export default async function LandingPage() {
   const token = cookieStore.get('auth_token')?.value;
   const hasToken = Boolean(token) && !isTokenExpired(token);
 
-  const ctaHref = hasToken ? '/dashboard' : '/login';
+  const ctaHref = hasToken ? '/api/auth/enter-dashboard' : '/login';
   const ctaLabel = hasToken ? 'Go to Dashboard' : 'Sign in';
 
   const capabilities = [
