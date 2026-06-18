@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
@@ -10,14 +10,60 @@ const outfit = Outfit({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  themeColor: "#040404",
+  colorScheme: "dark",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
+
 export const metadata: Metadata = {
-  title: "OBAOL | Cold Email Infrastructure",
-  description: "OBAOL is an execution system designed for outbound teams that operate at scale. Built as Infrastructure.",
-  keywords: ["cold email", "outbound", "email infrastructure", "B2B sales", "lead generation"],
+  title: {
+    default: "OBAOL | Cold Email Infrastructure",
+    template: "%s | OBAOL"
+  },
+  description: "OBAOL is a system-level outbound execution engine designed for scale. Features lead validation, warmup, delivery control, and bounce intelligence.",
+  keywords: ["cold email", "outbound", "email infrastructure", "B2B sales", "lead generation", "inbox warm-up", "domain protection", "auto-suppression"],
+  metadataBase: new URL("https://emarketing.obaol.com"),
+  alternates: {
+    canonical: "/",
+  },
+  authors: [{ name: "OBAOL Team" }],
+  robots: {
+    index: true,
+    follow: true,
+  },
   openGraph: {
     title: "OBAOL | Cold Email Infrastructure",
     description: "Built for operators. System-level control for outbound email marketing.",
+    url: "https://emarketing.obaol.com",
+    siteName: "OBAOL",
+    locale: "en_US",
     type: "website",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "OBAOL | Cold Email Infrastructure",
+      }
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "OBAOL | Cold Email Infrastructure",
+    description: "Built for operators. System-level control for outbound email marketing.",
+    images: ["/og-image.png"],
+  },
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" }
+    ],
+    apple: [
+      { url: "/apple-icon.png", sizes: "180x180", type: "image/png" }
+    ]
   }
 };
 
