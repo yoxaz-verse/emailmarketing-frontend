@@ -262,16 +262,16 @@ export default function RepliesReviewClient({
           ) : null}
 
           {replyCaptureHealth?.stale ? (
-            <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200 backdrop-blur-md shadow-sm">
-              <Clock className="h-5 w-5 text-amber-500 shrink-0" />
+            <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-200 backdrop-blur-md shadow-sm">
+              <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
               <div>Reply capture worker looks stale. Last poll: <span className="font-semibold">{replyCaptureHealth.last_poll_at ? new Date(replyCaptureHealth.last_poll_at).toLocaleString() : 'never'}</span>.</div>
             </div>
           ) : null}
 
           {(replyCaptureHealth?.failed_inbox_count ?? 0) > 0 ? (
-            <div className="flex flex-col gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200 backdrop-blur-md shadow-sm">
+            <div className="flex flex-col gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-200 backdrop-blur-md shadow-sm">
               <div className="flex items-center gap-3">
-                <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
+                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
                 <div>Reply capture has inbox failures: <span className="font-semibold">{replyCaptureHealth?.failed_inbox_count} failed</span> out of {replyCaptureHealth?.active_inbox_count ?? 0} active inboxes.</div>
               </div>
               {Array.isArray(replyCaptureHealth?.inboxes)
@@ -304,9 +304,9 @@ export default function RepliesReviewClient({
       {(activeTab === 'all' || activeTab === 'needs_mapping') && unmatched.length > 0 ? (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="text-xs font-bold uppercase tracking-widest text-amber-500/80">Needs Mapping</div>
+            <div className="text-xs font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400/80">Needs Mapping</div>
             <div className="h-px flex-1 bg-amber-500/20"></div>
-            <div className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-500">{unmatched.length}</div>
+            <div className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">{unmatched.length}</div>
           </div>
           
           <div className="grid items-start gap-4 md:grid-cols-2">
@@ -320,7 +320,7 @@ export default function RepliesReviewClient({
                   >
                     <div className="flex flex-col gap-1.5 flex-1 min-w-0">
                       <div className="flex items-center gap-2 text-sm text-foreground/80">
-                        <User className="h-4 w-4 text-amber-500/70 shrink-0" />
+                        <User className="h-4 w-4 text-amber-600 dark:text-amber-400/70 shrink-0" />
                         <span className="font-semibold truncate">{row.from_email || 'Unknown sender'}</span>
                       </div>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -334,17 +334,17 @@ export default function RepliesReviewClient({
                     </div>
                     
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="rounded-lg bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-500">
+                      <span className="rounded-lg bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
                         Map Required
                       </span>
-                      <ChevronDown className={`h-4 w-4 text-amber-500/60 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                      <ChevronDown className={`h-4 w-4 text-amber-600 dark:text-amber-400/60 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                     </div>
                   </div>
 
                   <div className={`grid transition-all duration-300 ease-in-out ${isExpanded ? 'grid-rows-[1fr] opacity-100 mt-4' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
                     <div className="overflow-hidden space-y-4">
                       {row.scope_match_source ? (
-                        <div className="inline-flex items-center gap-1.5 rounded-md bg-background/50 px-2 py-1 text-[11px] text-amber-400 backdrop-blur-sm">
+                        <div className="inline-flex items-center gap-1.5 rounded-md bg-background/50 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400 backdrop-blur-sm">
                           <Activity className="h-3 w-3" />
                           Visible via {row.scope_match_source === 'message_id' ? 'message-id match' : 'recipient+time fallback'} ({row.scope_confidence || 'unknown'} confidence)
                         </div>
@@ -358,7 +358,7 @@ export default function RepliesReviewClient({
                       <div className="flex justify-end pt-2">
                         <button
                           type="button"
-                          className="inline-flex items-center gap-2 rounded-lg bg-amber-500/10 px-4 py-2 text-sm font-medium text-amber-500 transition-colors hover:bg-amber-500/20 disabled:opacity-50"
+                          className="inline-flex items-center gap-2 rounded-lg bg-amber-500/10 px-4 py-2 text-sm font-medium text-amber-600 dark:text-amber-400 transition-colors hover:bg-amber-500/20 disabled:opacity-50"
                           onClick={(e) => {
                             e.stopPropagation();
                             mapUnmatched(row.id, row.from_email);

@@ -330,13 +330,13 @@ export default function SocialConnectorsClient({
                 ))}
               </select>
               {!selectedOperatorId && (
-                <p className="text-xs text-amber-700 dark:text-amber-300">Select an operator to start LinkedIn connect flow.</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 dark:text-amber-300">Select an operator to start LinkedIn connect flow.</p>
               )}
               {isAdmin && hasOperatorLoadFailure && (
                 <p className="text-xs text-rose-700 dark:text-rose-300">{operatorLoadError}</p>
               )}
               {isAdmin && !hasOperatorLoadFailure && !hasOperators && (
-                <p className="text-xs text-amber-700 dark:text-amber-300">No operators available. Add/create operators first.</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 dark:text-amber-300">No operators available. Add/create operators first.</p>
               )}
               {isAdmin && operatorLoadErrorKind === 'backend_unavailable' && (
                 <p className="text-xs text-muted-foreground">
@@ -396,18 +396,18 @@ export default function SocialConnectorsClient({
                   </div>
 
                   {conn?.reason && (
-                    <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-200">
+                    <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-300 dark:text-amber-200">
                       <p className="font-medium">Why not connected?</p>
                       <p className="mt-1">{conn.reason}</p>
                     </div>
                   )}
                   {isOauthSupported && isAdmin && selectedOperatorId && !oauthAppConfigured && (
-                    <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-200">
+                    <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-300 dark:text-amber-200">
                       LinkedIn app credentials are not configured for this operator. Configure in admin social app settings.
                     </div>
                   )}
                   {isAdmin && selectedOperatorId && !appConfigured && missingFields.length > 0 && (
-                    <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-200">
+                    <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-300 dark:text-amber-200">
                       Missing app config fields: {missingFields.join(', ')}
                     </div>
                   )}

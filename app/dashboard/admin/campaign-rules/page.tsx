@@ -77,11 +77,11 @@ export default async function CampaignRulesPage() {
           <li>Conflict and skip events are written to system events for auditability.</li>
         </ul>
         <div className="pt-2 text-sm">
-          <Link className="text-blue-300 hover:text-blue-200 underline" href="/dashboard/admin/sending-limits">
+          <Link className="text-blue-700 dark:text-blue-300 hover:text-blue-700 dark:text-blue-200 underline" href="/dashboard/admin/sending-limits">
             Open Sending Limits
           </Link>
           <span className="mx-2 text-muted-foreground">•</span>
-          <Link className="text-blue-300 hover:text-blue-200 underline" href="/dashboard/admin/validation-monitor">
+          <Link className="text-blue-700 dark:text-blue-300 hover:text-blue-700 dark:text-blue-200 underline" href="/dashboard/admin/validation-monitor">
             Open Validation Monitor
           </Link>
         </div>

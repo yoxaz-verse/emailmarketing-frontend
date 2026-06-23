@@ -539,7 +539,7 @@ export default function LeadsTab({
   return (
     <div className="border border-border rounded p-4 space-y-4 bg-card">
       {!mutationHealth?.ok ? (
-        <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+        <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-200">
           Mutation health check failed: {mutationHealth?.reason ?? 'Route contract mismatch or backend unavailable.'}
           {' '}Verify backend deployment and `NEXT_PUBLIC_API_BASE_URL`.
         </div>
@@ -550,7 +550,7 @@ export default function LeadsTab({
         </div>
       ) : null}
       {isLeadMutationLocked ? (
-        <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+        <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-200">
           {leadMutationLockedMessage}
         </div>
       ) : null}
@@ -573,7 +573,7 @@ export default function LeadsTab({
         <span>Ineligible: {excludedRows.length}</span>
       </div>
       {attachedNonQualifiedCount > 0 ? (
-        <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+        <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-200">
           {attachedNonQualifiedCount} attached lead(s) are non-attachable (legacy). Remove them to keep campaign within qualified/risky policy.
         </div>
       ) : null}
@@ -664,7 +664,7 @@ export default function LeadsTab({
                     </span>
                   ) : null}
                   {row.bucket === 'risky' ? (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-300">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-700 dark:text-amber-300">
                       <span className="h-2 w-2 rounded-full bg-amber-400" title="Risky" />
                       risky
                     </span>
@@ -753,7 +753,7 @@ export default function LeadsTab({
                       </span>
                     ) : null}
                     {bucket === 'risky' ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-300">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-700 dark:text-amber-300">
                         <span className="h-2 w-2 rounded-full bg-amber-400" title="Risky" />
                         risky
                       </span>

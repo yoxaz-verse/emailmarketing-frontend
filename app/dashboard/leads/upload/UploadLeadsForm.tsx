@@ -266,7 +266,7 @@ export default function UploadLeadsForm({
             Go to Leads
           </Link>
           {importData && (
-            <Button variant="ghost" size="sm" onClick={() => setImportData(null)} className="text-xs hover:bg-red-500/10 hover:text-red-400 transition-colors">
+            <Button variant="ghost" size="sm" onClick={() => setImportData(null)} className="text-xs hover:bg-red-500/10 hover:text-red-700 dark:text-red-400 transition-colors">
               Clear Selection
             </Button>
           )}
@@ -370,7 +370,7 @@ export default function UploadLeadsForm({
                 <div key={field} className="flex flex-col gap-3 rounded-xl border border-border/40 bg-card/40 p-4 transition-all hover:bg-card/60 hover:border-primary/30 group">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-foreground group-hover:text-primary transition-colors">{field.replace('_', ' ')}</span>
-                    {field === 'email' && <span className="text-[9px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded uppercase font-bold">Required</span>}
+                    {field === 'email' && <span className="text-[9px] bg-red-500/20 text-red-700 dark:text-red-400 px-1.5 py-0.5 rounded uppercase font-bold">Required</span>}
                   </div>
 
                   <div className="flex p-0.5 rounded-lg bg-background/50 border border-border/40">
@@ -483,7 +483,7 @@ export default function UploadLeadsForm({
                 </h4>
                 <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-mono">{importData.rows.length} rows total</span>
               </div>
-              <pre className="h-[200px] overflow-auto rounded-xl border border-border/60 bg-black/60 p-4 text-[10px] font-mono text-green-400 custom-scrollbar shadow-inner">
+              <pre className="h-[200px] overflow-auto rounded-xl border border-border/60 bg-black/60 p-4 text-[10px] font-mono text-green-700 dark:text-green-400 custom-scrollbar shadow-inner">
                 {JSON.stringify(resolvedPreviewRows.length ? resolvedPreviewRows : importData.rows.slice(0, 5), null, 2)}
               </pre>
             </div>
@@ -510,15 +510,15 @@ export default function UploadLeadsForm({
               <div className="space-y-4">
                 {importError && (
                   <div className="animate-in slide-in-from-bottom-2 duration-300">
-                    <div className="text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded-xl p-3 space-y-2">
+                    <div className="text-xs text-red-700 dark:text-red-300 bg-red-500/10 border border-red-500/30 rounded-xl p-3 space-y-2">
                       <div className="font-bold flex items-center gap-2">
                         <AlertTriangle className="w-3 h-3" /> {importError.userMessage}
                       </div>
                       <div className="flex items-center gap-3">
-                        <button type="button" className="text-[10px] uppercase font-bold text-red-200 hover:text-white transition-colors" onClick={() => setShowImportErrorDetails(!showImportErrorDetails)}>
+                        <button type="button" className="text-[10px] uppercase font-bold text-red-700 dark:text-red-200 hover:text-white transition-colors" onClick={() => setShowImportErrorDetails(!showImportErrorDetails)}>
                           {showImportErrorDetails ? 'Hide Details' : 'View Raw Logs'}
                         </button>
-                        <button type="button" className="text-[10px] uppercase font-bold text-red-200 hover:text-white transition-colors" onClick={() => { setImportError(null); setShowImportErrorDetails(false); }}>
+                        <button type="button" className="text-[10px] uppercase font-bold text-red-700 dark:text-red-200 hover:text-white transition-colors" onClick={() => { setImportError(null); setShowImportErrorDetails(false); }}>
                           Dismiss
                         </button>
                       </div>
@@ -532,7 +532,7 @@ export default function UploadLeadsForm({
                 )}
 
                 {hasOperatorSelection && !selectedOperatorId && (
-                  <div className="text-[10px] text-amber-400 font-bold uppercase tracking-widest text-center py-2 animate-pulse">
+                  <div className="text-[10px] text-amber-700 dark:text-amber-400 font-bold uppercase tracking-widest text-center py-2 animate-pulse">
                     Please select an operator
                   </div>
                 )}
@@ -559,7 +559,7 @@ export default function UploadLeadsForm({
           {importReport && (
             <div className="animate-in slide-in-from-top-4 duration-700 pt-8 border-t border-border/40 space-y-6">
               <div className="flex flex-col items-center text-center space-y-2 mb-4">
-                <div className="p-3 rounded-full bg-green-500/20 text-green-500 animate-bounce">
+                <div className="p-3 rounded-full bg-green-500/20 text-green-600 dark:text-green-400 animate-bounce">
                   <PartyPopper className="w-6 h-6" />
                 </div>
                 <h4 className="text-xl font-bold text-foreground">Mission Successful</h4>
@@ -568,18 +568,18 @@ export default function UploadLeadsForm({
 
               <div className="grid grid-cols-3 gap-6">
                 <div className="relative group rounded-2xl border border-green-500/30 bg-green-500/5 p-6 text-center transition-all hover:bg-green-500/10 shadow-lg shadow-green-500/5">
-                  <div className="text-[10px] font-bold text-green-500/70 uppercase tracking-[0.2em] mb-2">Successfully Onboarded</div>
-                  <div className="text-4xl font-black text-green-500 tracking-tighter">{importReport.insertedCount}</div>
+                  <div className="text-[10px] font-bold text-green-600 dark:text-green-400/70 uppercase tracking-[0.2em] mb-2">Successfully Onboarded</div>
+                  <div className="text-4xl font-black text-green-600 dark:text-green-400 tracking-tighter">{importReport.insertedCount}</div>
                 </div>
                 <div className="relative group rounded-2xl border border-yellow-500/30 bg-yellow-500/5 p-6 text-center transition-all hover:bg-yellow-500/10 shadow-lg shadow-yellow-500/5">
-                  <div className="text-[10px] font-bold text-yellow-500/70 uppercase tracking-[0.2em] mb-2">
+                  <div className="text-[10px] font-bold text-yellow-600 dark:text-yellow-400/70 uppercase tracking-[0.2em] mb-2">
                     {duplicateMode === 'replace' ? 'Duplicate Emails Detected' : 'Duplicate Emails Skipped'}
                   </div>
-                  <div className="text-4xl font-black text-yellow-500 tracking-tighter">{importReport.duplicateCount}</div>
+                  <div className="text-4xl font-black text-yellow-600 dark:text-yellow-400 tracking-tighter">{importReport.duplicateCount}</div>
                 </div>
                 <div className="relative group rounded-2xl border border-red-500/30 bg-red-500/5 p-6 text-center transition-all hover:bg-red-500/10 shadow-lg shadow-red-500/5">
-                  <div className="text-[10px] font-bold text-red-500/70 uppercase tracking-[0.2em] mb-2">Invalid Format</div>
-                  <div className="text-4xl font-black text-red-500 tracking-tighter">{importReport.invalidCount}</div>
+                  <div className="text-[10px] font-bold text-red-600 dark:text-red-400/70 uppercase tracking-[0.2em] mb-2">Invalid Format</div>
+                  <div className="text-4xl font-black text-red-600 dark:text-red-400 tracking-tighter">{importReport.invalidCount}</div>
                 </div>
               </div>
 
@@ -592,7 +592,7 @@ export default function UploadLeadsForm({
               <div className="flex items-center justify-center gap-4 pt-2">
                 {importReport.duplicateCount > 0 && (
                   <a
-                    className="text-xs font-bold text-yellow-300 hover:text-yellow-200 flex items-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/20 transition-all hover:scale-105"
+                    className="text-xs font-bold text-yellow-700 dark:text-yellow-300 hover:text-yellow-700 dark:text-yellow-200 flex items-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/20 transition-all hover:scale-105"
                     href={`data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify({
                       reason: 'Email already exists for this operator.',
                       duplicateEmails: importReport.duplicateEmails,
@@ -604,7 +604,7 @@ export default function UploadLeadsForm({
                 )}
                 {importReport.invalidCount > 0 && (
                   <a
-                    className="text-xs font-bold text-red-400 hover:text-red-300 flex items-center gap-2 px-6 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 transition-all hover:scale-105"
+                    className="text-xs font-bold text-red-700 dark:text-red-400 hover:text-red-700 dark:text-red-300 flex items-center gap-2 px-6 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 transition-all hover:scale-105"
                     href={`data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(importReport.invalidRows, null, 2))}`}
                     download="onboarding-error-report.json"
                   >

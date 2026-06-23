@@ -315,10 +315,10 @@ export default function InquiryFetchingClient() {
         </div>
       </div>
 
-      {error && <div className="rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
-      {success && <div className="rounded border border-green-500/30 bg-green-500/10 p-3 text-sm text-green-300">{success}</div>}
+      {error && <div className="rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300">{error}</div>}
+      {success && <div className="rounded border border-green-500/30 bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-300">{success}</div>}
       {fallbackCatalogActive && (
-        <div className="rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
+        <div className="rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-200">
           DB seed missing or unavailable. Showing fallback source catalog.
         </div>
       )}
@@ -388,7 +388,7 @@ export default function InquiryFetchingClient() {
                     </div>
                     <div className="text-muted-foreground">{run.status} | Fetched: {run.fetched_count}, Inserted: {run.inserted_count}, Deduped: {run.deduped_count}, Failed: {run.failed_count}</div>
                     <div className="text-muted-foreground">Latency: {run.latency_ms ?? 0} ms</div>
-                    {run.error_message && <div className="text-red-300">{run.error_message}</div>}
+                    {run.error_message && <div className="text-red-700 dark:text-red-300">{run.error_message}</div>}
                   </div>
                 ))}
               </CardContent>

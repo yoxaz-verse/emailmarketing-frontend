@@ -46,11 +46,11 @@ const PLATFORM_LABELS: Record<PlatformCode, string> = {
   whatsapp: 'WhatsApp',
 };
 const PLATFORM_COLORS: Record<PlatformCode, string> = {
-  meta: 'bg-blue-500/15 text-blue-700 border-blue-500/30 dark:bg-blue-600/20 dark:text-blue-300 dark:border-blue-500/30',
+  meta: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 dark:bg-blue-600/20 dark:text-blue-300 dark:border-blue-500/30',
   linkedin: 'bg-cyan-500/15 text-cyan-700 border-cyan-500/30 dark:bg-cyan-600/20 dark:text-cyan-300 dark:border-cyan-500/30',
-  reddit: 'bg-orange-500/15 text-orange-700 border-orange-500/30 dark:bg-orange-600/20 dark:text-orange-300 dark:border-orange-500/30',
+  reddit: 'bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30 dark:bg-orange-600/20 dark:text-orange-300 dark:border-orange-500/30',
   telegram: 'bg-sky-500/15 text-sky-700 border-sky-500/30 dark:bg-sky-600/20 dark:text-sky-300 dark:border-sky-500/30',
-  whatsapp: 'bg-green-500/15 text-green-700 border-green-500/30 dark:bg-green-600/20 dark:text-green-300 dark:border-green-500/30',
+  whatsapp: 'bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30 dark:bg-green-600/20 dark:text-green-300 dark:border-green-500/30',
 };
 
 function startOfMonth(date: Date): Date {
@@ -530,7 +530,7 @@ export default function SocialSchedulingClient() {
                 </div>
 
                 <div className="rounded-lg border border-blue-500/20 bg-blue-500/[0.03] p-2 md:border-l-2 md:border-l-blue-400/70">
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-200">Navigate</p>
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300 dark:text-blue-200">Navigate</p>
                   <div className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 dark:bg-white/[0.02] p-1.5">
                     <Button
                       size="sm"
@@ -670,7 +670,7 @@ export default function SocialSchedulingClient() {
               <div className="grid grid-cols-8 gap-2">
                 <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Time</div>
                 {weekDays.map((d) => (
-                  <div key={d.toISOString()} className={`rounded px-2 py-1 text-xs font-semibold ${isSameDay(d, today) ? 'bg-blue-600/20 text-blue-700 dark:text-blue-200' : 'text-muted-foreground'}`}>
+                  <div key={d.toISOString()} className={`rounded px-2 py-1 text-xs font-semibold ${isSameDay(d, today) ? 'bg-blue-600/20 text-blue-700 dark:text-blue-300 dark:text-blue-200' : 'text-muted-foreground'}`}>
                     {new Intl.DateTimeFormat('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }).format(d)}
                   </div>
                 ))}

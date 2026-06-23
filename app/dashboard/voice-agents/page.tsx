@@ -18,8 +18,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 const statusColors: Record<VoiceAgentStatus, string> = {
-    active: "bg-green-500/20 text-green-300 border-green-500/30",
-    paused: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
+    active: "bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30",
+    paused: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30",
     retired: "bg-muted text-muted-foreground border-border",
 };
 
@@ -61,12 +61,12 @@ export default function VoiceAgentListPage() {
                                 <TableRow key={agent.id} className="hover:bg-muted/40 transition-colors">
                                     <TableCell className="font-medium">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-300 font-bold text-xs">
+                                            <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-700 dark:text-blue-300 font-bold text-xs">
                                                 {agent.name.split(' ').map(n => n[0]).join('')}
                                             </div>
                                             <Link
                                                 href={`/dashboard/voice-agents/${agent.id}`}
-                                                className="text-blue-300 hover:text-blue-200 hover:underline"
+                                                className="text-blue-700 dark:text-blue-300 hover:text-blue-700 dark:text-blue-200 hover:underline"
                                             >
                                                 {agent.name}
                                             </Link>
@@ -94,7 +94,7 @@ export default function VoiceAgentListPage() {
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <Link href={`/dashboard/voice-agents/${agent.id}`}>
-                                            <Button variant="ghost" size="sm" className="text-blue-300 hover:text-blue-200 hover:bg-blue-500/10">
+                                            <Button variant="ghost" size="sm" className="text-blue-700 dark:text-blue-300 hover:text-blue-700 dark:text-blue-200 hover:bg-blue-500/10">
                                                 View Details
                                             </Button>
                                         </Link>

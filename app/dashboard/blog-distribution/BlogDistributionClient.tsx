@@ -357,7 +357,7 @@ export default function BlogDistributionClient() {
         <Button variant="outline" onClick={() => void refreshAll()} disabled={loading}>{loading ? 'Refreshing...' : 'Refresh'}</Button>
       </div>
 
-      {error && <div className="rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
+      {error && <div className="rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300">{error}</div>}
 
       <div className="flex gap-2">
         <Button variant={activeSection === 'fetch' ? 'default' : 'outline'} onClick={() => setActiveSection('fetch')}>Fetch Blogs</Button>
@@ -413,7 +413,7 @@ export default function BlogDistributionClient() {
                       </div>
                       <p className="text-xs text-muted-foreground">{item.publisher_name} {item.published_at ? `| ${new Date(item.published_at).toLocaleString()}` : ''}</p>
                       <p className="text-sm text-muted-foreground mt-1">{item.excerpt}</p>
-                      <a href={item.source_url} target="_blank" rel="noreferrer" className="text-xs text-blue-300 underline break-all">{item.source_url}</a>
+                      <a href={item.source_url} target="_blank" rel="noreferrer" className="text-xs text-blue-700 dark:text-blue-300 underline break-all">{item.source_url}</a>
                     </div>
                   </div>
                 </label>
@@ -547,7 +547,7 @@ export default function BlogDistributionClient() {
                   </div>
                   <p className="text-xs text-muted-foreground">Phase: {job.phase} | Attempts: {job.attempts}</p>
                   {job.manual_task?.deep_link_url && (
-                    <a className="text-xs underline text-blue-300" href={job.manual_task.deep_link_url} target="_blank" rel="noreferrer">Open Medium Publish Link</a>
+                    <a className="text-xs underline text-blue-700 dark:text-blue-300" href={job.manual_task.deep_link_url} target="_blank" rel="noreferrer">Open Medium Publish Link</a>
                   )}
                   <div className="space-y-1">
                     {(job.timeline ?? []).slice(-4).map((event, idx) => (

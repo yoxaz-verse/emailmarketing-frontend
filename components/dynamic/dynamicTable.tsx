@@ -600,7 +600,7 @@ export default function DynamicTable({
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-8 w-8 text-muted-foreground/70 hover:text-red-400 hover:bg-red-500/10"
+                              className="h-8 w-8 text-muted-foreground/70 hover:text-red-700 dark:text-red-400 hover:bg-red-500/10"
                               disabled={
                                 isModalSubmitting ||
                                 (pendingRowActionId === row.id && pendingActionType === 'delete')

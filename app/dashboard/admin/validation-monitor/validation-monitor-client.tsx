@@ -97,7 +97,7 @@ export default function ValidationMonitorClient({
       </div>
 
       {error ? (
-        <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>
+        <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300">{error}</div>
       ) : null}
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -128,7 +128,7 @@ export default function ValidationMonitorClient({
           <li>Step 4 (Finalize): <span className="font-medium text-foreground">{data?.reasons?.stepFailureCounts?.step_4_finalize ?? 0}</span></li>
         </ul>
         {data?.reasons?.mostFailedStep && data.reasons.mostFailedStep.count > 0 ? (
-          <div className="text-sm text-amber-300">
+          <div className="text-sm text-amber-700 dark:text-amber-300">
             Most failures at: <span className="font-medium">{data.reasons.mostFailedStep.label}</span> ({data.reasons.mostFailedStep.count})
           </div>
         ) : null}
@@ -201,7 +201,7 @@ export default function ValidationMonitorClient({
               toast.error(err?.message ?? 'Failed to reset and re-run');
             }
           }}
-          className="px-4 py-2 rounded border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 text-sm"
+          className="px-4 py-2 rounded border border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 text-sm"
         >
           Reset In-Progress & Re-run
         </button>

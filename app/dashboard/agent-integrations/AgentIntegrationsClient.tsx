@@ -205,7 +205,7 @@ export default function AgentIntegrationsClient() {
       </div>
 
       {error && (
-        <div className="rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
+        <div className="rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-400">
           {error}
         </div>
       )}
@@ -271,7 +271,7 @@ export default function AgentIntegrationsClient() {
               </div>
 
               {selectedTaskIsStale ? (
-                <div className="rounded border border-amber-500/30 bg-amber-500/10 p-2 text-amber-300">
+                <div className="rounded border border-amber-500/30 bg-amber-500/10 p-2 text-amber-700 dark:text-amber-300">
                   This task is still processing after 5+ minutes. If stale, check worker logs and backend
                   <span className="font-mono"> /agents/tasks/:id/result </span>
                   submit path.
@@ -295,7 +295,7 @@ export default function AgentIntegrationsClient() {
                 <pre className="max-h-56 overflow-auto rounded bg-black/20 p-2 text-xs">{createdTask.result}</pre>
               ) : null}
               {createdTask.error ? (
-                <div className="rounded border border-red-500/30 bg-red-500/10 p-2 text-red-400">{createdTask.error}</div>
+                <div className="rounded border border-red-500/30 bg-red-500/10 p-2 text-red-700 dark:text-red-400">{createdTask.error}</div>
               ) : null}
               {Array.isArray(createdTask.structured_outputs) && createdTask.structured_outputs.length > 0 ? (
                 <div className="space-y-2">

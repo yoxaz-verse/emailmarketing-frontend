@@ -167,7 +167,7 @@ export default function MarketplacePublishingClient() {
         <p className="text-sm text-muted-foreground">Draft-first publishing across global B2B marketplaces with API-first and controlled fallback modes.</p>
       </div>
 
-      {error && <div className="rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
+      {error && <div className="rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300">{error}</div>}
 
       <Card>
         <CardHeader>
@@ -235,9 +235,9 @@ export default function MarketplacePublishingClient() {
                   <p className="font-medium">{job.marketplace_code}</p>
                   {statusBadge(job.status)}
                 </div>
-                {job.error_message && <p className="text-sm text-red-300">{job.error_message}</p>}
+                {job.error_message && <p className="text-sm text-red-700 dark:text-red-300">{job.error_message}</p>}
                 {job.external_listing_url && (
-                  <a href={job.external_listing_url} target="_blank" className="text-sm text-blue-400 underline" rel="noreferrer">
+                  <a href={job.external_listing_url} target="_blank" className="text-sm text-blue-700 dark:text-blue-400 underline" rel="noreferrer">
                     External Listing
                   </a>
                 )}

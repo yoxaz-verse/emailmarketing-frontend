@@ -231,7 +231,7 @@ export default function ForgotPasswordPage() {
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 text-center">
                             <div className="flex justify-center mb-6">
                                 <div className="p-3 bg-green-500/20 rounded-full">
-                                    <CheckCircle2 className="h-12 w-12 text-green-600" />
+                                    <CheckCircle2 className="h-12 w-12 text-green-600 dark:text-green-300" />
                                 </div>
                             </div>
                             <h2 className="text-2xl font-bold">All Set!</h2>

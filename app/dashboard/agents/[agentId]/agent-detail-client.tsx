@@ -135,7 +135,7 @@ export default function AgentDetailClient({ agentId }: { agentId: string }) {
       </div>
 
       {error ? (
-        <div className="rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{error}</div>
+        <div className="rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-400">{error}</div>
       ) : null}
 
       <Card>
@@ -156,7 +156,7 @@ export default function AgentDetailClient({ agentId }: { agentId: string }) {
                 <Badge variant="outline">{agent.status || 'active'}</Badge>
               </div>
               {derivedState === 'stale' ? (
-                <div className="rounded border border-amber-500/30 bg-amber-500/10 p-2 text-amber-300">
+                <div className="rounded border border-amber-500/30 bg-amber-500/10 p-2 text-amber-700 dark:text-amber-300">
                   This agent appears stale on a processing task. Check worker logs and backend
                   <span className="font-mono"> /agents/tasks/:id/result </span>
                   submit path.
@@ -227,7 +227,7 @@ export default function AgentDetailClient({ agentId }: { agentId: string }) {
                 <div className="mt-2 text-muted-foreground">{task.input}</div>
                 {task.result ? <pre className="mt-2 max-h-44 overflow-auto rounded bg-black/20 p-2 text-xs">{task.result}</pre> : null}
                 {task.error ? (
-                  <div className="mt-2 rounded border border-red-500/30 bg-red-500/10 p-2 text-red-400">
+                  <div className="mt-2 rounded border border-red-500/30 bg-red-500/10 p-2 text-red-700 dark:text-red-400">
                     {task.error}
                   </div>
                 ) : null}
@@ -252,7 +252,7 @@ function deriveAgentState(task: AgentTask | null): DerivedState {
 
 function StateBadge({ state }: { state: DerivedState }) {
   if (state === 'stale') return <Badge variant="destructive">stale</Badge>;
-  if (state === 'busy') return <Badge className="bg-amber-500/20 text-amber-300">busy</Badge>;
+  if (state === 'busy') return <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-300">busy</Badge>;
   return <Badge className="bg-emerald-500/20 text-emerald-300">idle</Badge>;
 }
 

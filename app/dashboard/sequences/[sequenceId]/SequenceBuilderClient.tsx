@@ -405,7 +405,7 @@ export default function SequenceBuilderClient({ sequenceId }: Props) {
             }}
           />
           {jsonErrors.rules && (
-            <p className="text-xs text-red-500">{jsonErrors.rules}</p>
+            <p className="text-xs text-red-600 dark:text-red-400">{jsonErrors.rules}</p>
           )}
           <div className="grid grid-cols-2 gap-2">
             <select
@@ -487,7 +487,7 @@ export default function SequenceBuilderClient({ sequenceId }: Props) {
             }}
           />
           {jsonErrors.mapping && (
-            <p className="text-xs text-red-500">{jsonErrors.mapping}</p>
+            <p className="text-xs text-red-600 dark:text-red-400">{jsonErrors.mapping}</p>
           )}
         </div>
       );
@@ -633,7 +633,7 @@ export default function SequenceBuilderClient({ sequenceId }: Props) {
                 }
               />
               {jsonErrors.agentHeaders && (
-                <p className="text-xs text-red-500">{jsonErrors.agentHeaders}</p>
+                <p className="text-xs text-red-600 dark:text-red-400">{jsonErrors.agentHeaders}</p>
               )}
               <Button onClick={handleCreateAgent}>Create Agent</Button>
             </div>
@@ -652,7 +652,7 @@ export default function SequenceBuilderClient({ sequenceId }: Props) {
               onChange={e => setTestContactAttrs(e.target.value)}
             />
             {jsonErrors.testContact && (
-              <p className="text-xs text-red-500">{jsonErrors.testContact}</p>
+              <p className="text-xs text-red-600 dark:text-red-400">{jsonErrors.testContact}</p>
             )}
             <Button variant="outline" onClick={handleExecuteTest}>
               Execute

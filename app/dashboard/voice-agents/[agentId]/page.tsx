@@ -19,11 +19,11 @@ import { cn } from "@/lib/utils";
 import { CallOutcome } from "@/types/voice-agent";
 
 const outcomeColors: Record<CallOutcome, string> = {
-    answered: "bg-green-500/20 text-green-300 border-green-500/30",
+    answered: "bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30",
     'no-answer': "bg-muted text-muted-foreground border-border",
-    busy: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
-    failed: "bg-red-500/20 text-red-300 border-red-500/30",
-    voicemail: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+    busy: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30",
+    failed: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30",
+    voicemail: "bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30",
 };
 
 export default function VoiceAgentDetailPage() {
@@ -67,7 +67,7 @@ export default function VoiceAgentDetailPage() {
                     </Button>
                 </Link>
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-300 font-bold">
+                    <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-700 dark:text-blue-300 font-bold">
                         {agent.name.split(' ').map(n => n[0]).join('')}
                     </div>
                     <div>
@@ -91,7 +91,7 @@ export default function VoiceAgentDetailPage() {
                             className={cn(
                                 "pb-3 text-sm font-medium transition-colors relative",
                                 activeTab === tab.id
-                                    ? "text-blue-300 border-b-2 border-blue-400"
+                                    ? "text-blue-700 dark:text-blue-300 border-b-2 border-blue-400"
                                     : "text-muted-foreground hover:text-foreground"
                             )}
                         >
@@ -118,7 +118,7 @@ export default function VoiceAgentDetailPage() {
                                 <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Answer Rate</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold text-green-600">{stats.answerRate}</div>
+                                <div className="text-2xl font-bold text-green-600 dark:text-green-300">{stats.answerRate}</div>
                             </CardContent>
                         </Card>
                         <Card>
@@ -170,7 +170,7 @@ export default function VoiceAgentDetailPage() {
                                             <TableCell className="text-muted-foreground font-mono text-xs">{call.duration}</TableCell>
                                             <TableCell>
                                                 {call.recordingUrl ? (
-                                                    <Button variant="ghost" size="sm" className="text-blue-300 h-8 w-8 p-0" title="Listen to recording">
+                                                    <Button variant="ghost" size="sm" className="text-blue-700 dark:text-blue-300 h-8 w-8 p-0" title="Listen to recording">
                                                         <span className="sr-only">Play</span>
                                                         ▶️
                                                     </Button>
@@ -204,7 +204,7 @@ export default function VoiceAgentDetailPage() {
                                             <Badge variant="outline" className="bg-purple-500/10 text-purple-300 border-purple-500/30">Voice</Badge>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge className="bg-green-500/20 text-green-300 border-green-500/30">Running</Badge>
+                                            <Badge className="bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30">Running</Badge>
                                         </TableCell>
                                     </TableRow>
                                     <TableRow>
@@ -213,7 +213,7 @@ export default function VoiceAgentDetailPage() {
                                             <Badge variant="outline" className="bg-purple-500/10 text-purple-300 border-purple-500/30">Voice</Badge>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge className="bg-green-500/20 text-green-300 border-green-500/30">Running</Badge>
+                                            <Badge className="bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30">Running</Badge>
                                         </TableCell>
                                     </TableRow>
                                 </TableBody>

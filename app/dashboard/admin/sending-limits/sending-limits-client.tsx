@@ -169,7 +169,7 @@ export default function SendingLimitsClient({
   return (
     <div className="space-y-6">
       {loadError ? (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-200">
           {loadError}
         </div>
       ) : null}
@@ -374,7 +374,7 @@ export default function SendingLimitsClient({
                     <button
                       type="button"
                       onClick={() => removeStep(step.id)}
-                      className="text-red-600 hover:text-red-500"
+                      className="text-red-600 dark:text-red-300 hover:text-red-600 dark:text-red-400"
                     >
                       Remove
                     </button>

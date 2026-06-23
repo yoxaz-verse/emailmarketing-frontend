@@ -506,7 +506,7 @@ export default function CampaignJourneyMap({
         </div>
 
         {selectedInboxes.length === 0 ? (
-          <div className="mt-5 rounded-lg border border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-200">
+          <div className="mt-5 rounded-lg border border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300 dark:text-amber-200">
             Select at least one inbox to simulate campaign end date.
           </div>
         ) : (
@@ -792,7 +792,7 @@ export default function CampaignJourneyMap({
     in_progress: 'border-cyan-500/30 bg-cyan-500/15 text-cyan-700 dark:text-cyan-200',
     failed: 'border-rose-500/30 bg-rose-500/15 text-rose-700 dark:text-rose-200',
     pending: 'border-slate-500/30 bg-slate-500/15 text-foreground/90 dark:text-slate-200',
-    pending_delay: 'border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-200'
+    pending_delay: 'border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300 dark:text-amber-200'
   };
   const stepStatusLabel: Record<StepProgressState, string> = {
     sent: 'Sent',
@@ -805,12 +805,12 @@ export default function CampaignJourneyMap({
     const normalized = String(value).toLowerCase();
     if (normalized.includes('replied')) return 'border-cyan-500/30 bg-cyan-500/15 text-cyan-700 dark:text-cyan-200';
     if (normalized.includes('hard bounce')) return 'border-rose-500/30 bg-rose-500/15 text-rose-700 dark:text-rose-200';
-    if (normalized.includes('soft bounce')) return 'border-orange-500/30 bg-orange-500/15 text-orange-700 dark:text-orange-200';
+    if (normalized.includes('soft bounce')) return 'border-orange-500/30 bg-orange-500/15 text-orange-700 dark:text-orange-300 dark:text-orange-200';
     if (normalized.includes('opened')) return 'border-sky-500/30 bg-sky-500/15 text-sky-700 dark:text-sky-200';
     if (normalized.includes('delivered')) return 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-200';
-    if (normalized.includes('unlogged')) return 'border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-200';
+    if (normalized.includes('unlogged')) return 'border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300 dark:text-amber-200';
     if (normalized.includes('sent')) return 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-200';
-    if (normalized.includes('pending')) return 'border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-200';
+    if (normalized.includes('pending')) return 'border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300 dark:text-amber-200';
     return 'border-slate-500/30 bg-slate-500/15 text-foreground/90 dark:text-slate-200';
   };
 
@@ -985,7 +985,7 @@ export default function CampaignJourneyMap({
                       <td className="py-2 pr-3 text-foreground/90 dark:text-slate-200">{row.stepsDone}/{stepCount}</td>
                       <td className="py-2 pr-3">
                         {row.hasProgressMismatch ? (
-                          <span className="inline-flex rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-700 dark:text-amber-200">
+                          <span className="inline-flex rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-700 dark:text-amber-300 dark:text-amber-200">
                             Status/Step mismatch
                           </span>
                         ) : (

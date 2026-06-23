@@ -283,23 +283,23 @@ export default function SocialAppsSettingsClient({
           )}
 
           {configured ? (
-            <div className="rounded-md border border-green-500/30 bg-green-500/10 p-2 text-sm text-green-300">
+            <div className="rounded-md border border-green-500/30 bg-green-500/10 p-2 text-sm text-green-700 dark:text-green-300">
               Configured. Required fields are complete for this platform.
             </div>
           ) : (
-            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-sm text-amber-200">
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-sm text-amber-700 dark:text-amber-200">
               Missing required fields: {missing.length > 0 ? missing.join(', ') : scope === 'operator' && !operatorId ? 'select operator to load status' : 'unable to load status right now'}
             </div>
           )}
 
           {!endpointAvailable && (
-            <div className="rounded-md border border-red-500/30 bg-red-500/10 p-2 text-sm text-red-300">
+            <div className="rounded-md border border-red-500/30 bg-red-500/10 p-2 text-sm text-red-700 dark:text-red-300">
               Social app settings endpoint is not available on backend. Restart/update backend and refresh this page.
             </div>
           )}
 
-          {message && <div className="rounded-md border border-green-500/30 bg-green-500/10 p-2 text-sm text-green-300">{message}</div>}
-          {error && <div className="rounded-md border border-red-500/30 bg-red-500/10 p-2 text-sm text-red-300">{error}</div>}
+          {message && <div className="rounded-md border border-green-500/30 bg-green-500/10 p-2 text-sm text-green-700 dark:text-green-300">{message}</div>}
+          {error && <div className="rounded-md border border-red-500/30 bg-red-500/10 p-2 text-sm text-red-700 dark:text-red-300">{error}</div>}
           {loading && <p className="text-xs text-muted-foreground">Loading current configuration...</p>}
         </CardContent>
       </Card>

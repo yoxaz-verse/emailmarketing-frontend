@@ -255,8 +255,8 @@ export default function CampaignHeader({
             <span className={cn(
               "px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider",
               campaign.status === 'draft' ? "bg-muted text-muted-foreground" :
-              campaign.status === 'running' ? "bg-green-500/20 text-green-400 border border-green-500/30" :
-              "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
+              campaign.status === 'running' ? "bg-green-500/20 text-green-700 dark:text-green-400 border border-green-500/30" :
+              "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border border-yellow-500/30"
             )}>
               {campaign.status}
             </span>
@@ -293,7 +293,7 @@ export default function CampaignHeader({
                 'text-xs px-2 py-1 rounded-md border',
                 backendHealth === 'online' && 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10',
                 backendHealth === 'offline' && 'text-rose-400 border-rose-500/30 bg-rose-500/10',
-                backendHealth === 'checking' && 'text-amber-300 border-amber-400/30 bg-amber-500/10'
+                backendHealth === 'checking' && 'text-amber-700 dark:text-amber-300 border-amber-400/30 bg-amber-500/10'
               )}
             >
               {backendHealth === 'online' && 'Backend online'}
@@ -307,12 +307,12 @@ export default function CampaignHeader({
             )}
           </div>
           {canStart && selected.size === 0 && (
-            <span className="text-xs font-medium text-red-500 bg-red-500/10 px-2 py-1 rounded-md">
+            <span className="text-xs font-medium text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-1 rounded-md">
               At least one inbox required
             </span>
           )}
           {campaignActionStatus && (
-            <span className="text-xs font-medium text-amber-200 bg-amber-500/10 border border-amber-500/30 px-2 py-1 rounded-md">
+            <span className="text-xs font-medium text-amber-700 dark:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-2 py-1 rounded-md">
               {campaignActionStatus}
             </span>
           )}
@@ -348,12 +348,12 @@ export default function CampaignHeader({
           </div>
         </div>
         {senderSettings.schema_ready === false ? (
-          <div className="text-xs text-amber-300">
+          <div className="text-xs text-amber-700 dark:text-amber-300">
             Sender override column is not available in DB yet. Apply backend schema update to enable this.
           </div>
         ) : null}
         {senderWarning ? (
-          <div className="text-xs text-amber-300">{senderWarning}</div>
+          <div className="text-xs text-amber-700 dark:text-amber-300">{senderWarning}</div>
         ) : null}
       </div>
 
@@ -423,7 +423,7 @@ export default function CampaignHeader({
                           {inbox.email_address}
                         </p>
                         {isLocked ? (
-                          <p className="mt-1 text-[11px] text-amber-300">
+                          <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
                             {lockInfo?.blocking_campaign_name === 'Another active campaign'
                               ? `Locked by another active campaign (${lockInfo?.blocking_status})`
                               : `Locked by: ${lockInfo?.blocking_campaign_name} (${lockInfo?.blocking_status})`}
@@ -439,7 +439,7 @@ export default function CampaignHeader({
                         </span>
                       )}
                       {isLocked && (
-                        <span className="px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-semibold tracking-widest uppercase">
+                        <span className="px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-[10px] font-semibold tracking-widest uppercase">
                           Locked
                         </span>
                       )}
@@ -457,7 +457,7 @@ export default function CampaignHeader({
       </div>
 
       {lockConflicts.length > 0 ? (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-200">
           <p className="font-semibold">Inbox lock conflicts</p>
           <div className="mt-2 space-y-1">
             {lockConflicts.map((row, idx) => (

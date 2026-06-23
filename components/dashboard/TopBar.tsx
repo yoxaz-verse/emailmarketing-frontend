@@ -73,7 +73,7 @@ export default function TopBar() {
                 </p>
                 <Button
                     variant="ghost"
-                    className="text-red-500 hover:text-red-500 hover:bg-red-500/10"
+                    className="text-red-600 dark:text-red-400 hover:text-red-600 dark:text-red-400 hover:bg-red-500/10"
                     onClick={handleSignOut}
                 >
                     <LogOut className="mr-2 h-4 w-4" />

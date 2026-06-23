@@ -298,11 +298,11 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
       {/* KPI Dashboard */}
       <section className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4">
         <KpiCard label="Total Imported" value={kpis.total} icon={<Database className="w-4 h-4 text-primary" />} color="gold" />
-        <KpiCard label="Valid" value={kpis.validated} icon={<CheckCircle className="w-4 h-4 text-green-400" />} color="green" />
-        <KpiCard label="Invalid" value={kpis.invalid} icon={<AlertTriangle className="w-4 h-4 text-red-400" />} color="red" />
-        <KpiCard label="Duplicate" value={kpis.duplicate} icon={<Filter className="w-4 h-4 text-yellow-400" />} color="yellow" />
+        <KpiCard label="Valid" value={kpis.validated} icon={<CheckCircle className="w-4 h-4 text-green-700 dark:text-green-400" />} color="green" />
+        <KpiCard label="Invalid" value={kpis.invalid} icon={<AlertTriangle className="w-4 h-4 text-red-700 dark:text-red-400" />} color="red" />
+        <KpiCard label="Duplicate" value={kpis.duplicate} icon={<Filter className="w-4 h-4 text-yellow-700 dark:text-yellow-400" />} color="yellow" />
         <KpiCard label="Pending" value={kpis.pending} icon={<Clock className="w-4 h-4 text-primary" />} color="gold" />
-        <KpiCard label="Blocked" value={kpis.blocked} icon={<AlertTriangle className="w-4 h-4 text-orange-400" />} color="orange" />
+        <KpiCard label="Blocked" value={kpis.blocked} icon={<AlertTriangle className="w-4 h-4 text-orange-700 dark:text-orange-400" />} color="orange" />
         <KpiCard label="Used" value={kpis.used} icon={<CheckCircle className="w-4 h-4 text-gray-400" />} color="gray" />
         <KpiCard label="Free" value={kpis.free} icon={<Database className="w-4 h-4 text-teal-400" />} color="teal" />
       </section>
@@ -483,7 +483,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
           <section className="rounded-2xl border border-border/40 bg-card/30 backdrop-blur-md p-5 shadow-xl">
             <div className="mb-4 flex flex-col">
               <h3 className="text-lg font-bold tracking-tight flex items-center gap-2 text-foreground">
-                <CheckCircle className="h-5 w-5 text-green-500" /> Validation
+                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" /> Validation
               </h3>
               <p className="text-xs text-muted-foreground mt-1">Manage pipeline checks.</p>
             </div>
@@ -525,7 +525,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
                       <div><span className="text-foreground">Step 4</span> final eligibility decision.</div>
                     </div>
                     {mostFailedStep && mostFailedStep.count > 0 && (
-                      <div className="text-[10px] leading-4 text-amber-300">
+                      <div className="text-[10px] leading-4 text-amber-700 dark:text-amber-300">
                         Most failures at: <span className="text-foreground">{mostFailedStep.label}</span> ({mostFailedStep.count})
                       </div>
                     )}
@@ -535,7 +535,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
                       </div>
                     )}
                     {showStalledWarning && (
-                      <div className="text-[10px] leading-4 text-amber-400">
+                      <div className="text-[10px] leading-4 text-amber-700 dark:text-amber-400">
                         Validation appears stalled. Last progress: {runAgeMinutes} min ago. {processingNow} in progress, {stuckProcessing} stale candidates.
                       </div>
                     )}
@@ -555,7 +555,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
                       </div>
                     )}
                     {!showFreshPendingHint && validationStatus?.status === 'completed' && (validationStatus?.metrics.totalTargeted ?? 0) === 0 && (
-                      <div className="text-[10px] leading-4 text-amber-400">
+                      <div className="text-[10px] leading-4 text-amber-700 dark:text-amber-400">
                         No queue-eligible pending leads matched current backend filters (pending + not processing).
                       </div>
                     )}
@@ -572,7 +572,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
               </div>
               <div className="lg:col-span-4 flex flex-col gap-2.5">
                 {activeRunLockReason && (
-                  <div className="text-[10px] leading-4 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-amber-300">
+                  <div className="text-[10px] leading-4 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-amber-700 dark:text-amber-300">
                     {activeRunLockReason}
                   </div>
                 )}

@@ -132,7 +132,7 @@ function LoginPageContent() {
           )}
 
           {isSuccess && (
-            <div className="mb-6 rounded-lg border border-green-500/50 bg-green-500/10 px-4 py-3 text-sm text-green-500 font-medium animate-in fade-in slide-in-from-top-2">
+            <div className="mb-6 rounded-lg border border-green-500/50 bg-green-500/10 px-4 py-3 text-sm text-green-600 dark:text-green-400 font-medium animate-in fade-in slide-in-from-top-2">
               Login successful! Redirecting...
             </div>
           )}

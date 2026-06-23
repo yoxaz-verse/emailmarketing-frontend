@@ -13,7 +13,7 @@ export default async function SequencesPage() {
   return (
     <div className="space-y-4">
       {!isAdminRole(role) && (
-        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-200">
           Admin-only access for editing.
         </div>
       )}

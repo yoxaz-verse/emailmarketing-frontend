@@ -177,8 +177,8 @@ export default function InquiryQuotingClient() {
         <p className="text-sm text-muted-foreground">Create and track quote drafts linked to inquiries, then mark manual sent status with audit trail.</p>
       </div>
 
-      {error && <div className="rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
-      {success && <div className="rounded border border-green-500/30 bg-green-500/10 p-3 text-sm text-green-300">{success}</div>}
+      {error && <div className="rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300">{error}</div>}
+      {success && <div className="rounded border border-green-500/30 bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-300">{success}</div>}
 
       <Card>
         <CardHeader>

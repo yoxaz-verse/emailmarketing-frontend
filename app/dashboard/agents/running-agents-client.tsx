@@ -209,12 +209,12 @@ export default function RunningAgentsClient() {
       </div>
 
       {parsedError ? (
-        <div className="rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
+        <div className="rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-400">
           <p>{parsedError.message}</p>
           {parsedError.details ? (
             <details className="mt-2">
               <summary className="cursor-pointer text-rose-700 dark:text-rose-300">Technical details</summary>
-              <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-red-200">
+              <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-red-700 dark:text-red-200">
                 {parsedError.details}
               </pre>
             </details>
@@ -360,7 +360,7 @@ function deriveAgentState(agent: RuntimeAgent): DerivedState {
 
 function StateBadge({ state }: { state: DerivedState }) {
   if (state === 'stale') return <Badge variant="destructive">stale</Badge>;
-  if (state === 'busy') return <Badge className="bg-amber-500/15 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">busy</Badge>;
+  if (state === 'busy') return <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 dark:bg-amber-500/20 dark:text-amber-300">busy</Badge>;
   if (state === 'paused') return <Badge className="bg-muted text-muted-foreground dark:bg-zinc-500/20 dark:text-zinc-300">paused</Badge>;
   if (state === 'error') return <Badge className="bg-rose-500/15 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">error</Badge>;
   if (state === 'active') return <Badge className="bg-cyan-500/15 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300">active</Badge>;

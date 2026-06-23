@@ -409,13 +409,13 @@ export default async function CampaignPage({
               <div className="mt-3 grid grid-cols-1 sm:grid-cols-4 gap-3 text-sm">
                 <div className="rounded-lg border border-border px-3 py-2">
                   <div className="text-muted-foreground text-xs">Spam Risk</div>
-                  <div className={`mt-1 text-base font-semibold ${preSendWarnings.length > 2 ? 'text-rose-300' : preSendWarnings.length > 0 ? 'text-amber-300' : 'text-emerald-300'}`}>
+                  <div className={`mt-1 text-base font-semibold ${preSendWarnings.length > 2 ? 'text-rose-300' : preSendWarnings.length > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-300'}`}>
                     {preSendWarnings.length > 2 ? 'High' : preSendWarnings.length > 0 ? 'Medium' : 'Low'}
                   </div>
                 </div>
                 <div className="rounded-lg border border-border px-3 py-2">
                   <div className="text-muted-foreground text-xs">Microsoft Share</div>
-                  <div className="mt-1 text-base font-semibold text-amber-300">{microsoftShare}%</div>
+                  <div className="mt-1 text-base font-semibold text-amber-700 dark:text-amber-300">{microsoftShare}%</div>
                 </div>
                 <div className="rounded-lg border border-border px-3 py-2">
                   <div className="text-muted-foreground text-xs">Auth Ready Inboxes</div>
@@ -427,7 +427,7 @@ export default async function CampaignPage({
                 </div>
               </div>
               {preSendWarnings.length > 0 ? (
-                <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
+                <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-200">
                   <div className="font-medium">Pre-send deliverability warnings</div>
                   <ul className="mt-1 list-disc pl-4 space-y-0.5">
                     {preSendWarnings.map((warning, idx) => (
@@ -455,7 +455,7 @@ export default async function CampaignPage({
                     {replyOpenAnalytics?.replied ?? totalReplies}
                   </div>
                   {replyOpenAnalytics?.inferred_replied_count && replyOpenAnalytics.inferred_replied_count > 0 ? (
-                    <div className="mt-1 text-[11px] text-amber-300">
+                    <div className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
                       +{replyOpenAnalytics.inferred_replied_count} inferred from lead status (not counted)
                     </div>
                   ) : null}
@@ -469,15 +469,15 @@ export default async function CampaignPage({
                   </div>
                   <div className="rounded-lg border border-border px-3 py-2">
                     <div className="text-muted-foreground text-xs">Soft Bounce</div>
-                    <div className="mt-1 text-base font-semibold text-orange-300">{replyOpenAnalytics.bounced_soft}</div>
+                    <div className="mt-1 text-base font-semibold text-orange-700 dark:text-orange-300">{replyOpenAnalytics.bounced_soft}</div>
                   </div>
                   <div className="rounded-lg border border-border px-3 py-2">
                     <div className="text-muted-foreground text-xs">Pending Outcome</div>
-                    <div className="mt-1 text-base font-semibold text-amber-300">{replyOpenAnalytics.pending_outcome}</div>
+                    <div className="mt-1 text-base font-semibold text-amber-700 dark:text-amber-300">{replyOpenAnalytics.pending_outcome}</div>
                   </div>
                   <div className="rounded-lg border border-border px-3 py-2">
                     <div className="text-muted-foreground text-xs">Step/Outcome Mismatch</div>
-                    <div className="mt-1 text-base font-semibold text-yellow-300">{replyOpenAnalytics.outcome_vs_step_mismatch}</div>
+                    <div className="mt-1 text-base font-semibold text-yellow-700 dark:text-yellow-300">{replyOpenAnalytics.outcome_vs_step_mismatch}</div>
                   </div>
                 </div>
               ) : null}
@@ -508,7 +508,7 @@ export default async function CampaignPage({
               ) : null}
               <div className="mt-3 rounded-lg border border-border px-3 py-2 text-xs">
                 <span className="text-muted-foreground">Tracking confidence:</span>{' '}
-                <span className={lowConfidenceOutcomeCount > 0 ? 'text-amber-300' : 'text-emerald-300'}>
+                <span className={lowConfidenceOutcomeCount > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-300'}>
                   {replyOpenAnalytics?.open_confidence === 'low'
                     ? 'Low confidence: open events are not confirmed yet.'
                     : lowConfidenceOutcomeCount > 0
@@ -516,7 +516,7 @@ export default async function CampaignPage({
                     : 'All matched outcomes high confidence'}
                 </span>
                 {replyOpenAnalytics?.inferred_replied_count && replyOpenAnalytics.inferred_replied_count > 0 ? (
-                  <span className="ml-2 text-amber-300">
+                  <span className="ml-2 text-amber-700 dark:text-amber-300">
                     ({replyOpenAnalytics.inferred_replied_count} inferred replied lead(s) excluded from Replied/Reply Rate)
                   </span>
                 ) : null}
@@ -532,12 +532,12 @@ export default async function CampaignPage({
                 </div>
               ) : null}
               {(replyOpenAnalytics?.diagnostics?.unmatched_events_count ?? 0) > 0 ? (
-                <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
+                <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-200">
                   Correlation diagnostics: {replyOpenAnalytics?.diagnostics?.unmatched_events_count} webhook event(s) unmatched to campaign leads.
                 </div>
               ) : null}
               {replyOpenAnalytics?.open_rate_visible === false && replyOpenAnalytics?.open_rate_visibility_reason ? (
-                <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
+                <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-200">
                   {replyOpenAnalytics.open_rate_visibility_reason}
                 </div>
               ) : null}
@@ -550,7 +550,7 @@ export default async function CampaignPage({
                 </span>
               </div>
               {replyOpenAnalytics?.spam_hints && replyOpenAnalytics.spam_hints.length > 0 ? (
-                <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
+                <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-200">
                   {replyOpenAnalytics.spam_hints.join(' ')}
                 </div>
               ) : null}
@@ -600,7 +600,7 @@ export default async function CampaignPage({
               Unable to load campaign
             </div>
             <div>{error?.message ?? 'Unknown error'}</div>
-            <a className="text-blue-300 hover:text-blue-200 underline" href="/dashboard/campaign">
+            <a className="text-blue-700 dark:text-blue-300 hover:text-blue-700 dark:text-blue-200 underline" href="/dashboard/campaign">
               Back to campaigns
             </a>
           </div>
