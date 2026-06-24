@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAllowedDashboardPathForRole } from '@/lib/dashboard-access';
 import { clearAuthCookies, isTokenExpired } from '@/lib/auth-session';
 
-export function middleware(req: NextRequest) {
+export default function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // ✅ DO NOT TOUCH API ROUTES
