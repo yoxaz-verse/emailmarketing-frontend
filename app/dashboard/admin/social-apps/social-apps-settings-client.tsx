@@ -30,13 +30,13 @@ const PLATFORM_FIELDS: Record<Platform, { key: string; label: string; secret?: b
   linkedin: [
     { key: 'client_id', label: 'Client ID' },
     { key: 'client_secret', label: 'Client Secret', secret: true },
-    { key: 'redirect_uri', label: 'Redirect URI', placeholder: 'https://your-api/social/callback/linkedin' },
+    { key: 'redirect_uri', label: 'Redirect URI', placeholder: 'https://emarketing-backend.infra.obaol.com/social/oauth2-credential/callback' },
     { key: 'scopes', label: 'Scopes (comma-separated)', placeholder: 'w_member_social,r_liteprofile' },
   ],
   meta: [
     { key: 'app_id', label: 'App ID' },
     { key: 'app_secret', label: 'App Secret', secret: true },
-    { key: 'redirect_uri', label: 'Redirect URI' },
+    { key: 'redirect_uri', label: 'Redirect URI', placeholder: 'https://emarketing-backend.infra.obaol.com/api/auth/meta/callback' },
     { key: 'page_access_token', label: 'Page Access Token', secret: true },
     { key: 'business_account_id', label: 'Business Account ID' },
   ],
