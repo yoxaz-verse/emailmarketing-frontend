@@ -9,6 +9,7 @@ import { attachFolderLeadsAction, attachLeadsAction, detachLeadsAction } from '.
 type Lead = {
   id: string;
   email?: string | null;
+  operator_id?: string | null;
   folder_id?: string | null;
   is_blocked?: boolean;
   is_used?: boolean | null;
@@ -120,7 +121,7 @@ export default function LeadsTab({
   leadFolders,
   mutationHealth,
 }: {
-  campaign: { id: string; status?: string | null };
+  campaign: { id: string; status?: string | null; operator_id?: string | null };
   leads: Lead[];
   allLeads: Lead[];
   campaignLeads: { lead_id: string }[];
@@ -133,6 +134,7 @@ export default function LeadsTab({
 }) {
   const router = useRouter();
   const isLeadMutationLocked = String(campaign?.status ?? '').toLowerCase() === 'running';
+  const campaignOperatorId = String(campaign?.operator_id ?? '').trim();
   const leadMutationLockedMessage = 'Lead changes are locked while this campaign is running. Pause campaign to add or remove leads.';
 
   const attachedLeadIdsFromProps = useMemo(
@@ -241,6 +243,16 @@ export default function LeadsTab({
     () => attachedRows.filter((row) => row.bucket !== 'valid' && row.bucket !== 'risky').length,
     [attachedRows]
   );
+  const attachedWrongOperatorCount = useMemo(() => {
+    if (!campaignOperatorId) return 0;
+    let count = 0;
+    for (const leadId of attachedLeadIdSet) {
+      const lead = allLeadMap.get(leadId);
+      if (!lead) continue;
+      if (String(lead.operator_id ?? '').trim() !== campaignOperatorId) count += 1;
+    }
+    return count;
+  }, [allLeadMap, attachedLeadIdSet, campaignOperatorId]);
 
   const allAttachedVisibleSelected =
     attachedVisibleIds.length > 0 && attachedVisibleIds.every((id) => selectedAttachedIds.has(id));
@@ -577,6 +589,11 @@ export default function LeadsTab({
           {attachedNonQualifiedCount} attached lead(s) are non-attachable (legacy). Remove them to keep campaign within qualified/risky policy.
         </div>
       ) : null}
+      {attachedWrongOperatorCount > 0 ? (
+        <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-200">
+          Some attached leads belong to another operator. Remove them before running this campaign.
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant={activeEligibilityTab === 'eligible' ? 'default' : 'outline'} onClick={() => setActiveEligibilityTab('eligible')}>
@@ -801,7 +818,7 @@ export default function LeadsTab({
             value={sourceId}
             onChange={(e) => setSourceId(e.target.value)}
           >
-            <option value="all">Global (All Leads)</option>
+            <option value="all">Assigned Operator Leads</option>
             {leadFolders.map((folder) => (
               <option key={folder.id} value={`folder:${folder.id}`}>
                 Folder: {folder.name} {folder.lead_count != null ? `(${folder.lead_count})` : ''}

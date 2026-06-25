@@ -63,13 +63,14 @@ export default async function CampaignPage({
       );
     }
 
+    const campaignOperatorId = String(campaign.operator_id ?? '').trim();
+
     /**
-     * 2️⃣ Load lead pool (operator + global shared)
+     * 2️⃣ Load lead pool for the campaign's assigned operator.
      */
-    const allLeads = await serverFetch<any[]>(
-      `/crud/leads`
+    const leads = await serverFetch<any[]>(
+      `/crud/leads?operator_id=${encodeURIComponent(campaignOperatorId)}`
     );
-    const leads = allLeads;
 
     /**
      * 3️⃣ Load campaign ↔ lead mappings
@@ -80,6 +81,41 @@ export default async function CampaignPage({
     const leadFolders = await serverFetch<any>(
       `/lead-folders`
     );
+    const attachedLeadIds = campaignLeads.map((row) => String(row?.lead_id ?? '')).filter(Boolean);
+    const scopedLeadById = new Map<string, any>();
+    for (const lead of leads) {
+      if (lead?.id) scopedLeadById.set(String(lead.id), lead);
+    }
+    const missingAttachedLeadIds = attachedLeadIds.filter((id) => !scopedLeadById.has(id));
+    const legacyAttachedLeadRows = (
+      await Promise.all(
+        missingAttachedLeadIds.map(async (leadId) => {
+          try {
+            const rows = await serverFetch<any[]>(
+              `/crud/leads?id=${encodeURIComponent(leadId)}`
+            );
+            return rows?.[0] ?? null;
+          } catch {
+            return null;
+          }
+        })
+      )
+    ).filter(Boolean);
+    const allLeads = [...leads, ...legacyAttachedLeadRows];
+    const visibleLeadFolderCounts = new Map<string, number>();
+    for (const lead of leads) {
+      const folderId = String(lead?.folder_id ?? '').trim();
+      if (!folderId) continue;
+      visibleLeadFolderCounts.set(folderId, (visibleLeadFolderCounts.get(folderId) ?? 0) + 1);
+    }
+    const scopedLeadFolders = (leadFolders?.folders ?? []).filter((folder: any) => {
+      const folderOperatorId = String(folder?.operator_id ?? '').trim();
+      const folderId = String(folder?.id ?? '');
+      return folderOperatorId === campaignOperatorId || (!folderOperatorId && visibleLeadFolderCounts.has(folderId));
+    }).map((folder: any) => ({
+      ...folder,
+      lead_count: visibleLeadFolderCounts.get(String(folder?.id ?? '')) ?? 0,
+    }));
 
     /**
      * 4️⃣ Load ALL inboxes
@@ -238,7 +274,6 @@ export default async function CampaignPage({
     for (const lead of allLeads) {
       if (lead?.id) leadById.set(String(lead.id), lead);
     }
-    const attachedLeadIds = campaignLeads.map((row) => String(row?.lead_id ?? '')).filter(Boolean);
     const attachedLeadRows = attachedLeadIds
       .map((id) => leadById.get(id))
       .filter(Boolean);
@@ -568,7 +603,7 @@ export default async function CampaignPage({
               leads={leads}
               allLeads={allLeads}
               campaignLeads={campaignLeads}
-              leadFolders={leadFolders?.folders ?? []}
+              leadFolders={scopedLeadFolders}
               mutationHealth={mutationHealth}
             />
             <CampaignJourneyMap
