@@ -1,11 +1,6 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
-import { serverFetch } from '@/lib/server/server-fetch';
-
-type SendingLimitsConfig = {
-  risky_daily_percent_limit?: number;
-};
 
 export default async function CampaignRulesPage() {
   const cookieStore = await cookies();
@@ -14,14 +9,6 @@ export default async function CampaignRulesPage() {
 
   if (!isAdmin) {
     redirect('/dashboard');
-  }
-
-  let riskyPercent = 20;
-  try {
-    const config = await serverFetch<SendingLimitsConfig>('/admin/sending-limits');
-    riskyPercent = Math.max(0, Math.min(100, Number(config?.risky_daily_percent_limit ?? 20)));
-  } catch {
-    riskyPercent = 20;
   }
 
   const lastUpdated = new Date().toLocaleString();
@@ -50,22 +37,16 @@ export default async function CampaignRulesPage() {
       </section>
 
       <section className="rounded-xl border border-border bg-card p-5 space-y-3">
-        <h2 className="text-lg font-medium">2) Risky Daily Cap</h2>
+        <h2 className="text-lg font-medium">2) Risky Lead Delivery</h2>
         <p className="text-sm text-muted-foreground">
-          Per inbox/day risky sending is capped to reduce spam risk.
+          Risky is a validation warning, not a send restriction.
         </p>
         <div className="rounded-lg border border-border bg-background p-3 text-sm">
-          <p>
-            Active policy: <span className="font-semibold">{riskyPercent}%</span> risky cap per inbox/day.
-          </p>
-          <p className="text-muted-foreground mt-1">
-            Formula: <span className="font-medium">floor(daily_limit × {riskyPercent} / 100)</span>
-          </p>
-          <p className="text-muted-foreground mt-1">Examples: 10/day → 2 risky, 4/day → 0 risky.</p>
+          <p>Risky leads send under the same inbox, domain, hourly, and daily capacity limits as eligible leads.</p>
         </div>
         <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
-          <li>If cap is reached, risky lead send is held (not sent) and logged as a system event.</li>
-          <li>Eligible leads continue independently per inbox limits.</li>
+          <li>Gmail, Outlook, and other free-mail recipients are not paused because of their provider.</li>
+          <li>Unsubscribed, invalid, blocked, or permanently failed leads remain excluded.</li>
         </ul>
       </section>
 
@@ -73,7 +54,7 @@ export default async function CampaignRulesPage() {
         <h2 className="text-lg font-medium">3) Execution & Debug Flow</h2>
         <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
           <li>Inbox capacity and warmup limits are resolved first.</li>
-          <li>Risky cap check is applied before actual risky email send.</li>
+          <li>Provider-specific formatting and reduced tracking are applied without blocking delivery.</li>
           <li>Conflict and skip events are written to system events for auditability.</li>
         </ul>
         <div className="pt-2 text-sm">

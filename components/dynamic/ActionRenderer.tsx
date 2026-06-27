@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { actionRegistry } from '@/config/actionRegistry';
 
@@ -10,12 +11,15 @@ type ActionConfig = {
   key: string;
   label: string;
   variant?: 'default' | 'destructive' | 'outline' | 'secondary';
-  visible?: (row: any) => boolean;
+  visible?: (row: TableRow) => boolean;
 };
+
+type TableRow = Record<string, unknown>;
+type ActionResult = { success?: boolean; error?: string } | void;
 
 type Props = {
   actions: ActionConfig[];
-  row: any;
+  row: TableRow;
 };
 
 export default function ActionRenderer({ actions, row }: Props) {
@@ -27,14 +31,16 @@ export default function ActionRenderer({ actions, row }: Props) {
     return `${String(row?.id ?? 'row')}:${actionKey}`;
   }
 
-  function pendingLabel(actionKey: string, defaultLabel: string): string {
-    if (actionKey === 'viewCampaign' || actionKey === 'viewSequence') return 'Opening...';
+  function pendingLabel(actionKey: string): string {
     if (actionKey === 'startCampaign') return 'Starting...';
     if (actionKey === 'pauseCampaign') return 'Pausing...';
     return 'Processing...';
   }
 
-  async function handleAction(key: string, handler: any) {
+  async function handleAction(
+    key: string,
+    handler: (selectedRow: TableRow) => ActionResult | Promise<ActionResult>
+  ) {
     const id = actionId(key);
     if (pendingActionId === id) return;
     setPendingActionId(id);
@@ -46,22 +52,10 @@ export default function ActionRenderer({ actions, row }: Props) {
       } else if (result?.error) {
         toast.error(result.error);
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Action failed');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Action failed');
     } finally {
       setPendingActionId((current) => (current === id ? null : current));
-    }
-  }
-
-  function handleViewAction(key: string, handler: any) {
-    const id = actionId(key);
-    if (pendingActionId === id) return;
-    setPendingActionId(id);
-    try {
-      handler(row);
-    } catch (err: any) {
-      setPendingActionId((current) => (current === id ? null : current));
-      toast.error(err.message || 'Unable to open');
     }
   }
 
@@ -72,7 +66,9 @@ export default function ActionRenderer({ actions, row }: Props) {
           return null;
         }
 
-        const handler = actionRegistry[action.key];
+        const handler = actionRegistry[action.key] as
+          | ((selectedRow: TableRow) => ActionResult | Promise<ActionResult>)
+          | undefined;
 
         if (!handler) {
           console.warn(`[ActionRenderer] Missing action: ${action.key}`);
@@ -81,20 +77,19 @@ export default function ActionRenderer({ actions, row }: Props) {
 
         const id = actionId(action.key);
         const isThisPending = pendingActionId === id;
-        const label = isThisPending ? pendingLabel(action.key, action.label) : action.label;
+        const label = isThisPending ? pendingLabel(action.key) : action.label;
 
         // 🔹 VIEW / REDIRECT ACTION
         if (action.key === 'viewCampaign' || action.key === 'viewSequence') {
+          const href = action.key === 'viewCampaign'
+            ? `/dashboard/campaign/${row.id}`
+            : `/dashboard/sequences/${row.id}`;
+
           return (
-            <Button
-              key={action.key}
-              size="sm"
-              variant={action.variant ?? 'outline'}
-              disabled={isThisPending}
-              onClick={() => handleViewAction(action.key, handler)}
-            >
-              {isThisPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
-              {label}
+            <Button key={action.key} size="sm" variant={action.variant ?? 'outline'} asChild>
+              <Link href={href}>
+                {action.label}
+              </Link>
             </Button>
           );
         }

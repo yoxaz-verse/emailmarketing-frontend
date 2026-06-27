@@ -72,7 +72,7 @@ export default function SendingLimitsClient({
   ];
 
   function updateTopLevelNumber(
-    key: 'min_inbox_health_score' | 'min_domain_health_score' | 'warmup_advance_min_health_score' | 'warmup_advance_max_consecutive_failures' | 'risky_daily_percent_limit',
+    key: 'min_inbox_health_score' | 'min_domain_health_score' | 'warmup_advance_min_health_score' | 'warmup_advance_max_consecutive_failures',
     value: number
   ) {
     setConfig((prev) => ({ ...prev, [key]: value }));
@@ -233,20 +233,6 @@ export default function SendingLimitsClient({
             />
           </label>
 
-          <label className="text-sm space-y-1">
-            <span>Risky Daily Percent Limit</span>
-            <input
-              type="number"
-              min={0}
-              max={100}
-              className="w-full border border-border bg-background rounded px-3 py-2"
-              value={config.risky_daily_percent_limit}
-              onChange={(e) => updateTopLevelNumber('risky_daily_percent_limit', Number(e.target.value))}
-            />
-            <span className="text-xs text-muted-foreground">
-              Per inbox/day cap for risky sends. Example: 10 daily limit + 20% = 2 risky max.
-            </span>
-          </label>
         </div>
       </div>
 

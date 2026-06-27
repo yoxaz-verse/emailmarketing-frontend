@@ -64,23 +64,96 @@ export default async function CampaignPage({
     }
 
     const campaignOperatorId = String(campaign.operator_id ?? '').trim();
+    const sequenceId = campaign.sequence_id ? String(campaign.sequence_id) : '';
+
+    // Start independent reads together so route rendering is bounded by the
+    // slowest dependency instead of the sum of every backend round trip.
+    const assignedOperatorsPromise = campaignOperatorId
+      ? serverFetch<Array<{ name?: string | null }>>(
+          `/crud/operators?id=${encodeURIComponent(campaignOperatorId)}`
+        ).catch(() => [])
+      : Promise.resolve([] as Array<{ name?: string | null }>);
+    const leadsPromise = serverFetch<any[]>(
+      `/crud/leads?operator_id=${encodeURIComponent(campaignOperatorId)}`
+    );
+    const campaignLeadsPromise = serverFetch<any[]>(
+      `/crud/campaign_leads?campaign_id=${campaign.id}`
+    );
+    const leadFoldersPromise = serverFetch<any>('/lead-folders');
+    const allInboxesPromise = serverFetch<any[]>('/crud/inboxes');
+    const sendingDomainsPromise = serverFetch<any[]>('/crud/sending_domains').catch(() => [] as any[]);
+    const campaignInboxesPromise = serverFetch<any[]>(
+      `/crud/campaign_inboxes?campaign_id=${campaign.id}`
+    );
+    const mutationHealthPromise = serverFetch<{
+      ok: boolean;
+      diagnostics?: { route_contract_version?: string };
+    }>(`/campaigns/${campaign.id}/mutation-health`);
+    const lockedInboxesPromise = serverFetch<Array<{
+      inbox_id: string;
+      blocking_campaign_id: string;
+      blocking_campaign_name: string;
+      blocking_status: string;
+    }>>(`/campaigns/${campaign.id}/inbox-locks`);
+    const sequenceStepsPromise = sequenceId
+      ? serverFetch<any[]>(`/crud/sequence_steps?sequence_id=${sequenceId}`)
+      : Promise.resolve([] as any[]);
+    const sequenceRecordPromise = sequenceId
+      ? serverFetch<any[]>(`/crud/sequences?id=${sequenceId}`)
+      : Promise.resolve([] as any[]);
+    const sendingLimitsPromise = serverFetch<SendingLimitsConfig>('/admin/sending-limits');
+    const senderSettingsPromise = serverFetch<{
+      sender_display_name: string | null;
+      effective_sender_display_name: string;
+      warning: string | null;
+      schema_ready?: boolean;
+    }>(`/campaigns/${campaign.id}/sender-settings`);
+    const campaignDiagnosticsPromise = serverFetch<CampaignDiagnostics>(
+      `/execution/campaigns/${campaign.id}/diagnostics`
+    );
+    const replyOpenAnalyticsPromise = serverFetch<any>(
+      `/campaigns/${campaign.id}/reply-open-analytics`
+    );
+    // Attach rejection handlers immediately while retaining each original
+    // promise for the existing per-section fallback behavior below.
+    void Promise.allSettled([
+      assignedOperatorsPromise,
+      leadsPromise,
+      campaignLeadsPromise,
+      leadFoldersPromise,
+      allInboxesPromise,
+      sendingDomainsPromise,
+      campaignInboxesPromise,
+      mutationHealthPromise,
+      lockedInboxesPromise,
+      sequenceStepsPromise,
+      sequenceRecordPromise,
+      sendingLimitsPromise,
+      senderSettingsPromise,
+      campaignDiagnosticsPromise,
+      replyOpenAnalyticsPromise,
+    ]);
+    let assignedOperatorName: string | null = null;
+    if (campaignOperatorId) {
+      try {
+        const assignedOperators = await assignedOperatorsPromise;
+        const operatorName = String(assignedOperators?.[0]?.name ?? '').trim();
+        assignedOperatorName = operatorName || null;
+      } catch {
+        assignedOperatorName = null;
+      }
+    }
 
     /**
      * 2️⃣ Load lead pool for the campaign's assigned operator.
      */
-    const leads = await serverFetch<any[]>(
-      `/crud/leads?operator_id=${encodeURIComponent(campaignOperatorId)}`
-    );
+    const leads = await leadsPromise;
 
     /**
      * 3️⃣ Load campaign ↔ lead mappings
      */
-    const campaignLeads = await serverFetch<any[]>(
-      `/crud/campaign_leads?campaign_id=${campaign.id}`
-    );
-    const leadFolders = await serverFetch<any>(
-      `/lead-folders`
-    );
+    const campaignLeads = await campaignLeadsPromise;
+    const leadFolders = await leadFoldersPromise;
     const attachedLeadIds = campaignLeads.map((row) => String(row?.lead_id ?? '')).filter(Boolean);
     const scopedLeadById = new Map<string, any>();
     for (const lead of leads) {
@@ -121,9 +194,7 @@ export default async function CampaignPage({
      * 4️⃣ Load ALL inboxes
      * (CRUD-safe, filter in code)
      */
-    const allInboxes = await serverFetch<any[]>(
-      `/crud/inboxes`
-    );
+    const allInboxes = await allInboxesPromise;
 
     /**
      * 5️⃣ Filter inboxes
@@ -136,7 +207,7 @@ export default async function CampaignPage({
     );
     let sendingDomains: any[] = [];
     try {
-      sendingDomains = await serverFetch<any[]>('/crud/sending_domains');
+      sendingDomains = await sendingDomainsPromise;
     } catch {
       sendingDomains = [];
     }
@@ -146,19 +217,14 @@ export default async function CampaignPage({
      * IMPORTANT:
      * This table now HAS `id`
      */
-    const campaignInboxes = await serverFetch<any[]>(
-      `/crud/campaign_inboxes?campaign_id=${campaign.id}`
-    );
+    const campaignInboxes = await campaignInboxesPromise;
     let mutationHealth: {
       ok: boolean;
       reason?: string;
       routeContractVersion?: string;
     } = { ok: false, reason: 'Unknown health check failure' };
     try {
-      const mutationHealthResponse = await serverFetch<{
-        ok: boolean;
-        diagnostics?: { route_contract_version?: string };
-      }>(`/campaigns/${campaign.id}/mutation-health`);
+      const mutationHealthResponse = await mutationHealthPromise;
       mutationHealth = {
         ok: mutationHealthResponse.ok === true,
         routeContractVersion: mutationHealthResponse?.diagnostics?.route_contract_version ?? 'campaign-mutations-v1',
@@ -169,12 +235,7 @@ export default async function CampaignPage({
         reason: String(error?.message ?? 'Backend unavailable or stale campaign mutation routes'),
       };
     }
-    const lockedInboxes = await serverFetch<Array<{
-      inbox_id: string;
-      blocking_campaign_id: string;
-      blocking_campaign_name: string;
-      blocking_status: string;
-    }>>(`/campaigns/${campaign.id}/inbox-locks`);
+    const lockedInboxes = await lockedInboxesPromise;
 
     /**
      * 7️⃣ Load sequence + graph (for read-only steps)
@@ -185,14 +246,11 @@ export default async function CampaignPage({
     let sequenceResolved = false;
 
     if (hasSequenceId) {
-      const sequenceId = String(campaign.sequence_id);
       const shortSequenceId = sequenceId.slice(0, 8);
       sequenceName = `Sequence ${shortSequenceId}`;
 
       try {
-        sequenceSteps = await serverFetch<any[]>(
-          `/crud/sequence_steps?sequence_id=${sequenceId}`
-        );
+        sequenceSteps = await sequenceStepsPromise;
       } catch (error) {
         console.warn('[CampaignPage] Failed to load sequence_steps for campaign', {
           campaignId: campaign.id,
@@ -205,9 +263,7 @@ export default async function CampaignPage({
 
       try {
         let sequence: any = null;
-        const sequences = await serverFetch<any[]>(
-          `/crud/sequences?id=${sequenceId}`
-        );
+        const sequences = await sequenceRecordPromise;
         sequence = sequences?.[0] ?? null;
 
         if (!sequence) {
@@ -236,9 +292,7 @@ export default async function CampaignPage({
     }
     let sendingLimitsConfig: SendingLimitsConfig | null = null;
     try {
-      sendingLimitsConfig = await serverFetch<SendingLimitsConfig>(
-        '/admin/sending-limits'
-      );
+      sendingLimitsConfig = await sendingLimitsPromise;
     } catch {
       sendingLimitsConfig = null;
     }
@@ -254,7 +308,7 @@ export default async function CampaignPage({
       schema_ready: true,
     };
     try {
-      senderSettings = await serverFetch(`/campaigns/${campaign.id}/sender-settings`);
+      senderSettings = await senderSettingsPromise;
     } catch {
       senderSettings = {
         sender_display_name: null,
@@ -265,7 +319,7 @@ export default async function CampaignPage({
     }
     let campaignDiagnostics: CampaignDiagnostics | null = null;
     try {
-      campaignDiagnostics = await serverFetch<CampaignDiagnostics>(`/execution/campaigns/${campaign.id}/diagnostics`);
+      campaignDiagnostics = await campaignDiagnosticsPromise;
     } catch {
       campaignDiagnostics = null;
     }
@@ -337,7 +391,7 @@ export default async function CampaignPage({
       }>;
     } | null = null;
     try {
-      replyOpenAnalytics = await serverFetch(`/campaigns/${campaign.id}/reply-open-analytics`);
+      replyOpenAnalytics = await replyOpenAnalyticsPromise;
     } catch {
       replyOpenAnalytics = null;
     }
@@ -435,6 +489,7 @@ export default async function CampaignPage({
             campaignInboxes={campaignInboxes}
             lockedInboxes={lockedInboxes}
             senderSettings={senderSettings}
+            assignedOperatorName={assignedOperatorName}
           />
 
           {/* Main layout */}

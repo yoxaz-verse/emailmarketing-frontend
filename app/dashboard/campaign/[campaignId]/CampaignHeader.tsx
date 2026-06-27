@@ -14,7 +14,9 @@ type Props = {
     id: string;
     name: string;
     status: string;
+    operator_id?: string | null;
   };
+  assignedOperatorName: string | null;
   senderSettings: {
     sender_display_name: string | null;
     effective_sender_display_name: string;
@@ -45,6 +47,7 @@ export default function CampaignHeader({
   campaignInboxes,
   lockedInboxes = [],
   senderSettings,
+  assignedOperatorName,
 }: Props) {
   const router = useRouter();
 
@@ -64,6 +67,7 @@ export default function CampaignHeader({
   const [saving, setSaving] = useState(false);
   const [isSubmittingCampaignAction, setIsSubmittingCampaignAction] = useState(false);
   const [campaignActionStatus, setCampaignActionStatus] = useState<string | null>(null);
+  const [displayedCampaignStatus, setDisplayedCampaignStatus] = useState(campaign.status);
   const [backendHealth, setBackendHealth] = useState<BackendHealth>('checking');
   const [isInboxesOpen, setIsInboxesOpen] = useState(true);
   const [senderDisplayName, setSenderDisplayName] = useState(senderSettings.sender_display_name ?? '');
@@ -112,6 +116,10 @@ export default function CampaignHeader({
   useEffect(() => {
     void checkBackendHealth();
   }, []);
+
+  useEffect(() => {
+    setDisplayedCampaignStatus(campaign.status);
+  }, [campaign.status]);
 
   useEffect(() => {
     const storageKey = `campaign:${campaign.id}:inboxesOpen`;
@@ -197,9 +205,10 @@ export default function CampaignHeader({
   async function handleStartPause() {
     if (isSubmittingCampaignAction) return;
     setCampaignActionStatus(null);
+    const shouldStart = canStart;
     try {
       setIsSubmittingCampaignAction(true);
-      const result = canStart
+      const result = shouldStart
         ? await startCampaignAction(campaign.id)
         : await pauseCampaignAction(campaign.id);
 
@@ -210,7 +219,9 @@ export default function CampaignHeader({
         return;
       }
 
-      const successMessage = canStart ? 'Campaign started successfully.' : 'Campaign paused successfully.';
+      const nextStatus = shouldStart ? 'running' : 'paused';
+      const successMessage = shouldStart ? 'Campaign started successfully.' : 'Campaign paused successfully.';
+      setDisplayedCampaignStatus(nextStatus);
       setCampaignActionStatus(successMessage);
       toast.success(successMessage);
       router.refresh();
@@ -228,8 +239,11 @@ export default function CampaignHeader({
     JSON.stringify([...attachedInboxIds].sort());
 
   const canStart =
-    campaign.status === 'draft' || campaign.status === 'paused';
-  const canPause = campaign.status === 'running';
+    displayedCampaignStatus === 'draft' || displayedCampaignStatus === 'paused';
+  const canPause = displayedCampaignStatus === 'running';
+
+  const operatorLabel = assignedOperatorName
+    ?? (String(campaign.operator_id ?? '').trim() ? 'Unknown operator' : 'Not assigned');
 
   // Sort inboxes: unlocked first, then selected, then by email
   const sortedInboxes = [...inboxes].sort((a, b) => {
@@ -254,15 +268,18 @@ export default function CampaignHeader({
             {campaign.name}
             <span className={cn(
               "px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider",
-              campaign.status === 'draft' ? "bg-muted text-muted-foreground" :
-              campaign.status === 'running' ? "bg-green-500/20 text-green-700 dark:text-green-400 border border-green-500/30" :
+              displayedCampaignStatus === 'draft' ? "bg-muted text-muted-foreground" :
+              displayedCampaignStatus === 'running' ? "bg-green-500/20 text-green-700 dark:text-green-400 border border-green-500/30" :
               "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border border-yellow-500/30"
             )}>
-              {campaign.status}
+              {displayedCampaignStatus}
             </span>
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
             Manage the sending infrastructure assigned to this campaign.
+          </p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Assigned operator: <span className="font-medium text-foreground">{operatorLabel}</span>
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">
