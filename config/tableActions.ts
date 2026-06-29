@@ -101,3 +101,19 @@ export async function reuseLead(row: any) {
 
   return { success: true };
 }
+
+export async function removeLeadSuppression(row: any) {
+  if (!row?.id) return { success: false, error: 'Missing lead id' };
+
+  const result = await serverFetch<{ success: boolean; requeued_count: number }>(
+    `/leads/${row.id}/remove-suppression`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ confirm_explicit_consent: true }),
+    }
+  );
+  revalidatePath('/dashboard/leads');
+  return result.success
+    ? { success: true }
+    : { success: false, error: 'Failed to remove suppression' };
+}

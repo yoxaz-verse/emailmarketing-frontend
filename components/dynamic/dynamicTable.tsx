@@ -101,7 +101,7 @@ export default function DynamicTable({
   const sequenceReadOnlyForOperator = isSequenceTable && !isAdmin;
   const actions = sequenceReadOnlyForOperator
     ? (meta.actions ?? []).filter((action) => action.key === 'viewSequence')
-    : (meta.actions ?? []);
+    : (meta.actions ?? []).filter((action) => !action.adminOnly || isAdmin);
   const bulkActions = meta.bulkActions ?? [];
   const allowCreate = sequenceReadOnlyForOperator ? false : meta.allowCreate !== false;
   const allowEdit = sequenceReadOnlyForOperator ? false : meta.allowEdit !== false;

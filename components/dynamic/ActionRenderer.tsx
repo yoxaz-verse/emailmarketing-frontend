@@ -41,6 +41,12 @@ export default function ActionRenderer({ actions, row }: Props) {
     key: string,
     handler: (selectedRow: TableRow) => ActionResult | Promise<ActionResult>
   ) {
+    if (
+      key === 'removeLeadSuppression' &&
+      !window.confirm('Confirm that this recipient explicitly re-consented to cold email. This action is audited and may requeue paused campaign rows.')
+    ) {
+      return;
+    }
     const id = actionId(key);
     if (pendingActionId === id) return;
     setPendingActionId(id);

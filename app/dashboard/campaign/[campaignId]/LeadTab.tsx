@@ -18,6 +18,8 @@ type Lead = {
   is_free_provider?: boolean | null;
   email_eligibility?: string | null;
   email_eligibility_reason?: string | null;
+  is_suppressed?: boolean | null;
+  suppression_reason?: string | null;
 };
 
 type LeadBucket = 'valid' | 'risky' | 'pending' | 'invalid' | 'blocked' | 'used';
@@ -40,7 +42,7 @@ function bucketLabel(bucket: LeadBucket): string {
 }
 
 function classifyLead(lead: Lead): LeadBucket {
-  if (lead.is_blocked === true || lead.permanently_failed === true) return 'blocked';
+  if (lead.is_suppressed === true || lead.is_blocked === true || lead.permanently_failed === true) return 'blocked';
   if (lead.is_used === true) return 'used';
 
   const eligibility = String(lead.email_eligibility ?? '').toLowerCase();
@@ -52,7 +54,7 @@ function classifyLead(lead: Lead): LeadBucket {
 }
 
 function classifyAttachedLead(lead: Lead): LeadBucket {
-  if (lead.is_blocked === true || lead.permanently_failed === true) return 'blocked';
+  if (lead.is_suppressed === true || lead.is_blocked === true || lead.permanently_failed === true) return 'blocked';
   const eligibility = String(lead.email_eligibility ?? '').toLowerCase();
   if (eligibility === 'eligible' || eligibility === 'valid' || eligibility === 'validated') return 'valid';
   if (eligibility === 'risky') return 'risky';
@@ -784,7 +786,7 @@ export default function LeadsTab({
             ) : null}
             {activeEligibilityTab === 'ineligible' ? excludedVisible.map((lead) => {
               const bucket = classifyLead(lead);
-              const reason = String(lead.email_eligibility_reason ?? '').trim();
+              const reason = String(lead.suppression_reason ?? lead.email_eligibility_reason ?? '').trim();
               return (
                 <div
                   key={String(lead.id)}

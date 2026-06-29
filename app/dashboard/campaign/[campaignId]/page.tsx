@@ -20,6 +20,25 @@ type SendingLimitsConfig = {
 
 type InterestStatus = 'unreviewed' | 'interested' | 'not_interested';
 type CampaignDiagnostics = {
+  runner_health?: {
+    state?: 'healthy' | 'stale' | 'failed' | 'idle';
+    last_heartbeat_at?: string | null;
+    heartbeat_age_seconds?: number | null;
+    last_successful_send_at?: string | null;
+    claimed_count?: number;
+    sent_count?: number;
+    failed_count?: number;
+    skipped_count?: number;
+    claim_reason?: string | null;
+    skip_reasons?: Record<string, number>;
+    fatal_error?: string | null;
+    queue_snapshot_after?: {
+      queued_count?: number;
+      processing_count?: number;
+      paused_count?: number;
+      pending_count?: number;
+    } | null;
+  };
   deliverability?: {
     provider_distribution?: {
       microsoft?: number;
@@ -449,6 +468,17 @@ export default async function CampaignPage({
     const providerSafeReadyCount = Number(campaignDiagnostics?.deliverability?.provider_safe_auth_ready?.ready_count ?? authReadyInboxCount);
     const providerSafeTotalCount = Number(campaignDiagnostics?.deliverability?.provider_safe_auth_ready?.total_count ?? authTotalInboxCount);
     const unsubscribeReady = campaignDiagnostics?.deliverability?.unsubscribe_ready !== false;
+    const runnerHealth = campaignDiagnostics?.runner_health;
+    const runnerState = runnerHealth?.state ?? (String(campaign.status ?? '').toLowerCase() === 'running' ? 'stale' : 'idle');
+    const runnerStateClass = runnerState === 'healthy'
+      ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-300'
+      : runnerState === 'idle'
+        ? 'border-border bg-card/40 text-muted-foreground'
+        : 'border-rose-500/30 bg-rose-500/5 text-rose-300';
+    const runnerBlocker = runnerHealth?.fatal_error
+      || runnerHealth?.claim_reason
+      || Object.keys(runnerHealth?.skip_reasons ?? {})[0]
+      || (runnerState === 'stale' ? 'No batch heartbeat received in the last 2½ minutes.' : null);
     const preSendWarnings = [
       hasHighMicrosoftExposure
         ? `High Microsoft audience share (${microsoftShare}%). Use first-touch plain mode and lower send ramp.`
@@ -494,6 +524,26 @@ export default async function CampaignPage({
 
           {/* Main layout */}
           <div className="space-y-6">
+            <section className={`rounded-xl border px-4 py-3 ${runnerStateClass}`}>
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.08em] opacity-80">Campaign runner</div>
+                  <div className="mt-1 text-lg font-semibold capitalize">{runnerState}</div>
+                  <div className="mt-1 text-xs opacity-80">
+                    {runnerHealth?.last_heartbeat_at
+                      ? `Last batch: ${new Date(runnerHealth.last_heartbeat_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`
+                      : 'No batch heartbeat has been recorded.'}
+                    {runnerBlocker ? ` · ${runnerBlocker}` : ''}
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-4 text-center text-xs">
+                  <div><div className="opacity-70">Claimed</div><div className="mt-1 font-semibold">{runnerHealth?.claimed_count ?? 0}</div></div>
+                  <div><div className="opacity-70">Sent</div><div className="mt-1 font-semibold">{runnerHealth?.sent_count ?? 0}</div></div>
+                  <div><div className="opacity-70">Skipped</div><div className="mt-1 font-semibold">{runnerHealth?.skipped_count ?? 0}</div></div>
+                  <div><div className="opacity-70">Failed</div><div className="mt-1 font-semibold">{runnerHealth?.failed_count ?? 0}</div></div>
+                </div>
+              </div>
+            </section>
             <section className="rounded-xl border border-border bg-card/50 p-4">
               <div className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Delivery Health</div>
               <div className="mt-3 grid grid-cols-1 sm:grid-cols-4 gap-3 text-sm">

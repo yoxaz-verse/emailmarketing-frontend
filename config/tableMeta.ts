@@ -10,6 +10,7 @@ export type ActionConfig = {
     label: string;
     variant?: 'default' | 'outline' | 'destructive';
     visible?: (row: any) => boolean;
+    adminOnly?: boolean;
   };
 
 export type BulkActionConfig = {
@@ -143,6 +144,13 @@ export type BulkActionConfig = {
         },
       ],
       actions: [
+        {
+          key: 'removeLeadSuppression',
+          label: 'Remove Suppression',
+          variant: 'outline',
+          adminOnly: true,
+          visible: (row: any) => row?.is_suppressed === true,
+        },
         {
           key: 'reuseLead',
           label: 'Reuse',

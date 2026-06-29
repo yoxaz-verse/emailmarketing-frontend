@@ -36,7 +36,7 @@ type LeadView = 'all' | 'validated' | 'pending' | 'risky' | 'blocked' | 'used' |
 type LeadScope = { type: 'all' } | { type: 'folder'; folderId: string };
 
 function detectLifecycle(lead: any) {
-  if (lead.email_eligibility === 'blocked' || lead.is_blocked) return 'blocked';
+  if (lead.is_suppressed === true || lead.email_eligibility === 'blocked' || lead.is_blocked) return 'blocked';
   if (lead.validation_status === 'valid' || lead.validation_status === 'validated' || lead.email_eligibility === 'eligible') return 'validated';
   if (lead.validation_status === 'risky' || lead.email_eligibility === 'risky') return 'risky';
   if (lead.email_eligibility === 'pending' || lead.eligibility_processing) return 'pending';
@@ -47,6 +47,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
   const [view, setView] = useState<LeadView>('all');
   const [providerFilter, setProviderFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
+  const [ownerFilter, setOwnerFilter] = useState('');
   const [riskMax, setRiskMax] = useState('');
   const [validationStatus, setValidationStatus] = useState<ValidationRunStatusResponse | null>(null);
   const [validationLoading, setValidationLoading] = useState(true);
@@ -82,6 +83,11 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
   const sources = useMemo(
     () => Array.from(new Set(leads.map((l) => l.source).filter(Boolean))),
     [leads]
+  );
+
+  const operators = useMemo(
+    () => (relations?.operators ?? []) as Array<{ id: string; name: string }>,
+    [relations]
   );
 
   async function refreshValidationStatus() {
@@ -151,6 +157,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
 
       if (providerFilter && lead.provider !== providerFilter) return false;
       if (sourceFilter && lead.source !== sourceFilter) return false;
+      if (ownerFilter && String(lead.operator_id ?? '') !== ownerFilter) return false;
       if (scope.type === 'folder' && lead.folder_id !== scope.folderId) return false;
 
       if (riskMax) {
@@ -161,7 +168,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
 
       return true;
     });
-  }, [leads, providerFilter, riskMax, scope, sourceFilter, view]);
+  }, [leads, ownerFilter, providerFilter, riskMax, scope, sourceFilter, view]);
 
   const kpis = useMemo(() => {
     const validated = scopeLeads.filter((l) => detectLifecycle(l) === 'validated').length;
@@ -649,6 +656,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
                 setView('all');
                 setProviderFilter('');
                 setSourceFilter('');
+                setOwnerFilter('');
                 setRiskMax('');
               }}
             >
@@ -682,7 +690,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
               <ToggleItem value="free" label="Free" />
             </ToggleGroup.Root>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className={`grid grid-cols-1 gap-3 ${(role === 'admin' || role === 'superadmin') ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
               <div className="space-y-2">
                 <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Provider</label>
                 <select className="w-full h-10 rounded-xl border border-border/60 bg-background/40 px-3 text-xs font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-inner" value={providerFilter} onChange={(e) => setProviderFilter(e.target.value)}>
@@ -710,6 +718,18 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-bold text-muted-foreground uppercase">MAX</div>
                 </div>
               </div>
+
+              {(role === 'admin' || role === 'superadmin') && (
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Owner</label>
+                  <select className="w-full h-10 rounded-xl border border-border/60 bg-background/40 px-3 text-xs font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-inner" value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)}>
+                    <option value="">All Owners</option>
+                    {operators.map((operator) => (
+                      <option key={operator.id} value={operator.id}>{operator.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           </>
         )}
