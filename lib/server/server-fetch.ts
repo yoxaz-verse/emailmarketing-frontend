@@ -5,26 +5,30 @@ import { redirect } from 'next/navigation';
 
 export async function serverFetch<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit & { timeoutMs?: number } = {}
 ): Promise<T> {
-  const cookieStore = await cookies(); // ✅ REQUIRED
+  const startedAt = performance.now();
+  const cookieStore = await cookies();
   const token = cookieStore.get('auth_token')?.value;
-
-  console.log('[serverFetch] path:', path);
-  console.log('[serverFetch] token exists:', Boolean(token));
+  const { timeoutMs = 15_000, signal: callerSignal, ...fetchOptions } = options;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const abortFromCaller = () => controller.abort();
+  callerSignal?.addEventListener('abort', abortFromCaller, { once: true });
 
   let res: Response;
   try {
     res = await fetch(
       `${process.env.NEXT_PUBLIC_API_BASE_URL}${path}`,
       {
-        ...options,
+        ...fetchOptions,
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           'Content-Type': 'application/json',
-          ...(options.headers || {}),
+          ...(fetchOptions.headers || {}),
         },
         cache: 'no-store',
+        signal: controller.signal,
       }
     );
   } catch (err: unknown) {
@@ -33,14 +37,18 @@ export async function serverFetch<T>(
     if (
       message.includes('fetch failed') ||
       message.includes('econnrefused') ||
-      message.includes('socket')
+      message.includes('socket') ||
+      message.includes('abort')
     ) {
-      throw new Error('Backend unavailable. Please ensure backend is running and retry.');
+      throw new Error(message.includes('abort')
+        ? `Backend request timed out after ${timeoutMs}ms.`
+        : 'Backend unavailable. Please ensure backend is running and retry.');
     }
     throw err;
+  } finally {
+    clearTimeout(timeout);
+    callerSignal?.removeEventListener('abort', abortFromCaller);
   }
-
-  console.log('[serverFetch] status:', res.status);
 
   if (res.status === 401 || res.status === 403) {
     redirect('/api/auth/logout?reason=session-expired');
@@ -74,5 +82,15 @@ export async function serverFetch<T>(
     throw error;
   }
 
-  return res.json();
+  const raw = await res.text();
+  const durationMs = Math.round(performance.now() - startedAt);
+  if (durationMs >= 750) {
+    console.warn('[serverFetch:slow]', {
+      path,
+      status: res.status,
+      durationMs,
+      payloadBytes: Buffer.byteLength(raw, 'utf8'),
+    });
+  }
+  return (raw ? JSON.parse(raw) : null) as T;
 }

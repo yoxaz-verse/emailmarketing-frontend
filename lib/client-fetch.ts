@@ -77,21 +77,37 @@ function normalizeClientError(status: number, raw: string): string {
 
 export async function clientFetch<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit & { timeoutMs?: number } = {}
 ): Promise<T> {
+  const startedAt = performance.now();
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const url = normalizedPath.startsWith('/api/')
     ? normalizedPath
     : `/api/proxy${normalizedPath}`;
 
-  const res = await fetch(url, {
-    ...options,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
-  });
+  const { timeoutMs = 15_000, signal: callerSignal, ...fetchOptions } = options;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  const abortFromCaller = () => controller.abort();
+  callerSignal?.addEventListener('abort', abortFromCaller, { once: true });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...fetchOptions,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(fetchOptions.headers || {}),
+      },
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error(`Request timed out after ${timeoutMs}ms.`);
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+    callerSignal?.removeEventListener('abort', abortFromCaller);
+  }
 
   if (res.status === 401 || res.status === 403) {
     const raw = await res.text();
@@ -112,5 +128,10 @@ export async function clientFetch<T>(
     throw new Error(normalizeClientError(res.status, raw));
   }
 
-  return res.json();
+  const raw = await res.text();
+  const durationMs = Math.round(performance.now() - startedAt);
+  if (durationMs >= 750) {
+    console.warn('[clientFetch:slow]', { path: normalizedPath, status: res.status, durationMs, payloadBytes: new Blob([raw]).size });
+  }
+  return (raw ? JSON.parse(raw) : null) as T;
 }

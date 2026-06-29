@@ -55,6 +55,8 @@ export default function InquiryQuotingClient() {
   const [success, setSuccess] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
   const [query, setQuery] = useState('');
+  const [quotePage, setQuotePage] = useState(1);
+  const [quoteTotal, setQuoteTotal] = useState(0);
 
   const [draft, setDraft] = useState({
     inquiry_id: '',
@@ -87,11 +89,12 @@ export default function InquiryQuotingClient() {
     setError(null);
     try {
       const [inquiryData, quoteData] = await Promise.all([
-        clientFetch<{ rows: Inquiry[] }>('/inquiries?page=1&page_size=300'),
-        clientFetch<{ rows: Quote[] }>('/quotes?page=1&page_size=300'),
+        clientFetch<{ rows: Inquiry[] }>('/inquiries?page=1&page_size=100'),
+        clientFetch<{ rows: Quote[]; total: number }>(`/quotes?page=${quotePage}&page_size=25${statusFilter ? `&status=${encodeURIComponent(statusFilter)}` : ''}${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ''}`),
       ]);
       setInquiries(inquiryData.rows ?? []);
       setQuotes(quoteData.rows ?? []);
+      setQuoteTotal(Number(quoteData.total ?? 0));
       setDraft((prev) => ({
         ...prev,
         inquiry_id: prev.inquiry_id || (inquiryData.rows?.[0]?.id ?? ''),
@@ -101,11 +104,12 @@ export default function InquiryQuotingClient() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [query, quotePage, statusFilter]);
 
   useEffect(() => {
-    void loadData();
-  }, [loadData]);
+    const timer = window.setTimeout(() => void loadData(), query ? 300 : 0);
+    return () => window.clearTimeout(timer);
+  }, [loadData, query]);
 
   async function createQuote() {
     setError(null);
@@ -211,8 +215,8 @@ export default function InquiryQuotingClient() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-3 md:grid-cols-3">
-            <Input placeholder="Search quote/buyer" value={query} onChange={(e) => setQuery(e.target.value)} />
-            <select className="rounded-md border border-border bg-background px-3 py-2 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <Input placeholder="Search quote/buyer" value={query} onChange={(e) => { setQuery(e.target.value); setQuotePage(1); }} />
+            <select className="rounded-md border border-border bg-background px-3 py-2 text-sm" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setQuotePage(1); }}>
               <option value="">All Statuses</option>
               {STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
             </select>
@@ -280,6 +284,10 @@ export default function InquiryQuotingClient() {
               </div>
             );
           })}
+          <div className="flex items-center justify-between pt-2 text-xs text-muted-foreground">
+            <span>{quoteTotal.toLocaleString()} quotes · Page {quotePage} of {Math.max(1, Math.ceil(quoteTotal / 25))}</span>
+            <div className="flex gap-2"><Button size="sm" variant="outline" disabled={quotePage <= 1} onClick={() => setQuotePage((page) => Math.max(1, page - 1))}>Previous</Button><Button size="sm" variant="outline" disabled={quotePage >= Math.ceil(quoteTotal / 25)} onClick={() => setQuotePage((page) => page + 1)}>Next</Button></div>
+          </div>
         </CardContent>
       </Card>
     </div>

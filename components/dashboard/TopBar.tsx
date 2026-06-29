@@ -1,46 +1,15 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
     LogOut
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import NotificationPanel from './NotificationPanel';
-import { clientFetch } from '@/lib/client-fetch';
 import { ThemeToggle } from '@/components/theme-toggle';
 
-type AuthMeResponse = {
-    id?: string;
-    role?: string;
-    operator_id?: string | null;
-    email?: string;
-};
-
-export default function TopBar() {
-    const [email, setEmail] = useState<string>('');
-
-    const getDisplayEmail = (value: unknown): string => {
-        if (typeof value !== 'string') return '';
-        const trimmed = value.trim();
-        return trimmed.length > 0 ? trimmed : '';
-    };
-
-    useEffect(() => {
-        let active = true;
-        clientFetch<AuthMeResponse>('/auth/me')
-            .then((data) => {
-                if (!active) return;
-                setEmail(getDisplayEmail(data?.email));
-            })
-            .catch(() => {
-                if (!active) return;
-                setEmail('');
-            });
-
-        return () => {
-            active = false;
-        };
-    }, []);
+export default function TopBar({ initialEmail = '' }: { initialEmail?: string }) {
+    const email = initialEmail.trim();
 
     const handleSignOut = () => {
         const shouldSignOut = window.confirm('Are you sure you want to sign out?');

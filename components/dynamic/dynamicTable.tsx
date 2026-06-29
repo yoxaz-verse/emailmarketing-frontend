@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef, useTransition } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import {
   Table,
@@ -48,6 +49,12 @@ type Props = {
   exportFilename?: string;
   bulkFolderOptions?: Array<{ id: string; name: string }>;
   onBulkAssignFolder?: (ids: string[], folderId: string) => Promise<{ inserted?: number } | void>;
+  pagination?: {
+    page: number;
+    pageSize: number;
+    total: number;
+    query?: string;
+  };
 };
 
 const MAX_CHAR_LENGTH = 40;
@@ -93,7 +100,11 @@ export default function DynamicTable({
   exportFilename,
   bulkFolderOptions = [],
   onBulkAssignFolder,
+  pagination,
 }: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const urlSearchParams = useSearchParams();
   const fields = tableConfig[table] ?? [];
   const meta = tableMeta[table] ?? {};
   const isAdmin = isAdminRole(role);
@@ -107,7 +118,7 @@ export default function DynamicTable({
   const allowEdit = sequenceReadOnlyForOperator ? false : meta.allowEdit !== false;
   const allowDelete = sequenceReadOnlyForOperator ? false : meta.allowDelete !== false;
   const hasActionColumn = actions.length > 0 || allowEdit || allowDelete;
-  const visibleFields = fields.filter((f) => f.inTable);
+  const visibleFields = useMemo(() => fields.filter((f) => f.inTable), [fields]);
 
   const [showForm, setShowForm] = useState(false);
   const [editingRow, setEditingRow] = useState<any>(null);
@@ -115,14 +126,33 @@ export default function DynamicTable({
   const [pendingRowActionId, setPendingRowActionId] = useState<string | null>(null);
   const [pendingActionType, setPendingActionType] = useState<'edit' | 'delete' | null>(null);
   const [isModalSubmitting, setIsModalSubmitting] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(pagination?.query ?? '');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isBulkPending, startBulkTransition] = useTransition();
   const [bulkFolderId, setBulkFolderId] = useState('');
   
   // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 25;
+  const [currentPage, setCurrentPage] = useState(pagination?.page ?? 1);
+  const pageSize = pagination?.pageSize ?? 25;
+  const usesServerPagination = Boolean(pagination);
+
+  useEffect(() => {
+    if (!pagination) return;
+    setCurrentPage(pagination.page);
+    setSearchQuery(pagination.query ?? '');
+  }, [pagination?.page, pagination?.query]);
+
+  useEffect(() => {
+    if (!usesServerPagination || searchQuery === (pagination?.query ?? '')) return;
+    const timeout = window.setTimeout(() => {
+      const params = new URLSearchParams(urlSearchParams.toString());
+      if (searchQuery.trim()) params.set('q', searchQuery.trim());
+      else params.delete('q');
+      params.set('page', '1');
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }, 300);
+    return () => window.clearTimeout(timeout);
+  }, [pagination?.query, pathname, router, searchQuery, urlSearchParams, usesServerPagination]);
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -131,6 +161,7 @@ export default function DynamicTable({
 
   const filteredData = useMemo(() => {
     let result = data;
+    if (usesServerPagination) return result;
     if (searchQuery) {
       const lowerQuery = searchQuery.toLowerCase();
       result = data.filter((row) => {
@@ -141,7 +172,7 @@ export default function DynamicTable({
       });
     }
     return result;
-  }, [data, searchQuery, visibleFields]);
+  }, [data, searchQuery, visibleFields, usesServerPagination]);
 
   const selectableIds = useMemo(
     () =>
@@ -170,13 +201,15 @@ export default function DynamicTable({
 
   // Paginated Data
   const paginatedData = useMemo(() => {
+    if (usesServerPagination) return filteredData;
     const start = (currentPage - 1) * pageSize;
     return filteredData.slice(start, start + pageSize);
-  }, [filteredData, currentPage]);
+  }, [filteredData, currentPage, pageSize, usesServerPagination]);
 
-  const totalPages = Math.ceil(filteredData.length / pageSize);
-  const startRecord = filteredData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const endRecord = filteredData.length === 0 ? 0 : Math.min(currentPage * pageSize, filteredData.length);
+  const totalRecords = pagination?.total ?? filteredData.length;
+  const totalPages = Math.ceil(totalRecords / pageSize);
+  const startRecord = totalRecords === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endRecord = totalRecords === 0 ? 0 : Math.min(currentPage * pageSize, totalRecords);
   const selectedCount = selectedIds.size;
   const allSelected = selectionEnabled && selectableIds.length > 0 && selectedCount === selectableIds.length;
   const partiallySelected = selectionEnabled && selectedCount > 0 && selectedCount < selectableIds.length;
@@ -211,7 +244,18 @@ export default function DynamicTable({
   }
 
   function refresh() {
-    window.location.reload();
+    router.refresh();
+  }
+
+  function goToPage(nextPage: number) {
+    const safePage = Math.max(1, Math.min(Math.max(totalPages, 1), nextPage));
+    if (!usesServerPagination) {
+      setCurrentPage(safePage);
+      return;
+    }
+    const params = new URLSearchParams(urlSearchParams.toString());
+    params.set('page', String(safePage));
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
   function handleBulkDelete(confirmText?: string) {
@@ -305,6 +349,17 @@ export default function DynamicTable({
   }
 
   function handleExportCsv() {
+    if (usesServerPagination) {
+      const params = new URLSearchParams(urlSearchParams.toString());
+      params.delete('page');
+      const link = document.createElement('a');
+      link.href = `/api/proxy/crud/${encodeURIComponent(table)}/export?${params.toString()}`;
+      link.setAttribute('download', `${exportFilename || table}-export.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      return;
+    }
     const csv = buildCsvRows(filteredData);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -331,7 +386,7 @@ export default function DynamicTable({
                 {table.replace('_', ' ')}
               </h2>
               <div className="px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest dark:shadow-sm">
-                {data.length} {data.length === 1 ? 'Record' : 'Records'}
+                {totalRecords} {totalRecords === 1 ? 'Record' : 'Records'}
               </div>
             </div>
           </div>
@@ -475,7 +530,7 @@ export default function DynamicTable({
               className="h-9 gap-2 text-xs font-bold uppercase tracking-wider hover:bg-primary/10 hover:text-primary transition-all rounded-xl hidden lg:flex"
               onClick={handleExportCsv}
             >
-              <Download className="h-3.5 w-3.5" /> Export
+              <Download className="h-3.5 w-3.5" /> {usesServerPagination ? 'Export all' : 'Export page'}
             </Button>
           </div>
         </div>
@@ -639,7 +694,7 @@ export default function DynamicTable({
           </div>
           <div className="w-1 h-1 rounded-full bg-border" />
           <div>
-            <span className="text-foreground">{filteredData.length}</span> Total Records
+            <span className="text-foreground">{totalRecords}</span> Total Records
           </div>
         </div>
 
@@ -647,7 +702,7 @@ export default function DynamicTable({
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            onClick={() => goToPage(currentPage - 1)}
             disabled={currentPage === 1}
             className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] hover:bg-primary/10 hover:text-primary disabled:opacity-30 transition-all"
           >
@@ -663,7 +718,7 @@ export default function DynamicTable({
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            onClick={() => goToPage(currentPage + 1)}
             disabled={currentPage === totalPages || totalPages === 0}
             className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] hover:bg-primary/10 hover:text-primary disabled:opacity-30 transition-all"
           >

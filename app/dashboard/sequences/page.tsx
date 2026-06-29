@@ -1,14 +1,19 @@
 import DynamicTable from '@/components/dynamic/dynamicTable';
-import { serverFetch } from '@/lib/server/server-fetch';
 import { resolveRelations } from '@/lib/resolveRelation';
 import { cookies } from 'next/headers';
 import { isAdminRole } from '@/lib/dashboard-access';
+import { crudServer } from '@/lib/crud-server';
+import { buildCrudPageParams, type PageSearchParams } from '@/lib/pagination';
 
-export default async function SequencesPage() {
-  const data = await serverFetch<any[]>('/sequences');
+export default async function SequencesPage({ searchParams }: { searchParams: Promise<PageSearchParams> }) {
+  const query = await searchParams;
   const cookieStore = await cookies();
   const role = cookieStore.get('user_role')?.value;
-  const relations = await resolveRelations('sequences', role);
+  const { params, q } = buildCrudPageParams(query);
+  const [page, relations] = await Promise.all([
+    crudServer.page('sequences', params),
+    resolveRelations('sequences', role),
+  ]);
 
   return (
     <div className="space-y-4">
@@ -19,9 +24,10 @@ export default async function SequencesPage() {
       )}
       <DynamicTable
         table="sequences"
-        data={data}
+        data={page.rows}
         role={role}
         relations={relations}
+        pagination={{ page: page.page, pageSize: page.page_size, total: page.total, query: q }}
       />
     </div>
   );

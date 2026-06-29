@@ -11,6 +11,7 @@ export async function resolveRelations(
   const relations: RelationMap = {};
   const isAdmin = role === 'admin' || role === 'superadmin';
 
+  const requests = new Map<string, { path: string; fieldKey: string }>();
   for (const field of fields) {
     if (field.type === 'relation' && field.relation) {
       const isOperatorCampaignOperatorField =
@@ -23,7 +24,7 @@ export async function resolveRelations(
       }
       const tableName = field.relation.table;
 
-      if (!relations[tableName]) {
+      if (!requests.has(tableName)) {
         const params = new URLSearchParams();
 
         // ✅ FLATTEN STATIC FILTERS (same contract as backend)
@@ -35,19 +36,10 @@ export async function resolveRelations(
           }
         }
 
-        try {
-          relations[tableName] = await serverFetch(
-            `/crud/${tableName}?${params.toString()}`
-          );
-        } catch (error) {
-          console.warn('[resolveRelations] Failed to load relation, using [] fallback', {
-            sourceTable: table,
-            relationTable: tableName,
-            relationField: field.key,
-            error,
-          });
-          relations[tableName] = [];
-        }
+        requests.set(tableName, {
+          path: `/crud/${tableName}?${params.toString()}`,
+          fieldKey: field.key,
+        });
       }
     }
   }
@@ -61,19 +53,24 @@ export async function resolveRelations(
         (!field.adminOnly || isAdmin)
     );
 
-    if (hasOperatorField && !relations.users) {
-      try {
-        relations.users = await serverFetch('/crud/users');
-      } catch (error) {
-        console.warn('[resolveRelations] Failed to load users relation for campaigns', {
-          sourceTable: table,
-          relationTable: 'users',
-          error,
-        });
-        relations.users = [];
-      }
+    if (hasOperatorField && !requests.has('users')) {
+      requests.set('users', { path: '/crud/users', fieldKey: 'operator_id' });
     }
   }
+
+  await Promise.all(Array.from(requests.entries()).map(async ([tableName, request]) => {
+    try {
+      relations[tableName] = await serverFetch<any[]>(request.path);
+    } catch (error) {
+      console.warn('[resolveRelations] Failed to load relation, using [] fallback', {
+        sourceTable: table,
+        relationTable: tableName,
+        relationField: request.fieldKey,
+        error,
+      });
+      relations[tableName] = [];
+    }
+  }));
 
   return relations;
 }

@@ -12,9 +12,13 @@ import { serverFetch } from '@/lib/server/server-fetch';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import Link from 'next/link';
 
-export default async function InboxesPage() {
-  const inboxes = await serverFetch<any[]>('/stats/inboxes');
+export default async function InboxesPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const query = await searchParams;
+  const pageNumber = Math.max(1, Number(query.page ?? 1) || 1);
+  const result = await serverFetch<{ rows: any[]; total: number; page: number; page_size: number }>(`/stats/inboxes?page=${pageNumber}&page_size=50`);
+  const inboxes = result.rows;
   const cookieStore = await cookies();
   const roleCookie =  cookieStore.get('user_role');
   const role = roleCookie?.value;
@@ -115,6 +119,10 @@ export default async function InboxesPage() {
             ))}
           </TableBody>
         </Table>
+      </div>
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{result.total.toLocaleString()} inboxes · Page {result.page}</span>
+        <div className="flex gap-2">{result.page > 1 ? <Link className="rounded border px-3 py-2" href={`?page=${result.page - 1}`}>Previous</Link> : null}{result.page * result.page_size < result.total ? <Link className="rounded border px-3 py-2" href={`?page=${result.page + 1}`}>Next</Link> : null}</div>
       </div>
     </div>
   );

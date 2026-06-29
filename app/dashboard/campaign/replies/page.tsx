@@ -1,6 +1,7 @@
 import { serverFetch } from '@/lib/server/server-fetch';
 import { getAuth } from '@/lib/auth';
 import RepliesReviewClient from './RepliesReviewClient';
+import Link from 'next/link';
 
 type Reply = {
   id: string;
@@ -38,6 +39,8 @@ type RepliesApiResponse = {
   unmatched: UnmatchedReply[];
   matched_count?: number;
   unmatched_count?: number;
+  page?: number;
+  page_size?: number;
   mapping_confidence_breakdown?: {
     high?: number;
     medium?: number;
@@ -75,7 +78,7 @@ type ReplyCaptureHealth = {
 export default async function OperatorRepliesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ campaign_id?: string; review_status?: string; operator_id?: string }>;
+  searchParams: Promise<{ campaign_id?: string; review_status?: string; operator_id?: string; page?: string }>;
 }) {
   const auth = await getAuth();
   const isAdmin = ['admin', 'superadmin'].includes(String(auth?.role ?? '').toLowerCase());
@@ -83,6 +86,7 @@ export default async function OperatorRepliesPage({
   const campaignId = typeof params.campaign_id === 'string' ? params.campaign_id : '';
   const reviewStatus = typeof params.review_status === 'string' ? params.review_status : 'all';
   const requestedOperatorId = typeof params.operator_id === 'string' ? params.operator_id : '';
+  const page = Math.max(1, Number(params.page ?? 1) || 1);
 
   let replies: Reply[] = [];
   let unmatchedReplies: UnmatchedReply[] = [];
@@ -91,6 +95,7 @@ export default async function OperatorRepliesPage({
   let selectedOperatorId = requestedOperatorId;
   let replyCaptureHealth: ReplyCaptureHealth | null = null;
   let repliesLoadError: string | null = null;
+  let repliesTotal = 0;
 
   if (isAdmin) {
     try {
@@ -111,6 +116,8 @@ export default async function OperatorRepliesPage({
   if (campaignId) query.set('campaign_id', campaignId);
   if (reviewStatus && reviewStatus !== 'all') query.set('review_status', reviewStatus);
   if (isAdmin && selectedOperatorId) query.set('operator_id', selectedOperatorId);
+  query.set('page', String(page));
+  query.set('page_size', '50');
 
   try {
     const response = await serverFetch<RepliesApiResponse>(
@@ -118,6 +125,7 @@ export default async function OperatorRepliesPage({
     );
     replies = Array.isArray(response?.replies) ? response.replies : [];
     unmatchedReplies = Array.isArray(response?.unmatched) ? response.unmatched : [];
+    repliesTotal = Number(response?.matched_count ?? replies.length);
   } catch (error: unknown) {
     replies = [];
     unmatchedReplies = [];
@@ -155,6 +163,13 @@ export default async function OperatorRepliesPage({
         replyCaptureHealth={replyCaptureHealth}
         repliesLoadError={repliesLoadError}
       />
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{repliesTotal.toLocaleString()} matched replies · Page {page}</span>
+        <div className="flex gap-2">
+          {page > 1 ? <Link className="rounded border border-border px-3 py-2" href={`?${new URLSearchParams({ ...Object.fromEntries(query), page: String(page - 1) }).toString()}`}>Previous</Link> : null}
+          {replies.length === 50 ? <Link className="rounded border border-border px-3 py-2" href={`?${new URLSearchParams({ ...Object.fromEntries(query), page: String(page + 1) }).toString()}`}>Next</Link> : null}
+        </div>
+      </div>
     </div>
   );
 }

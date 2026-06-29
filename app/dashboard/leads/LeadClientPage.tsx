@@ -30,6 +30,7 @@ type Props = {
   relations: any;
   role?: string;
   initialFolders: LeadFolder[];
+  pagination?: { page: number; pageSize: number; total: number; query?: string };
 };
 
 type LeadView = 'all' | 'validated' | 'pending' | 'risky' | 'blocked' | 'used' | 'free';
@@ -43,7 +44,7 @@ function detectLifecycle(lead: any) {
   return lead.lead_status || 'raw_imported';
 }
 
-export default function LeadsClientPage({ leads, relations, role, initialFolders }: Props) {
+export default function LeadsClientPage({ leads, relations, role, initialFolders, pagination }: Props) {
   const [view, setView] = useState<LeadView>('all');
   const [providerFilter, setProviderFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
@@ -739,6 +740,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
         <DynamicTable
           table="leads"
           data={filteredLeads}
+          pagination={pagination}
           role={role}
           relations={relations}
           bulkFolderOptions={folders.map((folder) => ({ id: folder.id, name: folder.name }))}

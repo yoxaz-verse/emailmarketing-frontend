@@ -1,9 +1,12 @@
 import { redirect } from 'next/navigation';
 import Sidebar from '@/components/dashboard/Sidebar';
 import TopBar from '@/components/dashboard/TopBar';
-import AuthGuardClient from '@/components/dashboard/AuthGuardClient';
 import { cookies } from 'next/headers';
 import { serverFetch } from '@/lib/server/server-fetch';
+
+type AuthMeResponse = {
+  email?: string | null;
+};
 
 export default async function DashboardLayout({
   children,
@@ -19,15 +22,14 @@ export default async function DashboardLayout({
 
   // Validate token server-side before rendering dashboard shell.
   // serverFetch redirects to /api/auth/logout on 401/403.
-  await serverFetch('/auth/me');
+  const session = await serverFetch<AuthMeResponse>('/auth/me');
 
   return (
     <div className="flex bg-background min-h-screen">
       <Sidebar role={role} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <TopBar />
-        <AuthGuardClient />
+        <TopBar initialEmail={String(session?.email ?? '').trim()} />
 
         <main className="flex-1 relative overflow-y-auto focus:outline-none">
           <div className="py-8 px-8">

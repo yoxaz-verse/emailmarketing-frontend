@@ -1,21 +1,25 @@
 import DynamicTable from '@/components/dynamic/dynamicTable';
-import { serverFetch } from '@/lib/server/server-fetch';
 import { cookies } from 'next/headers';
 import { isAdminRole } from '@/lib/dashboard-access';
+import { crudServer } from '@/lib/crud-server';
+import { buildCrudPageParams, type PageSearchParams } from '@/lib/pagination';
 
 export default async function SequenceDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ sequenceId: string }>;
+  searchParams: Promise<PageSearchParams>;
 }) {
   const { sequenceId } = await params;
+  const query = await searchParams;
   const cookieStore = await cookies();
   const role = cookieStore.get('user_role')?.value;
   const isAdmin = isAdminRole(role);
 
-  const data = await serverFetch<any[]>(
-    `/crud/sequence_steps?sequence_id=${sequenceId}`
-  );
+  const { params: pageParams, q } = buildCrudPageParams(query);
+  pageParams.set('sequence_id', sequenceId);
+  const page = await crudServer.page('sequence_steps', pageParams);
 
   return (
     <div className="space-y-4">
@@ -32,9 +36,10 @@ export default async function SequenceDetailPage({
       )}
       <DynamicTable
         table="sequence_steps"
-        data={data}
+        data={page.rows}
         role={role}
         defaultValues={{ sequence_id: sequenceId }}
+        pagination={{ page: page.page, pageSize: page.page_size, total: page.total, query: q }}
       />
     </div>
   );

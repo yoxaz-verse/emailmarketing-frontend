@@ -146,14 +146,14 @@ export default function BlogDistributionClient() {
     setError(null);
     try {
       const [blogsData, sourcesData, connectorsData] = await Promise.all([
-        clientFetch<Blog[]>('/blogs'),
+        clientFetch<{ rows: Blog[]; total: number }>('/blogs?page=1&page_size=100'),
         clientFetch<BlogSource[]>('/blogs/sources'),
         clientFetch<PlatformConnector[]>('/blogs/platform-connectors'),
       ]);
-      setBlogs(blogsData || []);
+      setBlogs(blogsData.rows || []);
       setSources(sourcesData || []);
       setPlatforms(connectorsData || []);
-      if (!selectedBlogId && blogsData.length > 0) setSelectedBlogId(blogsData[0].id);
+      if (!selectedBlogId && blogsData.rows.length > 0) setSelectedBlogId(blogsData.rows[0].id);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load blog scheduler data');
     } finally {
