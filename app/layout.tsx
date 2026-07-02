@@ -1,14 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Outfit } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "@/components/theme-provider";
-
-const outfit = Outfit({ 
-  subsets: ["latin"],
-  variable: "--font-sans-custom",
-  display: "swap",
-});
 
 export const viewport: Viewport = {
   themeColor: "#040404",
@@ -73,7 +66,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={outfit.variable}>
+    <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground font-sans antialiased selection:bg-primary/30 selection:text-primary">
         <ThemeProvider
           attribute="class"

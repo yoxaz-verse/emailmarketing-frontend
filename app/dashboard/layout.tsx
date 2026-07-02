@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
-import Sidebar from '@/components/dashboard/Sidebar';
-import TopBar from '@/components/dashboard/TopBar';
+import DashboardShell from '@/components/dashboard/DashboardShell';
 import { cookies } from 'next/headers';
 import { serverFetch } from '@/lib/server/server-fetch';
 
@@ -24,19 +23,5 @@ export default async function DashboardLayout({
   // serverFetch redirects to /api/auth/logout on 401/403.
   const session = await serverFetch<AuthMeResponse>('/auth/me');
 
-  return (
-    <div className="flex bg-background min-h-screen">
-      <Sidebar role={role} />
-
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <TopBar initialEmail={String(session?.email ?? '').trim()} />
-
-        <main className="flex-1 relative overflow-y-auto focus:outline-none">
-          <div className="py-8 px-8">
-            {children}
-          </div>
-        </main>
-      </div>
-    </div>
-  );
+  return <DashboardShell role={role} email={String(session?.email ?? '').trim()}>{children}</DashboardShell>;
 }

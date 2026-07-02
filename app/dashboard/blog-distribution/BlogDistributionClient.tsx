@@ -172,7 +172,6 @@ export default function BlogDistributionClient() {
 
   useEffect(() => {
     void refreshAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

@@ -17,9 +17,10 @@ export default function ForgotPasswordPage() {
     const [otp, setOtp] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [resetToken, setResetToken] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+    const API_URL = '/api/proxy';
 
     const handleRequest = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -37,7 +38,7 @@ export default function ForgotPasswordPage() {
                 const data = await res.json();
                 toast.error(data.error || 'Failed to send code');
             }
-        } catch (err) {
+        } catch {
             toast.error('Connection error');
         } finally {
             setLoading(false);
@@ -54,13 +55,16 @@ export default function ForgotPasswordPage() {
                 body: JSON.stringify({ email, otp })
             });
             if (res.ok) {
+                const data = await res.json();
+                if (typeof data.reset_token !== 'string' || !data.reset_token) throw new Error('Reset authorization was not returned');
+                setResetToken(data.reset_token);
                 toast.success('Code verified');
                 setStep('RESET');
             } else {
                 const data = await res.json();
                 toast.error(data.error || 'Invalid code');
             }
-        } catch (err) {
+        } catch {
             toast.error('Connection error');
         } finally {
             setLoading(false);
@@ -73,8 +77,8 @@ export default function ForgotPasswordPage() {
             toast.error('Passwords do not match');
             return;
         }
-        if (newPassword.length < 8) {
-            toast.error('Password must be at least 8 characters');
+        if (newPassword.length < 12) {
+            toast.error('Password must be at least 12 characters');
             return;
         }
 
@@ -83,7 +87,7 @@ export default function ForgotPasswordPage() {
             const res = await fetch(`${API_URL}/auth/reset-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, new_password: newPassword })
+                body: JSON.stringify({ email, new_password: newPassword, reset_token: resetToken })
             });
             if (res.ok) {
                 toast.success('Password updated successfully');
@@ -92,7 +96,7 @@ export default function ForgotPasswordPage() {
                 const data = await res.json();
                 toast.error(data.error || 'Reset failed');
             }
-        } catch (err) {
+        } catch {
             toast.error('Connection error');
         } finally {
             setLoading(false);
@@ -129,9 +133,11 @@ export default function ForgotPasswordPage() {
                             </p>
                             <form onSubmit={handleRequest} className="space-y-4">
                                 <div>
-                                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Email address</label>
+                                    <label htmlFor="reset-email" className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Email address</label>
                                     <Input
+                                        id="reset-email"
                                         type="email"
+                                        autoComplete="email"
                                         placeholder="you@company.com"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
@@ -159,9 +165,12 @@ export default function ForgotPasswordPage() {
                             </p>
                             <form onSubmit={handleVerify} className="space-y-4">
                                 <div>
-                                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Verification Code</label>
+                                    <label htmlFor="reset-otp" className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Verification Code</label>
                                     <Input
+                                        id="reset-otp"
                                         type="text"
+                                        inputMode="numeric"
+                                        autoComplete="one-time-code"
                                         placeholder="000000"
                                         maxLength={6}
                                         value={otp}
@@ -198,10 +207,12 @@ export default function ForgotPasswordPage() {
                             <form onSubmit={handleReset} className="space-y-4">
                                 <div className="space-y-3">
                                     <div>
-                                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">New Password</label>
+                                        <label htmlFor="new-password" className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">New Password</label>
                                         <Input
+                                            id="new-password"
                                             type="password"
-                                            placeholder="Min. 8 characters"
+                                            autoComplete="new-password"
+                                            placeholder="Min. 12 characters"
                                             value={newPassword}
                                             onChange={(e) => setNewPassword(e.target.value)}
                                             required
@@ -209,9 +220,11 @@ export default function ForgotPasswordPage() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Confirm Password</label>
+                                        <label htmlFor="confirm-password" className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Confirm Password</label>
                                         <Input
+                                            id="confirm-password"
                                             type="password"
+                                            autoComplete="new-password"
                                             placeholder="Repeat password"
                                             value={confirmPassword}
                                             onChange={(e) => setConfirmPassword(e.target.value)}

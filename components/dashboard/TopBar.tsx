@@ -2,13 +2,14 @@
 
 import React from 'react';
 import {
-    LogOut
+    LogOut,
+    Menu
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import NotificationPanel from './NotificationPanel';
 import { ThemeToggle } from '@/components/theme-toggle';
 
-export default function TopBar({ initialEmail = '' }: { initialEmail?: string }) {
+export default function TopBar({ initialEmail = '', onMenuClick }: { initialEmail?: string; onMenuClick?: () => void }) {
     const email = initialEmail.trim();
 
     const handleSignOut = () => {
@@ -18,9 +19,12 @@ export default function TopBar({ initialEmail = '' }: { initialEmail?: string })
     };
 
     return (
-        <header className="h-16 bg-card/95 border-b border-border flex items-center justify-between px-8 sticky top-0 z-30 backdrop-blur-xl">
-            <div className="flex items-center gap-8">
-                <h1 className="text-xl font-bold text-foreground border-r border-border pr-8 h-8 flex items-center">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/95 px-3 backdrop-blur-xl sm:px-6 lg:px-8">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-6">
+                <Button type="button" variant="ghost" size="icon" className="lg:hidden" aria-label="Open navigation" onClick={onMenuClick}>
+                    <Menu className="h-5 w-5" />
+                </Button>
+                <h1 className="flex h-8 items-center text-lg font-bold text-foreground sm:border-r sm:border-border sm:pr-6 sm:text-xl">
                     <span className="text-primary">OBAOL</span>
                     {/* {getPageTitle(pathname)} */}
                 </h1>
@@ -34,19 +38,19 @@ export default function TopBar({ initialEmail = '' }: { initialEmail?: string })
                 </div> */}
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex min-w-0 items-center gap-1 sm:gap-3">
                 <NotificationPanel />
                 <ThemeToggle />
-                <p className="text-sm font-medium text-foreground max-w-[320px] truncate" title={email || 'Signed in'}>
+                <p className="hidden max-w-[220px] truncate text-sm font-medium text-foreground md:block" title={email || 'Signed in'}>
                     {email || 'Signed in'}
                 </p>
                 <Button
                     variant="ghost"
-                    className="text-red-600 dark:text-red-400 hover:text-red-600 dark:text-red-400 hover:bg-red-500/10"
+                    className="text-red-600 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400"
                     onClick={handleSignOut}
                 >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign out
+                    <LogOut className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Sign out</span>
                 </Button>
             </div>
         </header>

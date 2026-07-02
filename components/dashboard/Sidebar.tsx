@@ -88,7 +88,7 @@ type NavItem = {
     comingSoon?: boolean;
 };
 
-export default function Sidebar({ role }: { role?: string }) {
+export default function Sidebar({ role, mobileOpen = false, onClose }: { role?: string; mobileOpen?: boolean; onClose?: () => void }) {
     const pathname = usePathname();
     const isAdmin = isAdminRole(role);
 
@@ -96,6 +96,7 @@ const renderNavItem = (item: NavItem, isActive: boolean) => (
         <li key={item.href}>
             <Link
                 href={item.href}
+                onClick={onClose}
                 className={cn(
                     "flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group",
                     isActive
@@ -121,7 +122,10 @@ const renderNavItem = (item: NavItem, isActive: boolean) => (
     );
 
     return (
-        <aside className="w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col h-screen sticky top-0">
+        <aside aria-label="Primary navigation" className={cn(
+            "fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-transform duration-200 lg:sticky lg:top-0 lg:z-20 lg:w-64 lg:translate-x-0",
+            mobileOpen ? "translate-x-0" : "-translate-x-full"
+        )}>
             <div className="p-6 border-b border-sidebar-border/70">
                 <div className="flex items-center gap-3">
                     <Image
@@ -135,7 +139,7 @@ const renderNavItem = (item: NavItem, isActive: boolean) => (
                 </div>
             </div>
 
-            <nav className="flex-1 px-4 py-4 space-y-8 overflow-y-auto">
+            <nav className="custom-scrollbar flex-1 space-y-6 overflow-y-auto px-4 py-4">
                 <ul className="space-y-1">
                     {mainItems.map((item) => renderNavItem(item, pathname === item.href))}
                 </ul>

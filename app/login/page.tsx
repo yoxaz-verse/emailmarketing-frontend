@@ -139,12 +139,14 @@ function LoginPageContent() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-1">
+              <label htmlFor="login-email" className="block text-sm font-medium text-muted-foreground mb-1">
                 Email address
               </label>
               <input
                 name="email"
+                id="login-email"
                 type="email"
+                autoComplete="email"
                 required
                 disabled={isLoading || isSuccess}
                 placeholder="you@company.com"
@@ -153,12 +155,14 @@ function LoginPageContent() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-1">
+              <label htmlFor="login-password" className="block text-sm font-medium text-muted-foreground mb-1">
                 Password
               </label>
               <input
                 name="password"
+                id="login-password"
                 type="password"
+                autoComplete="current-password"
                 required
                 disabled={isLoading || isSuccess}
                 placeholder="••••••••"
