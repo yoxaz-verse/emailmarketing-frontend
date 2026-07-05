@@ -19,7 +19,13 @@ Expected:
 
 ## Getting Started
 
-First, run the development server:
+To start the backend on port 3004 and the dashboard on port 3001 together:
+
+```bash
+npm run dev:full
+```
+
+Set `DASHBOARD_PORT` to override the dashboard port. To run only the dashboard:
 
 ```bash
 npm run dev
@@ -31,7 +37,7 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3001](http://localhost:3001) after using `dev:full`.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

@@ -2,12 +2,33 @@
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { getApiBaseHostname, getApiBaseUrl } from './api-config';
+import { BackendUnavailableError } from './backend-error';
+
+function logBackendFailure(event: string, details: Record<string, unknown>) {
+  if (process.env.NODE_ENV === 'development') {
+    console.warn(event, details);
+    return;
+  }
+  console.error(event, details);
+}
 
 export async function serverFetch<T>(
   path: string,
   options: RequestInit & { timeoutMs?: number } = {}
 ): Promise<T> {
   const startedAt = performance.now();
+  let apiBase: string;
+  try {
+    apiBase = getApiBaseUrl();
+  } catch (error) {
+    logBackendFailure('[SERVER_FETCH_UNAVAILABLE]', {
+      path,
+      kind: 'configuration',
+      backendHost: 'unconfigured',
+    });
+    throw error;
+  }
   const cookieStore = await cookies();
   const token = cookieStore.get('auth_token')?.value;
   const { timeoutMs = 15_000, signal: callerSignal, ...fetchOptions } = options;
@@ -19,7 +40,7 @@ export async function serverFetch<T>(
   let res: Response;
   try {
     res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL}${path}`,
+      `${apiBase}${path}`,
       {
         ...fetchOptions,
         headers: {
@@ -34,15 +55,25 @@ export async function serverFetch<T>(
   } catch (err: unknown) {
     const typedErr = err as { message?: string };
     const message = String(typedErr?.message ?? '').toLowerCase();
+    const isTimeout = controller.signal.aborted || message.includes('abort');
     if (
       message.includes('fetch failed') ||
       message.includes('econnrefused') ||
       message.includes('socket') ||
-      message.includes('abort')
+      isTimeout
     ) {
-      throw new Error(message.includes('abort')
-        ? `Backend request timed out after ${timeoutMs}ms.`
-        : 'Backend unavailable. Please ensure backend is running and retry.');
+      const kind = isTimeout ? 'timeout' : 'connection';
+      logBackendFailure('[SERVER_FETCH_UNAVAILABLE]', {
+        path,
+        kind,
+        backendHost: getApiBaseHostname(),
+      });
+      throw new BackendUnavailableError(
+        isTimeout
+          ? `Backend request timed out after ${timeoutMs}ms.`
+          : 'Backend unavailable. Please ensure backend is running and retry.',
+        { kind, cause: err }
+      );
     }
     throw err;
   } finally {
@@ -73,6 +104,19 @@ export async function serverFetch<T>(
       raw ||
       `Request failed with status ${res.status}`;
 
+    if (res.status >= 500) {
+      logBackendFailure('[SERVER_FETCH_UNAVAILABLE]', {
+        path,
+        kind: 'upstream',
+        status: res.status,
+        backendHost: getApiBaseHostname(),
+      });
+      throw new BackendUnavailableError(
+        `Backend request failed with status ${res.status}.`,
+        { kind: 'upstream', statusCode: res.status, raw }
+      );
+    }
+
     const error = new Error(message) as Error & {
       statusCode?: number;
       raw?: string;
@@ -92,5 +136,18 @@ export async function serverFetch<T>(
       payloadBytes: Buffer.byteLength(raw, 'utf8'),
     });
   }
-  return (raw ? JSON.parse(raw) : null) as T;
+  try {
+    return (raw ? JSON.parse(raw) : null) as T;
+  } catch (cause) {
+    logBackendFailure('[SERVER_FETCH_INVALID_RESPONSE]', {
+      path,
+      status: res.status,
+      backendHost: getApiBaseHostname(),
+    });
+    throw new BackendUnavailableError('Backend returned an invalid JSON response.', {
+      kind: 'invalid-response',
+      statusCode: res.status,
+      cause,
+    });
+  }
 }

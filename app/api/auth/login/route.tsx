@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { authCookieMaxAge } from '@/lib/auth-session';
+import { getApiBaseUrl } from '@/lib/server/api-config';
 
 type LoginBackendResponse = {
   token?: string;
@@ -29,7 +30,6 @@ function isLoginBackendSuccess(data: LoginBackendResponse | null): data is Login
 }
 
 export async function POST(req: Request) {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
   const contentType = req.headers.get('content-type') || '';
 
   let email, password;
@@ -51,8 +51,13 @@ export async function POST(req: Request) {
     return NextResponse.redirect(new URL('/login?error=Email and password are required', req.url));
   }
 
-  if (!apiBase || apiBase.trim() === '') {
-    const errorMessage = 'NEXT_PUBLIC_API_BASE_URL is missing. Set it in dashboard/.env.local.';
+  let apiBase: string;
+  try {
+    apiBase = getApiBaseUrl();
+  } catch (error) {
+    const errorMessage = error instanceof Error
+      ? error.message
+      : 'NEXT_PUBLIC_API_BASE_URL is missing or invalid.';
     if (contentType.includes('application/json')) {
       return NextResponse.json({ error: errorMessage }, { status: 500 });
     }

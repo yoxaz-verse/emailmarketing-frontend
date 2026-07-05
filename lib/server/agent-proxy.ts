@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { getApiBaseUrl } from './api-config';
 
 type Method = 'GET' | 'POST' | 'PATCH';
 
 export async function proxyAgentRequest(req: Request, backendPath: string, method: Method) {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!apiBase || apiBase.trim() === '') {
-    return NextResponse.json({ ok: false, error: 'NEXT_PUBLIC_API_BASE_URL is missing' }, { status: 500 });
+  let apiBase: string;
+  try {
+    apiBase = getApiBaseUrl();
+  } catch (error) {
+    return NextResponse.json(
+      { ok: false, error: error instanceof Error ? error.message : 'NEXT_PUBLIC_API_BASE_URL is invalid' },
+      { status: 500 }
+    );
   }
 
   const cookieStore = await cookies();

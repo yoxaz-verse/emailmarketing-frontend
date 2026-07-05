@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { clearAuthCookies, isTokenExpired } from '@/lib/auth-session';
+import { getApiBaseUrl } from '@/lib/server/api-config';
 
 const SESSION_EXPIRED_PATH = '/login?reason=session-expired';
 const BACKEND_UNAVAILABLE_PATH = '/login?error=Backend unavailable. Please try again.';
@@ -17,8 +18,10 @@ export async function GET(req: Request) {
     return clearAuthCookies(redirectTo(req, SESSION_EXPIRED_PATH));
   }
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!apiBase || apiBase.trim() === '') {
+  let apiBase: string;
+  try {
+    apiBase = getApiBaseUrl();
+  } catch {
     return redirectTo(req, BACKEND_UNAVAILABLE_PATH);
   }
 

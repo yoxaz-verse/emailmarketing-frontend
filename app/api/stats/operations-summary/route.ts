@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { getApiBaseUrl } from '@/lib/server/api-config';
 
 type ProxyErrorStatus = 'backend_unavailable' | 'route_missing' | 'upstream_error' | 'misconfigured';
 
@@ -11,11 +12,13 @@ type ProxyErrorBody = {
 
 export async function GET() {
   const UPSTREAM_TIMEOUT_MS = 12000;
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!apiBase || apiBase.trim() === '') {
+  let apiBase: string;
+  try {
+    apiBase = getApiBaseUrl();
+  } catch (error) {
     return NextResponse.json<ProxyErrorBody>(
       {
-        error: 'NEXT_PUBLIC_API_BASE_URL is missing.',
+        error: error instanceof Error ? error.message : 'NEXT_PUBLIC_API_BASE_URL is invalid.',
         status: 'misconfigured',
       },
       { status: 500 }

@@ -3,6 +3,7 @@
 import { serverFetch } from '@/lib/server/server-fetch';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
+import { getApiBaseUrl } from '@/lib/server/api-config';
 
 export type CampaignAttachSummary = {
   requested: number;
@@ -118,7 +119,7 @@ async function callCampaignAction(path: string): Promise<CampaignActionResult> {
   const token = cookieStore.get('auth_token')?.value;
 
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}${path}`, {
+    const res = await fetch(`${getApiBaseUrl()}${path}`, {
       method: 'POST',
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

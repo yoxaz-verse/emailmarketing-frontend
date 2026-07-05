@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { clearAuthCookies } from '@/lib/auth-session';
+import { getApiBaseUrl } from '@/lib/server/api-config';
 
 function isAuthLikeError(message: string): boolean {
   return /unauthorized|invalid token|token expired|jwt expired|invalid signature|authentication required|session expired|sign(?:ed)? in again|user disabled|forbidden/i.test(message);
@@ -17,10 +18,12 @@ function pickSafeResponseHeaders(upstream: Response): Headers {
 
 async function proxy(req: NextRequest, path: string[]) {
   const startedAt = performance.now();
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!apiBase || apiBase.trim() === '') {
+  let apiBase: string;
+  try {
+    apiBase = getApiBaseUrl();
+  } catch (error) {
     return NextResponse.json(
-      { ok: false, error: 'NEXT_PUBLIC_API_BASE_URL is missing' },
+      { ok: false, error: error instanceof Error ? error.message : 'NEXT_PUBLIC_API_BASE_URL is invalid' },
       { status: 500 }
     );
   }
