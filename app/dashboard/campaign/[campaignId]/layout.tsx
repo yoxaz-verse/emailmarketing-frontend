@@ -25,11 +25,6 @@ export default async function CampaignDetailLayout({
       <div className="px-8 pt-8">
         <CampaignHeader
           campaign={workspace.campaign}
-          inboxes={workspace.inboxes}
-          campaignInboxes={workspace.campaign_inboxes}
-          lockedInboxes={workspace.locked_inboxes}
-          senderSettings={workspace.sender_settings}
-          assignedOperatorName={workspace.assigned_operator_name}
         />
       </div>
       <Suspense fallback={<SectionFallback />}>{children}</Suspense>

@@ -1,110 +1,38 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Activity, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { pauseCampaignAction, startCampaignAction, updateCampaignInboxes, updateCampaignSenderSettings } from './actions';
-import { Check, ChevronDown, Mail, Server } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { toast } from 'react-hot-toast';
 import { clientFetch } from '@/lib/client-fetch';
+import { pauseCampaignAction, startCampaignAction } from './actions';
+import { toast } from 'react-hot-toast';
 
-type Props = {
+type CampaignHeaderProps = {
   campaign: {
     id: string;
     name: string;
     status: string;
-    operator_id?: string | null;
   };
-  assignedOperatorName: string | null;
-  senderSettings: {
-    sender_display_name: string | null;
-    effective_sender_display_name: string;
-    warning: string | null;
-    schema_ready?: boolean;
-  };
-  inboxes: Array<{
-    id: string;
-    email_address: string;
-    operator_id?: string | null;
-  }>;
-  campaignInboxes: Array<{
-    inbox_id: string;
-  }>;
-  lockedInboxes?: Array<{
-    inbox_id: string;
-    blocking_campaign_id: string;
-    blocking_campaign_name: string;
-    blocking_status: string;
-  }>;
 };
 
 type BackendHealth = 'checking' | 'online' | 'offline';
 
-export default function CampaignHeader({
-  campaign,
-  inboxes,
-  campaignInboxes,
-  lockedInboxes = [],
-  senderSettings,
-  assignedOperatorName,
-}: Props) {
+export default function CampaignHeader({ campaign }: CampaignHeaderProps) {
   const router = useRouter();
-
-  /**
-   * Inbox IDs currently attached in DB
-   */
-  const attachedInboxIds = useMemo(() => new Set(
-    campaignInboxes.map(ci => ci.inbox_id)
-  ), [campaignInboxes]);
-
-  /**
-   * Local UI state (NO side effects)
-   */
-  const [selected, setSelected] = useState<Set<string>>(
-    new Set(attachedInboxIds)
-  );
-  const [saving, setSaving] = useState(false);
-  const [isSubmittingCampaignAction, setIsSubmittingCampaignAction] = useState(false);
-  const [campaignActionStatus, setCampaignActionStatus] = useState<string | null>(null);
-  const [displayedCampaignStatus, setDisplayedCampaignStatus] = useState(campaign.status);
+  const searchParams = useSearchParams();
+  const [status, setStatus] = useState(campaign.status);
   const [backendHealth, setBackendHealth] = useState<BackendHealth>('checking');
-  const [isInboxesOpen, setIsInboxesOpen] = useState(true);
-  const [senderDisplayName, setSenderDisplayName] = useState(senderSettings.sender_display_name ?? '');
-  const [savingSender, setSavingSender] = useState(false);
-  const [senderWarning, setSenderWarning] = useState<string | null>(senderSettings.warning ?? null);
-  const [lockConflicts, setLockConflicts] = useState<Array<{
-    inbox_id: string;
-    email_address: string;
-    blocking_campaign_id: string;
-    blocking_campaign_name: string;
-    blocking_status: string;
-  }>>([]);
+  const [submitting, setSubmitting] = useState(false);
 
-  const lockMap = useMemo(() => {
-    const map = new Map<string, {
-      inbox_id: string;
-      blocking_campaign_id: string;
-      blocking_campaign_name: string;
-      blocking_status: string;
-    }>();
-    for (const row of lockedInboxes) {
-      if (row?.inbox_id) map.set(String(row.inbox_id), row);
-    }
-    return map;
-  }, [lockedInboxes]);
+  const canStart = status === 'draft' || status === 'paused';
+  const canPause = status === 'running';
 
-  function toggle(inboxId: string) {
-    if (lockMap.has(inboxId)) return;
-    setSelected(prev => {
-      const next = new Set(prev);
-      if (next.has(inboxId)) next.delete(inboxId);
-      else next.add(inboxId);
-      return next;
-    });
-  }
+  useEffect(() => setStatus(campaign.status), [campaign.status]);
 
   async function checkBackendHealth() {
+    setBackendHealth('checking');
     try {
       await clientFetch<{ ok: boolean }>('/ping');
       setBackendHealth('online');
@@ -117,374 +45,78 @@ export default function CampaignHeader({
     void checkBackendHealth();
   }, []);
 
-  useEffect(() => {
-    setDisplayedCampaignStatus(campaign.status);
-  }, [campaign.status]);
-
-  useEffect(() => {
-    const storageKey = `campaign:${campaign.id}:inboxesOpen`;
-    try {
-      const stored = window.localStorage.getItem(storageKey);
-      if (stored === '0') setIsInboxesOpen(false);
-      if (stored === '1') setIsInboxesOpen(true);
-    } catch {
-      // Ignore localStorage read errors in restricted environments.
-    }
-  }, [campaign.id]);
-
-  useEffect(() => {
-    const storageKey = `campaign:${campaign.id}:inboxesOpen`;
-    try {
-      window.localStorage.setItem(storageKey, isInboxesOpen ? '1' : '0');
-    } catch {
-      // Ignore localStorage write errors in restricted environments.
-    }
-  }, [campaign.id, isInboxesOpen]);
-
-  async function applyChanges() {
-    if (saving) return;
-    if (backendHealth !== 'online') {
-      toast.error('Backend offline. Start backend and retry.');
-      return;
-    }
-
-    const selectedInboxIds = [...selected];
-
-    try {
-      setSaving(true);
-      setLockConflicts([]);
-      const result = await updateCampaignInboxes(
-        campaign.id,
-        selectedInboxIds
-      );
-      if (!result.success) {
-        if (Array.isArray(result.conflicts) && result.conflicts.length > 0) {
-          setLockConflicts(result.conflicts);
-          toast.error('Some inboxes are locked by other active campaigns.');
-          return;
-        }
-        throw new Error(result.errors?.[0] ?? 'Failed to save campaign inboxes');
-      }
-      toast.success(
-        `Saved inboxes. Attached: ${result.attached}, removed: ${result.detached}, unchanged: ${result.unchanged}.`
-      );
-      setBackendHealth('online');
-    } catch (error) {
-      const raw = error instanceof Error ? error.message : 'Unknown error';
-      const lower = raw.toLowerCase();
-      if (lower.includes('backend unavailable') || lower.includes('fetch failed')) {
-        setBackendHealth('offline');
-        toast.error('Backend unavailable while saving inboxes. Please retry in a moment.');
-      } else {
-        toast.error(raw);
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function saveSenderSettings() {
-    if (savingSender) return;
-    try {
-      setSavingSender(true);
-      const result = await updateCampaignSenderSettings(campaign.id, senderDisplayName);
-      if (!result.success) {
-        toast.error(result.error || 'Failed to update sender name');
-        return;
-      }
-      setSenderWarning(result.warning ?? null);
-      toast.success('Campaign sender name updated.');
-      router.refresh();
-    } catch (error: any) {
-      toast.error(String(error?.message ?? 'Failed to update sender name'));
-    } finally {
-      setSavingSender(false);
-    }
-  }
-
   async function handleStartPause() {
-    if (isSubmittingCampaignAction) return;
-    setCampaignActionStatus(null);
+    if (submitting) return;
     const shouldStart = canStart;
     try {
-      setIsSubmittingCampaignAction(true);
+      setSubmitting(true);
       const result = shouldStart
         ? await startCampaignAction(campaign.id)
         : await pauseCampaignAction(campaign.id);
-
-      if (!result.success) {
-        const message = result.error ?? 'Unable to update campaign status';
-        setCampaignActionStatus(message);
-        toast.error(message);
-        return;
-      }
+      if (!result.success) throw new Error(result.error || 'Unable to update campaign status');
 
       const nextStatus = shouldStart ? 'running' : 'paused';
-      const successMessage = shouldStart ? 'Campaign started successfully.' : 'Campaign paused successfully.';
-      setDisplayedCampaignStatus(nextStatus);
-      setCampaignActionStatus(successMessage);
-      toast.success(successMessage);
-      router.refresh();
+      setStatus(nextStatus);
+      toast.success(shouldStart ? 'Campaign started successfully.' : 'Campaign paused successfully.');
+      if (shouldStart) {
+        router.push(`/dashboard/campaign/${campaign.id}?tab=progress`);
+      } else {
+        const tab = searchParams.get('tab');
+        router.replace(`/dashboard/campaign/${campaign.id}${tab ? `?tab=${tab}` : ''}`);
+        router.refresh();
+      }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to update campaign status';
-      setCampaignActionStatus(message);
-      toast.error(message);
+      toast.error(error instanceof Error ? error.message : 'Unable to update campaign status');
     } finally {
-      setIsSubmittingCampaignAction(false);
+      setSubmitting(false);
     }
   }
 
-  const unchanged =
-    JSON.stringify([...selected].sort()) ===
-    JSON.stringify([...attachedInboxIds].sort());
-
-  const canStart =
-    displayedCampaignStatus === 'draft' || displayedCampaignStatus === 'paused';
-  const canPause = displayedCampaignStatus === 'running';
-
-  const operatorLabel = assignedOperatorName
-    ?? (String(campaign.operator_id ?? '').trim() ? 'Unknown operator' : 'Not assigned');
-
-  // Sort inboxes: unlocked first, then selected, then by email
-  const sortedInboxes = [...inboxes].sort((a, b) => {
-    const aLocked = lockMap.has(String(a.id));
-    const bLocked = lockMap.has(String(b.id));
-    if (aLocked !== bLocked) return aLocked ? 1 : -1;
-
-    const aSelected = selected.has(a.id);
-    const bSelected = selected.has(b.id);
-    if (aSelected && !bSelected) return -1;
-    if (!aSelected && bSelected) return 1;
-    return a.email_address.localeCompare(b.email_address);
-  });
-
   return (
-    <div className="border border-border/50 rounded-2xl p-6 space-y-8 bg-card/40 backdrop-blur-sm shadow-sm">
-
-      {/* Campaign Info */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-3">
-            {campaign.name}
+    <header className="rounded-2xl border border-border/60 bg-card/45 p-5 shadow-sm backdrop-blur-sm">
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="truncate text-2xl font-bold tracking-tight">{campaign.name}</h1>
             <span className={cn(
-              "px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider",
-              displayedCampaignStatus === 'draft' ? "bg-muted text-muted-foreground" :
-              displayedCampaignStatus === 'running' ? "bg-green-500/20 text-green-700 dark:text-green-400 border border-green-500/30" :
-              "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border border-yellow-500/30"
+              'rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider',
+              status === 'draft' && 'border-border bg-muted text-muted-foreground',
+              status === 'running' && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300',
+              status === 'paused' && 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300'
             )}>
-              {displayedCampaignStatus}
+              {status}
             </span>
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage the sending infrastructure assigned to this campaign.
-          </p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Assigned operator: <span className="font-medium text-foreground">{operatorLabel}</span>
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <div className="flex items-center gap-2">
-            {(canStart || canPause) && (
-              <Button
-                variant={canPause ? 'destructive' : 'default'}
-                type="button"
-                onClick={() => void handleStartPause()}
-                disabled={isSubmittingCampaignAction}
-              >
-                {isSubmittingCampaignAction
-                  ? (canStart ? 'Starting...' : 'Pausing...')
-                  : (canStart ? 'Start Campaign' : 'Pause Campaign')}
-              </Button>
-            )}
-            <Button
-              onClick={applyChanges}
-              disabled={unchanged || saving || backendHealth !== 'online'}
-              className="transition-all"
-            >
-              {saving ? 'Saving...' : 'Save Configuration'}
-            </Button>
           </div>
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                'text-xs px-2 py-1 rounded-md border',
-                backendHealth === 'online' && 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10',
-                backendHealth === 'offline' && 'text-rose-400 border-rose-500/30 bg-rose-500/10',
-                backendHealth === 'checking' && 'text-amber-700 dark:text-amber-300 border-amber-400/30 bg-amber-500/10'
-              )}
-            >
-              {backendHealth === 'online' && 'Backend online'}
-              {backendHealth === 'offline' && 'Backend offline'}
-              {backendHealth === 'checking' && 'Checking backend...'}
-            </span>
-            {backendHealth !== 'online' && (
-              <Button size="sm" variant="outline" onClick={() => void checkBackendHealth()}>
-                Retry
-              </Button>
-            )}
-          </div>
-          {canStart && selected.size === 0 && (
-            <span className="text-xs font-medium text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-1 rounded-md">
-              At least one inbox required
-            </span>
-          )}
-          {campaignActionStatus && (
-            <span className="text-xs font-medium text-amber-700 dark:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-2 py-1 rounded-md">
-              {campaignActionStatus}
-            </span>
-          )}
+          <p className="mt-1 text-sm text-muted-foreground">Configure delivery, then monitor projection and execution progress.</p>
         </div>
-      </div>
 
-      <div className="rounded-xl border border-border/70 bg-background/30 p-4 space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="text-sm font-semibold text-foreground">Campaign Sender Name</div>
-            <div className="text-xs text-muted-foreground">
-              Leave empty to use default <span className="font-semibold text-foreground">OBAOL Team</span>.
-            </div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              Effective now: <span className="text-foreground">{senderDisplayName.trim() || 'OBAOL Team'}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              value={senderDisplayName}
-              onChange={(e) => setSenderDisplayName(e.target.value)}
-              placeholder="OBAOL Team"
-              className="h-9 w-64 rounded border border-border bg-background px-3 text-sm"
-            />
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={cn(
+            'inline-flex h-9 items-center gap-2 rounded-md border px-3 text-xs',
+            backendHealth === 'online' && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300',
+            backendHealth === 'offline' && 'border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-300',
+            backendHealth === 'checking' && 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+          )}>
+            <Activity className="size-4" aria-hidden="true" />
+            {backendHealth === 'online' ? 'Backend online' : backendHealth === 'offline' ? 'Backend offline' : 'Checking backend'}
+          </span>
+          {backendHealth === 'offline' ? (
+            <Button size="icon" variant="outline" onClick={() => void checkBackendHealth()} aria-label="Retry backend health check">
+              <RefreshCw aria-hidden="true" />
+            </Button>
+          ) : null}
+          {(canStart || canPause) ? (
             <Button
               type="button"
-              variant="outline"
-              onClick={() => void saveSenderSettings()}
-              disabled={savingSender || senderSettings.schema_ready === false}
+              variant={canPause ? 'destructive' : 'default'}
+              disabled={submitting || backendHealth !== 'online'}
+              onClick={() => void handleStartPause()}
             >
-              {savingSender ? 'Saving...' : 'Save Sender'}
+              {submitting ? (canStart ? 'Starting…' : 'Pausing…') : (canStart ? 'Start Campaign' : 'Pause Campaign')}
             </Button>
-          </div>
+          ) : null}
         </div>
-        {senderSettings.schema_ready === false ? (
-          <div className="text-xs text-amber-700 dark:text-amber-300">
-            Sender override column is not available in DB yet. Apply backend schema update to enable this.
-          </div>
-        ) : null}
-        {senderWarning ? (
-          <div className="text-xs text-amber-700 dark:text-amber-300">{senderWarning}</div>
-        ) : null}
       </div>
-
-      {/* Inbox Selection Grid */}
-      <div className="space-y-4">
-        <button
-          type="button"
-          onClick={() => setIsInboxesOpen((prev) => !prev)}
-          className="w-full flex items-center justify-between rounded-lg border border-border/70 bg-background/40 px-3 py-2 text-left hover:bg-accent/30 transition-colors"
-          aria-expanded={isInboxesOpen}
-          aria-label={isInboxesOpen ? 'Collapse sending inboxes' : 'Expand sending inboxes'}
-        >
-          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider flex items-center gap-2">
-            <Server className="w-4 h-4 text-muted-foreground" />
-            Sending Inboxes
-            <span className="ml-2 bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs">
-              {selected.size} / {inboxes.length} Selected
-            </span>
-          </h3>
-          <ChevronDown
-            className={cn(
-              'w-4 h-4 text-muted-foreground transition-transform duration-200',
-              isInboxesOpen ? 'rotate-180' : 'rotate-0'
-            )}
-          />
-        </button>
-
-        {isInboxesOpen && (
-          inboxes.length === 0 ? (
-            <div className="py-12 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-muted-foreground">
-              <Mail className="w-8 h-8 mb-3 opacity-50" />
-              <p className="text-sm font-medium">No inboxes available</p>
-              <p className="text-xs">Connect an inbox in the email automation settings.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-              {sortedInboxes.map(inbox => {
-                const isSelected = selected.has(inbox.id);
-                const lockInfo = lockMap.get(String(inbox.id));
-                const isLocked = Boolean(lockInfo);
-                return (
-                  <div
-                    key={inbox.id}
-                    onClick={() => toggle(inbox.id)}
-                    className={cn(
-                      "group relative flex flex-col gap-3 p-4 rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden",
-                      isLocked && "opacity-70 cursor-not-allowed",
-                      isSelected
-                        ? "border-primary bg-primary/5 shadow-[0_0_15px_rgba(var(--primary),0.15)]"
-                        : "border-border bg-background hover:border-primary/50 hover:bg-accent/50 hover:shadow-md"
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-3 relative z-10">
-                      <div className={cn(
-                        "flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-md border transition-colors mt-0.5",
-                        isSelected
-                          ? "bg-primary border-primary text-primary-foreground"
-                          : "border-muted-foreground/40 bg-background group-hover:border-primary/50"
-                      )}>
-                        {isSelected && <Check className="w-3.5 h-3.5" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={cn(
-                          "text-sm font-medium truncate transition-colors",
-                          isSelected ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
-                        )} title={inbox.email_address}>
-                          {inbox.email_address}
-                        </p>
-                        {isLocked ? (
-                          <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
-                            {lockInfo?.blocking_campaign_name === 'Another active campaign'
-                              ? `Locked by another active campaign (${lockInfo?.blocking_status})`
-                              : `Locked by: ${lockInfo?.blocking_campaign_name} (${lockInfo?.blocking_status})`}
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 pl-8 relative z-10">
-                      {inbox.operator_id == null && (
-                        <span className="px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20 text-primary text-[10px] font-semibold tracking-widest uppercase">
-                          Public
-                        </span>
-                      )}
-                      {isLocked && (
-                        <span className="px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-[10px] font-semibold tracking-widest uppercase">
-                          Locked
-                        </span>
-                      )}
-                    </div>
-
-                    {isSelected && (
-                      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-50 z-0 pointer-events-none" />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )
-        )}
-      </div>
-
-      {lockConflicts.length > 0 ? (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-200">
-          <p className="font-semibold">Inbox lock conflicts</p>
-          <div className="mt-2 space-y-1">
-            {lockConflicts.map((row, idx) => (
-              <p key={`${row.inbox_id}-${idx}`}>
-                {row.email_address} is locked by {row.blocking_campaign_name} ({row.blocking_status}).
-              </p>
-            ))}
-          </div>
-        </div>
-      ) : null}
-    </div>
+    </header>
   );
 }

@@ -1,130 +1,99 @@
-import { Suspense } from 'react';
 import Link from 'next/link';
-import { serverFetch } from '@/lib/server/server-fetch';
 import { getCampaignWorkspace } from '@/lib/server/campaign-workspace';
+import { serverFetch } from '@/lib/server/server-fetch';
+import CampaignSetup from './CampaignSetup';
 import CampaignLeadsPaginated from './CampaignLeadsPaginated';
+import CampaignProgress from './CampaignProgress';
 
-type RunnerHealth = {
-  state?: 'healthy' | 'stale' | 'failed' | 'idle';
-  last_heartbeat_at?: string | null;
-  claimed_count?: number;
-  sent_count?: number;
-  skipped_count?: number;
-  failed_count?: number;
-  fatal_error?: string | null;
-  claim_reason?: string | null;
-};
+type RunnerHealthResponse = { runner_health?: Parameters<typeof CampaignProgress>[0]['runner'] };
+type Analytics = Parameters<typeof CampaignProgress>[0]['analytics'];
+type ProgressSummary = Parameters<typeof CampaignProgress>[0]['summary'];
 
-type Analytics = {
-  sent?: number;
-  delivered?: number;
-  opened?: number;
-  replied?: number;
-  bounced_total?: number;
-  delivery_rate?: number;
-  open_rate?: number;
-  reply_rate?: number;
-  open_rate_visible?: boolean;
-  spam_hints?: string[];
-};
-
-type ProgressSummary = {
-  total: number;
-  groups: Array<{ status: string; current_step: number; count: number }>;
-  lead_mix?: { eligible?: number; risky?: number; suppressed?: number };
-};
-
-function SectionSkeleton({ height = 'h-40' }: { height?: string }) {
-  return <div className={`${height} animate-pulse rounded-xl border border-border bg-muted/40`} />;
-}
-
-async function DeliveryHealth({ campaignId }: { campaignId: string }) {
-  const [healthResult, analyticsResult] = await Promise.allSettled([
-    serverFetch<{ runner_health?: RunnerHealth }>(`/campaigns/${campaignId}/health-summary`),
-    serverFetch<Analytics>(`/campaigns/${campaignId}/reply-open-analytics`, { timeoutMs: 20_000 }),
-  ]);
-  const runner = healthResult.status === 'fulfilled' ? healthResult.value.runner_health : undefined;
-  const analytics = analyticsResult.status === 'fulfilled' ? analyticsResult.value : null;
-  const state = runner?.state ?? 'idle';
-  const stateClass = state === 'healthy'
-    ? 'text-emerald-600 dark:text-emerald-300'
-    : state === 'idle' ? 'text-muted-foreground' : 'text-rose-600 dark:text-rose-300';
-  const metrics = [
-    ['Sent', analytics?.sent ?? 0],
-    ['Delivered', analytics?.delivered ?? 0],
-    ['Opened', analytics?.open_rate_visible === false ? 'Unconfirmed' : analytics?.opened ?? 0],
-    ['Replied', analytics?.replied ?? 0],
-    ['Bounced', analytics?.bounced_total ?? 0],
-  ];
-
+function CampaignTabs({ campaignId, active }: { campaignId: string; active: 'setup' | 'progress' }) {
   return (
-    <section className="rounded-xl border border-border bg-card/50 p-4">
-      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
-        <div>
-          <div className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Campaign runner</div>
-          <div className={`mt-1 text-lg font-semibold capitalize ${stateClass}`}>{state}</div>
-          <div className="mt-1 text-xs text-muted-foreground">
-            {runner?.last_heartbeat_at ? `Last batch ${new Date(runner.last_heartbeat_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}` : 'No runner heartbeat recorded.'}
-            {runner?.fatal_error || runner?.claim_reason ? ` · ${runner.fatal_error || runner.claim_reason}` : ''}
-          </div>
-        </div>
-        <div className="grid grid-cols-4 gap-4 text-center text-xs">
-          <div><span className="text-muted-foreground">Claimed</span><div className="font-semibold">{runner?.claimed_count ?? 0}</div></div>
-          <div><span className="text-muted-foreground">Sent</span><div className="font-semibold">{runner?.sent_count ?? 0}</div></div>
-          <div><span className="text-muted-foreground">Skipped</span><div className="font-semibold">{runner?.skipped_count ?? 0}</div></div>
-          <div><span className="text-muted-foreground">Failed</span><div className="font-semibold">{runner?.failed_count ?? 0}</div></div>
-        </div>
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
-        {metrics.map(([label, value]) => <div key={String(label)} className="rounded-lg border border-border p-3"><div className="text-xs text-muted-foreground">{label}</div><div className="mt-1 text-lg font-semibold">{value}</div></div>)}
-      </div>
-      {analyticsResult.status === 'rejected' ? <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">Delivery analytics are temporarily unavailable; the rest of the campaign remains usable.</p> : null}
-      {analytics?.spam_hints?.length ? <p className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-xs text-amber-700 dark:text-amber-300">{analytics.spam_hints.join(' ')}</p> : null}
-      <Link href={`/dashboard/campaign/replies?campaign_id=${campaignId}`} className="mt-3 inline-flex text-sm text-primary hover:underline">View replies</Link>
-    </section>
+    <nav className="inline-flex rounded-xl border border-border bg-card/50 p-1" aria-label="Campaign workspace tabs">
+      {(['setup', 'progress'] as const).map((tab) => (
+        <Link
+          key={tab}
+          href={`/dashboard/campaign/${campaignId}?tab=${tab}`}
+          aria-current={active === tab ? 'page' : undefined}
+          className={`rounded-lg px-5 py-2 text-sm font-medium capitalize transition-colors ${active === tab ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+        >
+          {tab}
+        </Link>
+      ))}
+    </nav>
   );
 }
 
-async function JourneySummary({ campaignId }: { campaignId: string }) {
-  const [workspace, summary] = await Promise.all([
-    getCampaignWorkspace(campaignId),
-    serverFetch<ProgressSummary>(`/campaigns/${campaignId}/progress-summary`),
-  ]);
-  const steps = [...(workspace.sequence_steps ?? [])].sort((a, b) => Number(a.step_number ?? 0) - Number(b.step_number ?? 0));
-  const groupsByStep = new Map<number, number>();
-  for (const group of summary.groups ?? []) {
-    const step = Math.max(1, Number(group.current_step ?? 1));
-    groupsByStep.set(step, Number(groupsByStep.get(step) ?? 0) + Number(group.count ?? 0));
-  }
-  return (
-    <section className="rounded-xl border border-border bg-card/50 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div><h2 className="text-base font-semibold">Campaign Journey</h2><p className="text-xs text-muted-foreground">{workspace.sequence?.name ?? 'No sequence selected'} · aggregate progress</p></div>
-        <div className="text-right"><div className="text-2xl font-semibold">{Number(summary.total ?? 0).toLocaleString()}</div><div className="text-xs text-muted-foreground">campaign leads</div></div>
-      </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {steps.length === 0 ? <div className="text-sm text-muted-foreground">No sequence steps configured.</div> : steps.map((step, index) => {
-          const stepNumber = Number(step.step_number ?? index + 1);
-          return <div key={String(step.id ?? stepNumber)} className="rounded-lg border border-border p-3"><div className="text-xs text-muted-foreground">Step {stepNumber} · +{Number(step.delay_days ?? 0)}d</div><div className="mt-1 font-medium">{step.subject || 'Untitled step'}</div><div className="mt-2 text-xs text-muted-foreground">{Number(groupsByStep.get(stepNumber) ?? 0).toLocaleString()} currently at this step</div></div>;
-        })}
-      </div>
-      <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
-        <span>Eligible: {Number(summary.lead_mix?.eligible ?? 0).toLocaleString()}</span>
-        <span>Risky: {Number(summary.lead_mix?.risky ?? 0).toLocaleString()}</span>
-        <span>Suppressed: {Number(summary.lead_mix?.suppressed ?? 0).toLocaleString()}</span>
-      </div>
-    </section>
-  );
-}
-
-export default async function CampaignPage({ params }: { params: Promise<{ campaignId: string }> }) {
-  const { campaignId } = await params;
+export default async function CampaignPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ campaignId: string }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
+}) {
+  const [{ campaignId }, query] = await Promise.all([params, searchParams]);
   const workspace = await getCampaignWorkspace(campaignId);
+  const requestedTab = Array.isArray(query.tab) ? query.tab[0] : query.tab;
+  const campaignStatus = String(workspace.campaign?.status ?? 'draft').toLowerCase();
+  const defaultTab = campaignStatus === 'draft' ? 'setup' : 'progress';
+  const activeTab: 'setup' | 'progress' = requestedTab === 'setup' || requestedTab === 'progress' ? requestedTab : defaultTab;
+
   return (
     <div className="space-y-6 px-8 py-6">
-      <Suspense fallback={<SectionSkeleton />}><DeliveryHealth campaignId={campaignId} /></Suspense>
-      <CampaignLeadsPaginated campaignId={campaignId} campaignStatus={workspace.campaign?.status} folders={workspace.lead_folders ?? []} />
-      <Suspense fallback={<SectionSkeleton height="h-64" />}><JourneySummary campaignId={campaignId} /></Suspense>
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div><h2 className="text-lg font-semibold">Campaign workspace</h2><p className="text-sm text-muted-foreground">Separate configuration from projections and live execution.</p></div>
+        <CampaignTabs campaignId={campaignId} active={activeTab} />
+      </div>
+
+      {activeTab === 'setup' ? (
+        <>
+          <CampaignSetup
+            campaign={workspace.campaign}
+            assignedOperatorName={workspace.assigned_operator_name}
+            sequence={workspace.sequence}
+            sequenceStepCount={workspace.sequence_steps.length}
+            senderSettings={workspace.sender_settings}
+            inboxes={workspace.inboxes}
+            campaignInboxes={workspace.campaign_inboxes}
+            lockedInboxes={workspace.locked_inboxes}
+          />
+          <CampaignLeadsPaginated
+            campaignId={campaignId}
+            campaignStatus={workspace.campaign?.status}
+            folders={workspace.lead_folders ?? []}
+          />
+        </>
+      ) : (
+        <ProgressContent campaignId={campaignId} workspace={workspace} />
+      )}
     </div>
+  );
+}
+
+async function ProgressContent({ campaignId, workspace }: { campaignId: string; workspace: Awaited<ReturnType<typeof getCampaignWorkspace>> }) {
+  const [healthResult, analyticsResult, summaryResult] = await Promise.allSettled([
+    serverFetch<RunnerHealthResponse>(`/campaigns/${campaignId}/health-summary`),
+    serverFetch<Analytics>(`/campaigns/${campaignId}/reply-open-analytics`, { timeoutMs: 20_000 }),
+    serverFetch<ProgressSummary>(`/campaigns/${campaignId}/progress-summary`),
+  ]);
+  const emptySummary: ProgressSummary = { total: 0, groups: [], lead_mix: { eligible: 0, risky: 0, suppressed: 0 } };
+
+  return (
+    <CampaignProgress
+      campaignId={campaignId}
+      campaign={workspace.campaign}
+      sequence={workspace.sequence}
+      sequenceSteps={workspace.sequence_steps}
+      inboxes={workspace.inboxes}
+      campaignInboxes={workspace.campaign_inboxes}
+      sendingLimits={workspace.sending_limits}
+      runner={healthResult.status === 'fulfilled' ? healthResult.value.runner_health ?? null : null}
+      analytics={analyticsResult.status === 'fulfilled' ? analyticsResult.value : null}
+      summary={summaryResult.status === 'fulfilled' ? summaryResult.value : emptySummary}
+      availability={{ health: healthResult.status === 'fulfilled', analytics: analyticsResult.status === 'fulfilled', summary: summaryResult.status === 'fulfilled' }}
+      projectionAnchorIso={new Date().toISOString()}
+    />
   );
 }
