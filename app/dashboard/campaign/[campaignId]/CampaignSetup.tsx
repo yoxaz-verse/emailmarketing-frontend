@@ -29,6 +29,10 @@ type CampaignSetupProps = {
   }>;
 };
 
+const campaignSectionClass = 'rounded-xl border border-border bg-card/50 p-5 dark:border-white/[0.14] dark:bg-white/[0.055] dark:shadow-[0_12px_36px_rgb(0,0,0,0.28)]';
+const campaignInnerCardClass = 'rounded-lg border border-border/70 p-4 dark:border-white/[0.12] dark:bg-black/20';
+const campaignFieldClass = 'h-9 min-w-0 rounded-md border border-border bg-background px-3 text-sm dark:border-white/[0.14] dark:bg-black/30';
+
 export default function CampaignSetup({
   campaign,
   assignedOperatorName,
@@ -123,20 +127,20 @@ export default function CampaignSetup({
 
   return (
     <div className="space-y-6">
-      <section className="rounded-xl border border-border bg-card/50 p-5">
+      <section className={campaignSectionClass}>
         <div className="flex items-center gap-2">
           <Settings2 className="size-4 text-primary" aria-hidden="true" />
           <h2 className="font-semibold">Campaign details</h2>
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-[1.5fr_1fr_1fr]">
-          <div className="rounded-lg border border-border/70 p-4">
+          <div className={campaignInnerCardClass}>
             <div className="text-xs uppercase tracking-wider text-muted-foreground">Sender identity</div>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <input
                 value={senderDisplayName}
                 onChange={(event) => setSenderDisplayName(event.target.value)}
                 placeholder="OBAOL Team"
-                className="h-9 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-sm"
+                className={cn(campaignFieldClass, 'flex-1')}
                 disabled={senderSettings.schema_ready === false}
               />
               <Button variant="outline" onClick={() => void saveSender()} disabled={savingSender || senderSettings.schema_ready === false}>
@@ -147,11 +151,11 @@ export default function CampaignSetup({
             {senderSettings.schema_ready === false ? <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">Apply the sender settings schema update to enable this field.</p> : null}
             {senderWarning ? <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">{senderWarning}</p> : null}
           </div>
-          <div className="rounded-lg border border-border/70 p-4">
+          <div className={campaignInnerCardClass}>
             <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground"><UserRound className="size-4" />Assigned operator</div>
             <div className="mt-3 font-medium">{operatorLabel}</div>
           </div>
-          <div className="rounded-lg border border-border/70 p-4">
+          <div className={campaignInnerCardClass}>
             <div className="text-xs uppercase tracking-wider text-muted-foreground">Sequence</div>
             <div className="mt-3 font-medium">{sequence?.name || 'No sequence assigned'}</div>
             <div className="mt-1 text-xs text-muted-foreground">{sequenceStepCount} configured step{sequenceStepCount === 1 ? '' : 's'}</div>
@@ -159,7 +163,7 @@ export default function CampaignSetup({
         </div>
       </section>
 
-      <section className="rounded-xl border border-border bg-card/50 p-5">
+      <section className={campaignSectionClass}>
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <div>
             <div className="flex items-center gap-2"><Server className="size-4 text-primary" /><h2 className="font-semibold">Sending inboxes</h2></div>
@@ -187,13 +191,15 @@ export default function CampaignSetup({
                   onClick={() => toggleInbox(inboxId)}
                   disabled={locked || Boolean(lockInfo)}
                   className={cn(
-                    'rounded-xl border p-4 text-left transition-colors',
-                    isSelected ? 'border-primary bg-primary/5' : 'border-border bg-background/40 hover:border-primary/50',
+                    'rounded-xl border p-4 text-left transition-colors dark:shadow-[0_8px_24px_rgb(0,0,0,0.22)]',
+                    isSelected
+                      ? 'border-primary bg-primary/5 dark:border-primary/80 dark:bg-primary/10'
+                      : 'border-border bg-background/40 hover:border-primary/50 dark:border-white/[0.12] dark:bg-black/25 dark:hover:border-primary/60 dark:hover:bg-white/[0.04]',
                     lockInfo && 'cursor-not-allowed opacity-60'
                   )}
                 >
                   <div className="flex items-start gap-3">
-                    <span className={cn('mt-0.5 flex size-5 items-center justify-center rounded border', isSelected ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40')}>
+                    <span className={cn('mt-0.5 flex size-5 items-center justify-center rounded border', isSelected ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40 dark:border-white/[0.22]')}>
                       {isSelected ? <Check className="size-3.5" /> : null}
                     </span>
                     <div className="min-w-0 flex-1">

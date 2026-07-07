@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast';
 import { clientFetch } from '@/lib/client-fetch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import { attachFolderLeadsAction, attachLeadsAction, detachLeadsAction } from './actions';
 
 type Lead = {
@@ -25,6 +26,10 @@ type PageResponse = {
 };
 
 type LeadScope = 'attached' | 'available';
+
+const leadPanelClass = 'min-w-0 rounded-xl border border-border bg-card/50 p-4 dark:border-white/[0.14] dark:bg-white/[0.055] dark:shadow-[0_12px_36px_rgb(0,0,0,0.28)]';
+const campaignFieldClass = 'dark:border-white/[0.14] dark:bg-black/30';
+const campaignTableFrameClass = 'mt-4 overflow-x-auto rounded-lg border border-border dark:border-white/[0.12] dark:bg-black/20';
 
 function LeadPanel({
   campaignId,
@@ -108,7 +113,7 @@ function LeadPanel({
 
   const isAttached = scope === 'attached';
   return (
-    <section className="min-w-0 rounded-xl border border-border bg-card/50 p-4">
+    <section className={leadPanelClass}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -125,11 +130,12 @@ function LeadPanel({
           value={query}
           onChange={(event) => { setQuery(event.target.value); setPage(1); }}
           placeholder={`Search ${scope} leads`}
+          className={campaignFieldClass}
         />
         {!isAttached ? (
           <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
             <select
-              className="h-9 min-w-0 rounded-md border border-border bg-background px-3 text-sm"
+              className={cn('h-9 min-w-0 rounded-md border border-border bg-background px-3 text-sm', campaignFieldClass)}
               value={folderId}
               onChange={(event) => { setFolderId(event.target.value); setPage(1); }}
             >
@@ -143,9 +149,9 @@ function LeadPanel({
 
       {locked ? <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-xs text-amber-700 dark:text-amber-300">Pause the campaign before changing leads.</div> : null}
 
-      <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+      <div className={campaignTableFrameClass}>
         <table className="w-full min-w-[560px] text-sm">
-          <thead className="bg-muted/40 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+          <thead className="bg-muted/40 text-left text-[11px] uppercase tracking-wider text-muted-foreground dark:bg-white/[0.045]">
             <tr>
               <th className="w-10 p-3"><input aria-label={`Select all ${scope} leads`} type="checkbox" checked={allSelected} onChange={(event) => setSelected(event.target.checked ? new Set(data.rows.map((lead) => lead.id)) : new Set())} /></th>
               <th className="pr-3">Lead</th>
@@ -159,7 +165,7 @@ function LeadPanel({
             ) : data.rows.length === 0 ? (
               <tr><td className="p-8 text-center text-muted-foreground" colSpan={4}>No {scope} leads found.</td></tr>
             ) : data.rows.map((lead) => (
-              <tr key={lead.id} className="border-t border-border/70">
+              <tr key={lead.id} className="border-t border-border/70 dark:border-white/10">
                 <td className="p-3"><input aria-label={`Select ${lead.email || 'lead'}`} type="checkbox" checked={selected.has(lead.id)} onChange={(event) => setSelected((current) => { const next = new Set(current); if (event.target.checked) next.add(lead.id); else next.delete(lead.id); return next; })} /></td>
                 <td className="py-3 pr-3"><div className="max-w-56 truncate font-medium" title={lead.email || ''}>{lead.email || '—'}</div><div className="text-xs text-muted-foreground">{lead.first_name || 'Unnamed'}</div></td>
                 <td className="max-w-40 truncate py-3 pr-3" title={lead.company || ''}>{lead.company || '—'}</td>

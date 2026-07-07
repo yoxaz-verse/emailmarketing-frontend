@@ -37,8 +37,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/og-image.png",
-        width: 1200,
-        height: 630,
+        width: 2160,
+        height: 2160,
         alt: "OBAOL | Cold Email Infrastructure",
       }
     ],

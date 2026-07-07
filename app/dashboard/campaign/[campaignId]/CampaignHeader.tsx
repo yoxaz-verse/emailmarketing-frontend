@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Activity, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -18,10 +18,14 @@ type CampaignHeaderProps = {
 };
 
 type BackendHealth = 'checking' | 'online' | 'offline';
+type CampaignStatusResponse = {
+  id: string;
+  status: string;
+  started_at?: string | null;
+};
 
 export default function CampaignHeader({ campaign }: CampaignHeaderProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [status, setStatus] = useState(campaign.status);
   const [backendHealth, setBackendHealth] = useState<BackendHealth>('checking');
   const [submitting, setSubmitting] = useState(false);
@@ -31,7 +35,12 @@ export default function CampaignHeader({ campaign }: CampaignHeaderProps) {
 
   useEffect(() => setStatus(campaign.status), [campaign.status]);
 
-  async function checkBackendHealth() {
+  const loadCampaignStatus = useCallback(async () => {
+    const nextCampaign = await clientFetch<CampaignStatusResponse>(`/campaigns/${campaign.id}/status`);
+    setStatus(String(nextCampaign.status ?? campaign.status).toLowerCase());
+  }, [campaign.id, campaign.status]);
+
+  const checkBackendHealth = useCallback(async () => {
     setBackendHealth('checking');
     try {
       await clientFetch<{ ok: boolean }>('/ping');
@@ -39,11 +48,26 @@ export default function CampaignHeader({ campaign }: CampaignHeaderProps) {
     } catch {
       setBackendHealth('offline');
     }
-  }
+  }, []);
 
   useEffect(() => {
     void checkBackendHealth();
-  }, []);
+  }, [checkBackendHealth]);
+
+  useEffect(() => {
+    const refreshIfVisible = () => {
+      if (document.hidden) return;
+      void loadCampaignStatus().catch(() => undefined);
+    };
+
+    refreshIfVisible();
+    const interval = window.setInterval(refreshIfVisible, 5_000);
+    document.addEventListener('visibilitychange', refreshIfVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
+    };
+  }, [loadCampaignStatus]);
 
   async function handleStartPause() {
     if (submitting) return;
@@ -55,15 +79,11 @@ export default function CampaignHeader({ campaign }: CampaignHeaderProps) {
         : await pauseCampaignAction(campaign.id);
       if (!result.success) throw new Error(result.error || 'Unable to update campaign status');
 
-      const nextStatus = shouldStart ? 'running' : 'paused';
-      setStatus(nextStatus);
+      setStatus(String(result.campaign?.status ?? (shouldStart ? 'running' : 'paused')).toLowerCase());
       toast.success(shouldStart ? 'Campaign started successfully.' : 'Campaign paused successfully.');
+      void loadCampaignStatus().catch(() => undefined);
       if (shouldStart) {
         router.push(`/dashboard/campaign/${campaign.id}?tab=progress`);
-      } else {
-        const tab = searchParams.get('tab');
-        router.replace(`/dashboard/campaign/${campaign.id}${tab ? `?tab=${tab}` : ''}`);
-        router.refresh();
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to update campaign status');
@@ -73,7 +93,7 @@ export default function CampaignHeader({ campaign }: CampaignHeaderProps) {
   }
 
   return (
-    <header className="rounded-2xl border border-border/60 bg-card/45 p-5 shadow-sm backdrop-blur-sm">
+    <header className="rounded-2xl border border-border/60 bg-card/45 p-5 shadow-sm backdrop-blur-sm dark:border-white/[0.14] dark:bg-white/[0.055] dark:shadow-[0_18px_50px_rgb(0,0,0,0.38)]">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">

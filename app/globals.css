@@ -101,25 +101,25 @@
   /* Dark Mode - OBAOL black, white, and gold */
   --background: oklch(0.04 0 0);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.11 0.004 85);
+  --card: oklch(0.135 0.006 85);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.11 0.004 85);
+  --popover: oklch(0.135 0.006 85);
   --popover-foreground: oklch(0.985 0 0);
   
   --primary: oklch(0.72 0.145 75);
   --primary-foreground: oklch(0.06 0 0);
   
-  --secondary: oklch(0.17 0.006 85);
+  --secondary: oklch(0.18 0.008 85);
   --secondary-foreground: oklch(0.985 0 0);
   
-  --muted: oklch(0.17 0.006 85);
-  --muted-foreground: oklch(0.68 0.012 85);
+  --muted: oklch(0.18 0.008 85);
+  --muted-foreground: oklch(0.72 0.014 85);
   --accent: oklch(0.24 0.038 75);
   --accent-foreground: oklch(0.93 0.08 78);
   
   --destructive: oklch(0.6 0.2 25);
-  --border: oklch(0.24 0.008 85);
-  --input: oklch(0.22 0.008 85);
+  --border: oklch(0.34 0.012 85);
+  --input: oklch(0.3 0.012 85);
   --ring: oklch(0.72 0.145 75);
 
   /* Charts */
@@ -135,7 +135,7 @@
   --sidebar-primary-foreground: oklch(0.06 0 0);
   --sidebar-accent: oklch(0.2 0.032 75);
   --sidebar-accent-foreground: oklch(0.93 0.08 78);
-  --sidebar-border: oklch(0.22 0.008 85);
+  --sidebar-border: oklch(0.31 0.012 85);
   --sidebar-ring: oklch(0.72 0.145 75);
 }
 
@@ -155,13 +155,13 @@
 
 /* Glassmorphism Utilities */
 .glass {
-  @apply bg-white/45 dark:bg-black/45 backdrop-blur-xl border border-black/10 dark:border-primary/15 dark:shadow-2xl;
+  @apply bg-white/45 dark:bg-[#11100d]/75 backdrop-blur-xl border border-black/10 dark:border-white/[0.12] dark:shadow-2xl dark:shadow-black/40;
 }
 .glass-panel {
-  @apply bg-white/75 dark:bg-[#12100d]/80 backdrop-blur-2xl border border-black/10 dark:border-primary/15 dark:shadow-2xl;
+  @apply bg-white/75 dark:bg-[#14120e]/85 backdrop-blur-2xl border border-black/10 dark:border-white/[0.14] dark:shadow-2xl dark:shadow-black/40;
 }
 .glass-card {
-  @apply bg-white/60 dark:bg-white/[0.035] backdrop-blur-lg border border-black/10 dark:border-primary/15 dark:shadow-[0_8px_30px_rgb(0,0,0,0.18)];
+  @apply bg-white/60 dark:bg-white/[0.07] backdrop-blur-lg border border-black/10 dark:border-white/[0.14] dark:shadow-[0_8px_30px_rgb(0,0,0,0.32)];
 }
 .text-gradient {
   @apply bg-clip-text text-transparent bg-gradient-to-r from-foreground via-primary to-primary;

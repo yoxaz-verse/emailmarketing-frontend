@@ -11,13 +11,13 @@ type ProgressSummary = Parameters<typeof CampaignProgress>[0]['summary'];
 
 function CampaignTabs({ campaignId, active }: { campaignId: string; active: 'setup' | 'progress' }) {
   return (
-    <nav className="inline-flex rounded-xl border border-border bg-card/50 p-1" aria-label="Campaign workspace tabs">
+    <nav className="inline-flex rounded-xl border border-border bg-card/50 p-1 dark:border-white/[0.14] dark:bg-white/[0.055] dark:shadow-inner dark:shadow-black/40" aria-label="Campaign workspace tabs">
       {(['setup', 'progress'] as const).map((tab) => (
         <Link
           key={tab}
           href={`/dashboard/campaign/${campaignId}?tab=${tab}`}
           aria-current={active === tab ? 'page' : undefined}
-          className={`rounded-lg px-5 py-2 text-sm font-medium capitalize transition-colors ${active === tab ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+          className={`rounded-lg px-5 py-2 text-sm font-medium capitalize transition-colors ${active === tab ? 'bg-primary text-primary-foreground shadow-sm dark:shadow-primary/25' : 'text-muted-foreground hover:bg-muted hover:text-foreground dark:hover:bg-white/[0.075]'}`}
         >
           {tab}
         </Link>
@@ -78,7 +78,7 @@ async function ProgressContent({ campaignId, workspace }: { campaignId: string; 
     serverFetch<Analytics>(`/campaigns/${campaignId}/reply-open-analytics`, { timeoutMs: 20_000 }),
     serverFetch<ProgressSummary>(`/campaigns/${campaignId}/progress-summary`),
   ]);
-  const emptySummary: ProgressSummary = { total: 0, groups: [], lead_mix: { eligible: 0, risky: 0, suppressed: 0 } };
+  const emptySummary: ProgressSummary = { total: 0, groups: [], lead_mix: { eligible: 0, risky: 0, suppressed: 0 }, rounds: [] };
 
   return (
     <CampaignProgress

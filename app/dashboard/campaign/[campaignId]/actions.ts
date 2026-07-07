@@ -65,6 +65,11 @@ export type CampaignInboxSyncSummary = {
 
 export type CampaignActionResult = {
   success: boolean;
+  campaign?: {
+    id: string;
+    status: string;
+    started_at?: string | null;
+  };
   error?: string;
   statusCode?: number;
 };
@@ -128,7 +133,11 @@ async function callCampaignAction(path: string): Promise<CampaignActionResult> {
       cache: 'no-store',
     });
 
-    if (res.ok) return { success: true };
+    if (res.ok) {
+      const raw = await res.text();
+      const parsed = raw ? JSON.parse(raw) as Partial<CampaignActionResult> : {};
+      return { ...parsed, success: true };
+    }
 
     const raw = await res.text();
     let parsed: { error?: string; message?: string } | null = null;
