@@ -13,6 +13,10 @@ type AgentTask = {
   task_type: string;
   input: string;
   status: string;
+  approval_status?: 'not_required' | 'pending' | 'approved' | 'rejected';
+  approval_notes?: string | null;
+  approved_at?: string | null;
+  rejected_at?: string | null;
   metadata: Record<string, unknown>;
   result: string | null;
   structured_outputs: unknown[];
@@ -50,6 +54,7 @@ const TASK_TYPE_OPTIONS = [
 ];
 
 const STALE_AFTER_MS = 5 * 60 * 1000;
+const APPROVAL_FILTERS = ['', 'pending', 'approved', 'rejected', 'not_required'];
 
 export default function AgentIntegrationsClient() {
   const [error, setError] = useState<string | null>(null);
@@ -69,9 +74,12 @@ export default function AgentIntegrationsClient() {
 
   const [taskHistory, setTaskHistory] = useState<AgentTask[]>([]);
   const [historyStatus, setHistoryStatus] = useState('');
+  const [historyApprovalStatus, setHistoryApprovalStatus] = useState('pending');
   const [historyRole, setHistoryRole] = useState('');
   const [historyTaskType, setHistoryTaskType] = useState('');
   const [highlightedTaskId, setHighlightedTaskId] = useState<string>('');
+  const [approvalBusyId, setApprovalBusyId] = useState<string | null>(null);
+  const [approvalNotes, setApprovalNotes] = useState<Record<string, string>>({});
 
   const creatorRef = useRef<HTMLDivElement | null>(null);
 
@@ -88,6 +96,7 @@ export default function AgentIntegrationsClient() {
   const loadTaskHistory = useCallback(async () => {
     const query = new URLSearchParams();
     if (historyStatus) query.set('status', historyStatus);
+    if (historyApprovalStatus) query.set('approval_status', historyApprovalStatus);
     if (historyRole) query.set('role_key', historyRole);
     if (historyTaskType) query.set('task_type', historyTaskType);
     query.set('limit', '20');
@@ -100,7 +109,7 @@ export default function AgentIntegrationsClient() {
     } catch (err) {
       setError(messageFromUnknown(err, 'Failed to load task history'));
     }
-  }, [apiAgentFetch, historyRole, historyStatus, historyTaskType]);
+  }, [apiAgentFetch, historyApprovalStatus, historyRole, historyStatus, historyTaskType]);
 
   const refreshSelectedTask = useCallback(async () => {
     if (!createdTask?.id) return;
@@ -153,6 +162,7 @@ export default function AgentIntegrationsClient() {
             task_type: taskType,
             input: taskInput,
             metadata,
+            approval_required: true,
             source_entity: 'manual',
             source_entity_id: null,
           }),
@@ -194,6 +204,54 @@ export default function AgentIntegrationsClient() {
     const el = document.getElementById(`task-row-${createdTask.id}`);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [createdTask?.id]);
+
+  const approveTask = useCallback(async (task: AgentTask) => {
+    setApprovalBusyId(task.id);
+    setError(null);
+    try {
+      const data = await apiAgentFetch<{ ok: boolean; task: AgentTask }>(
+        `/api/agent/tasks/${task.id}/approve`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ notes: approvalNotes[task.id] || '' }),
+        }
+      );
+      setCreatedTask(data.task);
+      setHighlightedTaskId(task.id);
+      await loadTaskHistory();
+    } catch (err) {
+      setError(messageFromUnknown(err, 'Failed to approve task'));
+    } finally {
+      setApprovalBusyId(null);
+    }
+  }, [apiAgentFetch, approvalNotes, loadTaskHistory]);
+
+  const rejectTask = useCallback(async (task: AgentTask) => {
+    const notes = String(approvalNotes[task.id] ?? '').trim();
+    if (!notes) {
+      setError('Add a rejection note before rejecting this output.');
+      return;
+    }
+
+    setApprovalBusyId(task.id);
+    setError(null);
+    try {
+      const data = await apiAgentFetch<{ ok: boolean; task: AgentTask }>(
+        `/api/agent/tasks/${task.id}/reject`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ notes }),
+        }
+      );
+      setCreatedTask(data.task);
+      setHighlightedTaskId(task.id);
+      await loadTaskHistory();
+    } catch (err) {
+      setError(messageFromUnknown(err, 'Failed to reject task'));
+    } finally {
+      setApprovalBusyId(null);
+    }
+  }, [apiAgentFetch, approvalNotes, loadTaskHistory]);
 
   return (
     <div className="space-y-6">
@@ -267,6 +325,7 @@ export default function AgentIntegrationsClient() {
               <div className="flex items-center gap-2">
                 <span>Status:</span>
                 <Badge variant="outline">{createdTask.status}</Badge>
+                <ApprovalBadge status={createdTask.approval_status} />
                 {selectedTaskIsStale ? <Badge variant="destructive">stale</Badge> : null}
               </div>
 
@@ -294,6 +353,11 @@ export default function AgentIntegrationsClient() {
               {createdTask.result ? (
                 <pre className="max-h-56 overflow-auto rounded bg-black/20 p-2 text-xs">{createdTask.result}</pre>
               ) : null}
+              {createdTask.approval_notes ? (
+                <div className="rounded border border-border bg-muted/40 p-2 text-xs text-muted-foreground">
+                  Approval notes: {createdTask.approval_notes}
+                </div>
+              ) : null}
               {createdTask.error ? (
                 <div className="rounded border border-red-500/30 bg-red-500/10 p-2 text-red-700 dark:text-red-400">{createdTask.error}</div>
               ) : null}
@@ -317,7 +381,7 @@ export default function AgentIntegrationsClient() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Task History</CardTitle>
+          <CardTitle>Approval Inbox</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-2">
@@ -332,6 +396,19 @@ export default function AgentIntegrationsClient() {
               </Button>
             ))}
             <Button size="sm" variant="outline" onClick={() => void loadTaskHistory()}>Refresh</Button>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {APPROVAL_FILTERS.map((status) => (
+              <Button
+                key={status || 'all-approval'}
+                size="sm"
+                variant={historyApprovalStatus === status ? 'default' : 'outline'}
+                onClick={() => setHistoryApprovalStatus(status)}
+              >
+                {status ? `approval: ${status}` : 'all approvals'}
+              </Button>
+            ))}
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
@@ -362,25 +439,70 @@ export default function AgentIntegrationsClient() {
               const stale = isTaskStale(task);
               const active = highlightedTaskId === task.id;
               return (
-                <button
+                <div
                   key={task.id}
                   id={`task-row-${task.id}`}
                   className={`w-full rounded border p-3 text-left ${active ? 'border-blue-500/50 bg-blue-500/5' : 'border-border'}`}
-                  onClick={() => {
-                    setCreatedTask(task);
-                    setHighlightedTaskId(task.id);
-                  }}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium">{task.role_key} • {task.task_type}</div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{task.status}</Badge>
-                      {stale ? <Badge variant="destructive">stale</Badge> : null}
+                  <button
+                    className="w-full text-left"
+                    onClick={() => {
+                      setCreatedTask(task);
+                      setHighlightedTaskId(task.id);
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="font-medium">{task.role_key} • {task.task_type}</div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <Badge variant="outline">{task.status}</Badge>
+                        <ApprovalBadge status={task.approval_status} />
+                        {stale ? <Badge variant="destructive">stale</Badge> : null}
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-xs text-muted-foreground">{new Date(task.created_at).toLocaleString()}</div>
-                  <div className="mt-1 text-sm text-muted-foreground">{task.input.slice(0, 140)}</div>
-                </button>
+                    <div className="text-xs text-muted-foreground">{new Date(task.created_at).toLocaleString()}</div>
+                    <div className="mt-1 text-sm text-muted-foreground">{task.input.slice(0, 140)}</div>
+                    {task.result ? (
+                      <pre className="mt-2 max-h-32 overflow-auto rounded bg-black/20 p-2 text-xs">
+                        {task.result.slice(0, 1200)}
+                      </pre>
+                    ) : null}
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      source: {String(task.metadata?.mission_id ? 'mission' : task.metadata?.source ?? task.metadata?.module ?? 'manual')}
+                    </div>
+                  </button>
+                  {task.status === 'completed' ? (
+                    <div className="mt-3 space-y-2">
+                      <Textarea
+                        className="min-h-[72px]"
+                        value={approvalNotes[task.id] ?? ''}
+                        onChange={(e) => setApprovalNotes((prev) => ({ ...prev, [task.id]: e.target.value }))}
+                        placeholder="Approval or rejection note"
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          disabled={approvalBusyId === task.id || task.approval_status === 'approved'}
+                          onClick={() => void approveTask(task)}
+                        >
+                          {approvalBusyId === task.id ? 'Working...' : 'Approve'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={approvalBusyId === task.id || task.approval_status === 'rejected'}
+                          onClick={() => void rejectTask(task)}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                  {task.error ? (
+                    <div className="mt-2 rounded border border-red-500/30 bg-red-500/10 p-2 text-sm text-red-700 dark:text-red-400">
+                      {task.error}
+                    </div>
+                  ) : null}
+                </div>
               );
             })}
             {taskHistory.length === 0 ? <p className="text-sm text-muted-foreground">No tasks found.</p> : null}
@@ -389,6 +511,19 @@ export default function AgentIntegrationsClient() {
       </Card>
     </div>
   );
+}
+
+function ApprovalBadge({ status }: { status?: AgentTask['approval_status'] }) {
+  if (status === 'pending') {
+    return <Badge className="bg-cyan-500/15 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300">approval pending</Badge>;
+  }
+  if (status === 'approved') {
+    return <Badge className="bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">approved</Badge>;
+  }
+  if (status === 'rejected') {
+    return <Badge className="bg-rose-500/15 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">rejected</Badge>;
+  }
+  return <Badge variant="outline">not required</Badge>;
 }
 
 const messageFromUnknown = (err: unknown, fallback: string) =>

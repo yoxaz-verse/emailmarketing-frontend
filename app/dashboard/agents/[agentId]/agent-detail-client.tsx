@@ -25,6 +25,8 @@ type AgentTask = {
   task_type: string;
   input: string;
   status: string;
+  approval_status?: 'not_required' | 'pending' | 'approved' | 'rejected';
+  approval_notes?: string | null;
   result: string | null;
   error: string | null;
   metadata: Record<string, unknown>;
@@ -95,6 +97,7 @@ export default function AgentDetailClient({ agentId }: { agentId: string }) {
           role_key: agent.role_key,
           task_type: taskType,
           input: taskInput,
+          approval_required: true,
           metadata: {
             source: 'agent_detail',
             agent_id: agent.id,
@@ -220,12 +223,18 @@ export default function AgentDetailClient({ agentId }: { agentId: string }) {
                   <div className="font-medium">{task.task_type}</div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">{task.status}</Badge>
+                    <ApprovalBadge status={task.approval_status} />
                     {stale ? <Badge variant="destructive">stale</Badge> : null}
                   </div>
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">{new Date(task.created_at).toLocaleString()}</div>
                 <div className="mt-2 text-muted-foreground">{task.input}</div>
                 {task.result ? <pre className="mt-2 max-h-44 overflow-auto rounded bg-black/20 p-2 text-xs">{task.result}</pre> : null}
+                {task.approval_notes ? (
+                  <div className="mt-2 rounded border border-border bg-muted/40 p-2 text-xs text-muted-foreground">
+                    Approval notes: {task.approval_notes}
+                  </div>
+                ) : null}
                 {task.error ? (
                   <div className="mt-2 rounded border border-red-500/30 bg-red-500/10 p-2 text-red-700 dark:text-red-400">
                     {task.error}
@@ -254,6 +263,13 @@ function StateBadge({ state }: { state: DerivedState }) {
   if (state === 'stale') return <Badge variant="destructive">stale</Badge>;
   if (state === 'busy') return <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-300">busy</Badge>;
   return <Badge className="bg-emerald-500/20 text-emerald-300">idle</Badge>;
+}
+
+function ApprovalBadge({ status }: { status?: AgentTask['approval_status'] }) {
+  if (status === 'pending') return <Badge className="bg-cyan-500/15 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300">approval pending</Badge>;
+  if (status === 'approved') return <Badge className="bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">approved</Badge>;
+  if (status === 'rejected') return <Badge className="bg-rose-500/15 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">rejected</Badge>;
+  return <Badge variant="outline">not required</Badge>;
 }
 
 const messageFromUnknown = (err: unknown, fallback: string) => {

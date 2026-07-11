@@ -22,7 +22,7 @@ type Mission = {
   last_run_at: string | null;
   active: boolean;
   execution_policy: 'scheduled' | 'always_on' | 'manual_approval';
-  output_policy: 'task_center_only';
+  output_policy: 'task_center_only' | 'approval_required';
   priority: number;
   last_status: string | null;
 };
@@ -40,11 +40,13 @@ type RuntimeAgent = {
   latest_task: {
     id: string;
     status: string;
+    approval_status?: 'not_required' | 'pending' | 'approved' | 'rejected';
     task_type: string;
     created_at: string;
     picked_at?: string | null;
     updated_at?: string | null;
   } | null;
+  pending_approval_count?: number;
 };
 
 type MissionTemplate = {
@@ -59,7 +61,7 @@ type MissionTemplate = {
   priority: number;
 };
 
-type DerivedState = 'active' | 'busy' | 'idle' | 'stale' | 'paused' | 'error';
+type DerivedState = 'active' | 'busy' | 'idle' | 'stale' | 'paused' | 'error' | 'review';
 
 const STALE_AFTER_MS = 5 * 60 * 1000;
 
@@ -127,7 +129,7 @@ export default function RunningAgentsClient() {
         cadence_value: template.cadence_value,
         timezone: template.timezone,
         execution_policy: 'scheduled',
-        output_policy: 'task_center_only',
+        output_policy: 'approval_required',
         priority: template.priority,
         next_run_at: new Date(Date.now() + 60 * 1000).toISOString(),
         active: true,
@@ -246,11 +248,13 @@ export default function RunningAgentsClient() {
               <div className="text-xs text-muted-foreground">
                 missions: {agent.active_mission_count}/{agent.mission_count} active • next run:{' '}
                 {agent.next_run_at ? new Date(agent.next_run_at).toLocaleString() : 'not scheduled'}
+                {' '}• pending approvals: {agent.pending_approval_count ?? 0}
               </div>
 
               {agent.latest_task ? (
                 <div className="text-xs text-muted-foreground">
                   latest task: {agent.latest_task.task_type} • {agent.latest_task.status} •{' '}
+                  {agent.latest_task.approval_status ? `${agent.latest_task.approval_status} • ` : ''}
                   {new Date(agent.latest_task.created_at).toLocaleString()}
                 </div>
               ) : (
@@ -279,6 +283,7 @@ export default function RunningAgentsClient() {
                         <div className="text-sm font-medium">{mission.name}</div>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline">{mission.execution_policy}</Badge>
+                          <Badge variant="outline">{mission.output_policy}</Badge>
                           <Badge className={mission.active ? 'bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : 'bg-muted text-muted-foreground dark:bg-zinc-500/20 dark:text-zinc-300'}>
                             {mission.active ? 'active' : 'paused'}
                           </Badge>
@@ -348,6 +353,7 @@ function deriveAgentState(agent: RuntimeAgent): DerivedState {
   const activeMissions = agent.missions.filter((m) => m.active);
   if (activeMissions.length === 0) return 'paused';
   if ((agent.latest_task?.status || '') === 'failed') return 'error';
+  if ((agent.pending_approval_count ?? 0) > 0) return 'review';
   if ((agent.latest_task?.status || '') === 'processing') {
     const pivot = agent.latest_task?.picked_at || agent.latest_task?.updated_at || agent.latest_task?.created_at;
     const ts = Date.parse(String(pivot || ''));
@@ -361,6 +367,7 @@ function deriveAgentState(agent: RuntimeAgent): DerivedState {
 function StateBadge({ state }: { state: DerivedState }) {
   if (state === 'stale') return <Badge variant="destructive">stale</Badge>;
   if (state === 'busy') return <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 dark:bg-amber-500/20 dark:text-amber-300">busy</Badge>;
+  if (state === 'review') return <Badge className="bg-cyan-500/15 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300">approval pending</Badge>;
   if (state === 'paused') return <Badge className="bg-muted text-muted-foreground dark:bg-zinc-500/20 dark:text-zinc-300">paused</Badge>;
   if (state === 'error') return <Badge className="bg-rose-500/15 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">error</Badge>;
   if (state === 'active') return <Badge className="bg-cyan-500/15 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300">active</Badge>;
