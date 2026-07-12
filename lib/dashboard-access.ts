@@ -3,6 +3,7 @@ const ADMIN_ROLES = new Set(['admin', 'superadmin']);
 const OPERATOR_ALLOWED_EXACT_PATHS = new Set([
   '/dashboard',
   '/dashboard/campaign',
+  '/dashboard/events-intelligence',
   '/dashboard/campaign_leads',
   '/dashboard/leads',
   '/dashboard/leads/upload',

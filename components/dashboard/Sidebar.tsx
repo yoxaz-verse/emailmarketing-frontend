@@ -22,7 +22,8 @@ import {
     CalendarClock,
     Newspaper,
     Cpu,
-    Link2
+    Link2,
+    Landmark
 } from 'lucide-react';
 
 const mainItems = [
@@ -31,6 +32,7 @@ const mainItems = [
 
 const marketingItems = [
     { label: 'Campaigns', href: '/dashboard/campaign', icon: Megaphone },
+    { label: 'Events Intelligence', href: '/dashboard/events-intelligence', icon: CalendarClock },
     { label: 'Replies', href: '/dashboard/campaign/replies', icon: Mail },
     { label: 'Campaign Lead', href: '/dashboard/campaign_leads', icon: UserPlus },
     { label: 'Leads', href: '/dashboard/leads', icon: Users },
@@ -71,6 +73,10 @@ const openFlowItems = [
 const inquiryItems = [
     { label: 'Inquiry Fetching', href: '/dashboard/inquiry-fetching', icon: Bot },
     { label: 'Inquiry Quoting', href: '/dashboard/inquiry-quoting', icon: Bot },
+];
+
+const industryIntelligenceItems = [
+    { label: 'Funding & Pitch', href: '/dashboard/industry-intelligence', icon: Landmark },
 ];
 
 const adminItems = [
@@ -215,6 +221,17 @@ const renderNavItem = (item: NavItem, isActive: boolean) => (
                         </h3>
                         <ul className="space-y-1">
                             {inquiryItems.map((item) => renderNavItem(item, pathname.startsWith(item.href)))}
+                        </ul>
+                    </div>
+                )}
+
+                {isAdmin && (
+                    <div>
+                        <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+                            Industry Intelligence
+                        </h3>
+                        <ul className="space-y-1">
+                            {industryIntelligenceItems.map((item) => renderNavItem(item, pathname.startsWith(item.href)))}
                         </ul>
                     </div>
                 )}
