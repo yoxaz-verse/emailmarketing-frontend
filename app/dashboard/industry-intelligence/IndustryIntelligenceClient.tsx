@@ -28,6 +28,8 @@ type IndustrySource = {
   last_checked_at?: string | null;
   last_success_at?: string | null;
   last_error?: string | null;
+  polling_interval_minutes?: number | null;
+  metadata?: Record<string, unknown>;
   source_origin?: 'db' | 'fallback';
 };
 
@@ -41,6 +43,11 @@ type SourceResult = {
   failed_count: number;
   latency_ms: number;
   error_message: string | null;
+  error_code?: string | null;
+  http_status?: number | null;
+  suggested_action?: string | null;
+  source_url?: string | null;
+  parser?: string | null;
 };
 
 type FetchRun = {
@@ -90,6 +97,21 @@ type OpportunityDraft = Partial<Opportunity> & {
   tagsText?: string;
 };
 
+type SourceForm = {
+  id?: string;
+  name: string;
+  code: string;
+  mode: SourceMode;
+  status: string;
+  source_url: string;
+  region: string;
+  sector_focus_text: string;
+  polling_interval_minutes: string;
+  supports_fetch: boolean;
+  supports_manual: boolean;
+  metadata_text: string;
+};
+
 type Summary = {
   total: number;
   new_count: number;
@@ -120,6 +142,21 @@ const UI_FALLBACK_SOURCES: IndustrySource[] = [
 
 const CATEGORIES: OpportunityCategory[] = ['seed_funding', 'grant', 'accelerator', 'pitch_event', 'demo_day', 'investor_call', 'ecosystem_program'];
 const STATUSES: OpportunityStatus[] = ['new', 'reviewed', 'shortlisted', 'applied', 'not_relevant', 'closed'];
+const SOURCE_MODES: SourceMode[] = ['rss', 'api', 'manual', 'webhook'];
+
+const EMPTY_SOURCE_FORM: SourceForm = {
+  name: '',
+  code: '',
+  mode: 'rss',
+  status: 'active',
+  source_url: '',
+  region: 'India',
+  sector_focus_text: 'startup, funding',
+  polling_interval_minutes: '360',
+  supports_fetch: true,
+  supports_manual: true,
+  metadata_text: '{}',
+};
 
 const EXAMPLE_JSON = JSON.stringify(
   [
@@ -149,6 +186,34 @@ function parseTags(value: string | string[] | undefined): string[] {
   return String(value ?? '').split(',').map((x) => x.trim()).filter(Boolean);
 }
 
+function describeSourceError(value: string | null | undefined, status?: number | null): string | null {
+  const raw = String(value ?? '').trim();
+  const code = raw.match(/source_fetch_(\d{3})/)?.[1] ?? (status ? String(status) : '');
+  if (code === '403') return 'Source blocked access to this server. Try an RSS/API URL, manual import, or pause this source.';
+  if (code === '401') return 'Source requires authentication. Use an authenticated API/feed URL, manual import, or pause this source.';
+  if (code === '404') return 'Source URL was not found. Check the website/feed URL or disable this source.';
+  if (code === '429') return 'Source rate-limited this server. Increase the polling interval or retry later.';
+  if (raw) return raw;
+  return null;
+}
+
+function sourceFormFromSource(source: IndustrySource): SourceForm {
+  return {
+    id: source.id,
+    name: source.name,
+    code: source.code,
+    mode: source.mode,
+    status: source.status,
+    source_url: source.source_url ?? '',
+    region: source.region ?? 'India',
+    sector_focus_text: (source.sector_focus ?? []).join(', '),
+    polling_interval_minutes: String(source.polling_interval_minutes ?? 360),
+    supports_fetch: Boolean(source.supports_fetch),
+    supports_manual: Boolean(source.supports_manual),
+    metadata_text: JSON.stringify(source.metadata ?? {}, null, 2),
+  };
+}
+
 export default function IndustryIntelligenceClient() {
   const [activeTab, setActiveTab] = useState<'fetch' | 'review'>('fetch');
   const [hasAutoSelectedTab, setHasAutoSelectedTab] = useState(false);
@@ -163,6 +228,8 @@ export default function IndustryIntelligenceClient() {
   const [success, setSuccess] = useState<string | null>(null);
   const [manualJson, setManualJson] = useState(EXAMPLE_JSON);
   const [showManualPayload, setShowManualPayload] = useState(false);
+  const [showSourceManager, setShowSourceManager] = useState(false);
+  const [sourceForm, setSourceForm] = useState<SourceForm>(EMPTY_SOURCE_FORM);
   const [drafts, setDrafts] = useState<Record<string, OpportunityDraft>>({});
 
   const [query, setQuery] = useState('');
@@ -178,13 +245,14 @@ export default function IndustryIntelligenceClient() {
     () => Object.entries(selectedSources).filter(([, value]) => value).map(([code]) => code),
     [selectedSources]
   );
+  const activeSources = useMemo(() => sources.filter((source) => source.status === 'active'), [sources]);
   const totalPages = useMemo(() => Math.max(1, Math.ceil(totalRows / pageSize)), [totalRows, pageSize]);
   const fallbackCatalogActive = sources.some((source) => source.source_origin === 'fallback');
   const latestSourceResults = runs.flatMap((run) => run.metadata?.source_results ?? []).slice(0, 12);
 
   const loadMeta = useCallback(async () => {
     const [sourceData, runData, summaryData] = await Promise.all([
-      clientFetch<IndustrySource[]>('/industry-intelligence/sources'),
+      clientFetch<IndustrySource[]>('/industry-intelligence/sources?include_inactive=true'),
       clientFetch<FetchRun[]>('/industry-intelligence/fetch-runs?limit=20'),
       clientFetch<Summary>('/industry-intelligence/summary'),
     ]);
@@ -193,7 +261,7 @@ export default function IndustryIntelligenceClient() {
     setSources(sortedSources);
     setSelectedSources((prev) => {
       const next: Record<string, boolean> = {};
-      for (const source of sortedSources) {
+      for (const source of sortedSources.filter((item) => item.status === 'active')) {
         next[source.code] = prev[source.code] ?? ['startupindia', 'agri_uddaan', 'inc42'].includes(source.code);
       }
       return next;
@@ -267,7 +335,7 @@ export default function IndustryIntelligenceClient() {
       await refreshAll();
       setActiveTab('review');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to run industry intelligence fetch');
+      setError(err instanceof Error ? describeSourceError(err.message) ?? err.message : 'Failed to run industry intelligence fetch');
     }
   }
 
@@ -288,7 +356,89 @@ export default function IndustryIntelligenceClient() {
       await refreshAll();
       setActiveTab('review');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : `Failed to fetch ${sourceCode}`);
+      setError(err instanceof Error ? describeSourceError(err.message) ?? err.message : `Failed to fetch ${sourceCode}`);
+    }
+  }
+
+  function patchSourceForm(field: keyof SourceForm, value: string | boolean) {
+    setSourceForm((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === 'mode') {
+        const mode = value as SourceMode;
+        next.supports_fetch = mode === 'rss' || mode === 'api';
+      }
+      return next;
+    });
+  }
+
+  function resetSourceForm() {
+    setSourceForm(EMPTY_SOURCE_FORM);
+  }
+
+  async function saveSource() {
+    setError(null);
+    setSuccess(null);
+    try {
+      const metadata = JSON.parse(sourceForm.metadata_text || '{}');
+      const payload = {
+        name: sourceForm.name,
+        code: sourceForm.code,
+        mode: sourceForm.mode,
+        status: sourceForm.status,
+        source_url: sourceForm.source_url || null,
+        region: sourceForm.region || null,
+        sector_focus: parseTags(sourceForm.sector_focus_text),
+        polling_interval_minutes: sourceForm.polling_interval_minutes,
+        supports_fetch: sourceForm.supports_fetch,
+        supports_manual: sourceForm.supports_manual,
+        metadata,
+      };
+      const path = sourceForm.id ? `/industry-intelligence/sources/${sourceForm.id}` : '/industry-intelligence/sources';
+      await clientFetch(path, {
+        method: sourceForm.id ? 'PATCH' : 'POST',
+        body: JSON.stringify(payload),
+      });
+      setSuccess(sourceForm.id ? `Updated source ${sourceForm.name}` : `Added source ${sourceForm.name}`);
+      resetSourceForm();
+      await loadMeta();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save source');
+    }
+  }
+
+  async function setSourceStatus(source: IndustrySource, action: 'pause' | 'disable' | 'activate') {
+    setError(null);
+    setSuccess(null);
+    try {
+      await clientFetch(`/industry-intelligence/sources/${source.id}/${action}`, { method: 'POST' });
+      setSuccess(`${source.name} ${action === 'activate' ? 'activated' : action === 'pause' ? 'paused' : 'disabled'}`);
+      await loadMeta();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : `Failed to ${action} source`);
+    }
+  }
+
+  async function testSource(source: IndustrySource) {
+    setError(null);
+    setSuccess(null);
+    try {
+      const result = await clientFetch<{
+        ok: boolean;
+        fetched_count: number;
+        http_status: number | null;
+        latency_ms: number;
+        error: { error_message?: string; suggested_action?: string } | null;
+      }>(`/industry-intelligence/sources/${source.id}/test`, { method: 'POST', timeoutMs: 30_000 });
+      if (result.ok) {
+        setSuccess(`${source.name} test passed. ${result.fetched_count} candidate items found in ${result.latency_ms} ms.`);
+      } else {
+        const message = result.error?.error_message ?? describeSourceError(null, result.http_status) ?? 'Source test failed';
+        const action = result.error?.suggested_action ? ` ${result.error.suggested_action}` : '';
+        setError(`${source.name}: ${message}${action}`);
+      }
+      await loadMeta();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? describeSourceError(err.message) ?? err.message : `Failed to test ${source.name}`);
     }
   }
 
@@ -449,7 +599,7 @@ export default function IndustryIntelligenceClient() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {sources.map((source) => (
+                {activeSources.map((source) => (
                   <label key={source.id} className="flex items-start gap-3 rounded border p-3">
                     <input
                       type="checkbox"
@@ -477,14 +627,59 @@ export default function IndustryIntelligenceClient() {
               <div className="flex flex-wrap gap-2">
                 <Button onClick={() => void runFetch()} disabled={loading || chosenSourceCodes.length === 0}>Fetch Selected Now</Button>
                 <Button variant="outline" onClick={() => {
-                  const allSourceCodes = sources.map((source) => source.code);
+                  const allSourceCodes = activeSources.map((source) => source.code);
                   setSelectedSources(Object.fromEntries(allSourceCodes.map((code) => [code, true])));
                   void runFetchForSources(allSourceCodes);
-                }} disabled={loading || sources.length === 0}>Fetch All Now</Button>
+                }} disabled={loading || activeSources.length === 0}>Fetch All Now</Button>
                 <Button variant="outline" onClick={() => void refreshAll()} disabled={loading}>Refresh</Button>
+                <Button variant="outline" onClick={() => setShowSourceManager((value) => !value)}>
+                  {showSourceManager ? 'Hide Source Manager' : 'Manage Sources'}
+                </Button>
               </div>
             </CardContent>
           </Card>
+
+          {showSourceManager && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between gap-3">
+                  <CardTitle>{sourceForm.id ? 'Edit Source' : 'Add Source'}</CardTitle>
+                  {sourceForm.id && <Button variant="outline" onClick={resetSourceForm}>New Source</Button>}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <Input placeholder="Source name" value={sourceForm.name} onChange={(event) => patchSourceForm('name', event.target.value)} />
+                  <Input placeholder="code_like_this" value={sourceForm.code} onChange={(event) => patchSourceForm('code', event.target.value)} />
+                  <select className="rounded-md border border-border bg-background px-3 py-2 text-sm" value={sourceForm.mode} onChange={(event) => patchSourceForm('mode', event.target.value as SourceMode)}>
+                    {SOURCE_MODES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+                  </select>
+                  <select className="rounded-md border border-border bg-background px-3 py-2 text-sm" value={sourceForm.status} onChange={(event) => patchSourceForm('status', event.target.value)}>
+                    <option value="active">active</option>
+                    <option value="paused">paused</option>
+                    <option value="disabled">disabled</option>
+                  </select>
+                  <Input className="xl:col-span-2" placeholder="Website, RSS, or API URL" value={sourceForm.source_url} onChange={(event) => patchSourceForm('source_url', event.target.value)} />
+                  <Input placeholder="Region" value={sourceForm.region} onChange={(event) => patchSourceForm('region', event.target.value)} />
+                  <Input placeholder="Polling minutes" value={sourceForm.polling_interval_minutes} onChange={(event) => patchSourceForm('polling_interval_minutes', event.target.value)} />
+                  <Input className="md:col-span-2" placeholder="Sector tags CSV" value={sourceForm.sector_focus_text} onChange={(event) => patchSourceForm('sector_focus_text', event.target.value)} />
+                  <label className="flex items-center gap-2 rounded border px-3 py-2 text-sm">
+                    <input type="checkbox" checked={sourceForm.supports_fetch} onChange={(event) => patchSourceForm('supports_fetch', event.target.checked)} />
+                    Fetch enabled
+                  </label>
+                  <label className="flex items-center gap-2 rounded border px-3 py-2 text-sm">
+                    <input type="checkbox" checked={sourceForm.supports_manual} onChange={(event) => patchSourceForm('supports_manual', event.target.checked)} />
+                    Manual import
+                  </label>
+                </div>
+                <Textarea value={sourceForm.metadata_text} onChange={(event) => patchSourceForm('metadata_text', event.target.value)} className="min-h-[120px] font-mono text-xs" placeholder="Metadata JSON" />
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={() => void saveSource()}>{sourceForm.id ? 'Save Source' : 'Add Source'}</Button>
+                  <Button variant="outline" onClick={resetSourceForm}>Clear</Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid gap-6 lg:grid-cols-2">
             <Card className={showManualPayload ? '' : 'lg:col-span-2'}>
@@ -502,14 +697,20 @@ export default function IndustryIntelligenceClient() {
                     <div className="space-y-1">
                       <div className="font-medium text-sm">{source.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        {source.code} | {source.mode} | {source.last_success_at ? `Last success ${new Date(source.last_success_at).toLocaleString()}` : 'No successful fetch yet'}
+                        {source.code} | {source.mode} | {source.status} | {source.last_success_at ? `Last success ${new Date(source.last_success_at).toLocaleString()}` : 'No successful fetch yet'}
                       </div>
                       {source.source_url && <div className="max-w-xl truncate text-xs text-muted-foreground">{source.source_url}</div>}
-                      {source.last_error && <div className="text-xs text-red-700 dark:text-red-300">{source.last_error}</div>}
+                      {source.last_checked_at && <div className="text-xs text-muted-foreground">Checked {new Date(source.last_checked_at).toLocaleString()}</div>}
+                      {source.last_error && <div className="text-xs text-red-700 dark:text-red-300">{describeSourceError(source.last_error) ?? source.last_error}</div>}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Badge variant={source.health_status === 'healthy' ? 'default' : 'outline'}>{source.health_status}</Badge>
-                      <Button size="sm" variant="outline" onClick={() => void runSourceFetch(source.code)} disabled={loading || !source.supports_fetch}>Fetch</Button>
+                      <Button size="sm" variant="outline" onClick={() => { setShowSourceManager(true); setSourceForm(sourceFormFromSource(source)); }} disabled={source.source_origin === 'fallback'}>Edit</Button>
+                      <Button size="sm" variant="outline" onClick={() => void testSource(source)} disabled={loading || !source.supports_fetch || source.source_origin === 'fallback'}>Test</Button>
+                      <Button size="sm" variant="outline" onClick={() => void runSourceFetch(source.code)} disabled={loading || !source.supports_fetch || source.status !== 'active'}>Fetch</Button>
+                      {source.status === 'active' && <Button size="sm" variant="outline" onClick={() => void setSourceStatus(source, 'pause')} disabled={source.source_origin === 'fallback'}>Pause</Button>}
+                      {source.status !== 'disabled' && <Button size="sm" variant="outline" onClick={() => void setSourceStatus(source, 'disable')} disabled={source.source_origin === 'fallback'}>Disable</Button>}
+                      {source.status !== 'active' && <Button size="sm" variant="outline" onClick={() => void setSourceStatus(source, 'activate')} disabled={source.source_origin === 'fallback'}>Activate</Button>}
                     </div>
                   </div>
                 ))}
@@ -540,8 +741,18 @@ export default function IndustryIntelligenceClient() {
                       <Badge variant="outline">{result.mode}</Badge>
                     </div>
                     <div className="text-muted-foreground">{result.status} | Fetched: {result.fetched_count}, Inserted: {result.inserted_count}, Deduped: {result.deduped_count}, Failed: {result.failed_count}</div>
-                    <div className="text-muted-foreground">Latency: {result.latency_ms ?? 0} ms</div>
-                    {result.error_message && <div className="text-red-700 dark:text-red-300">{result.error_message}</div>}
+                    <div className="text-muted-foreground">
+                      Latency: {result.latency_ms ?? 0} ms
+                      {result.http_status ? ` | HTTP ${result.http_status}` : ''}
+                      {result.parser ? ` | Parser ${result.parser}` : ''}
+                    </div>
+                    {result.source_url && <div className="truncate text-muted-foreground">{result.source_url}</div>}
+                    {result.error_message && (
+                      <div className="text-red-700 dark:text-red-300">
+                        {describeSourceError(result.error_message, result.http_status) ?? result.error_message}
+                        {result.suggested_action ? ` ${result.suggested_action}` : ''}
+                      </div>
+                    )}
                   </div>
                 ))}
               </CardContent>
@@ -564,7 +775,7 @@ export default function IndustryIntelligenceClient() {
                     Total: {run.total_received} | Inserted: {run.inserted_count} | Deduped: {run.deduped_count} | Failed: {run.failed_count}
                   </div>
                   <div className="text-xs text-muted-foreground">{new Date(run.created_at).toLocaleString()}</div>
-                  {run.error_summary && <div className="text-xs text-red-700 dark:text-red-300">{run.error_summary}</div>}
+                  {run.error_summary && <div className="text-xs text-red-700 dark:text-red-300">{describeSourceError(run.error_summary) ?? run.error_summary}</div>}
                 </div>
               ))}
             </CardContent>
