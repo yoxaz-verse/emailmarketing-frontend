@@ -39,6 +39,7 @@ const PLATFORMS: { code: Platform; label: string }[] = [
   { code: 'telegram', label: 'Telegram' },
   { code: 'whatsapp', label: 'WhatsApp' },
 ];
+const OAUTH_PLATFORMS = new Set<Platform>(['linkedin', 'meta', 'reddit']);
 
 const PLATFORM_FIELDS: Record<Platform, { key: string; label: string; secret?: boolean; placeholder?: string }[]> = {
   linkedin: [
@@ -77,7 +78,7 @@ const PLATFORM_SETUP_GUIDES: Record<Platform, SetupGuide> = {
     consoleUrl: 'https://www.linkedin.com/developers/apps',
     callbackPath: '/social/oauth2-credential/callback',
     alternateCallbackPath: '/social/callback/linkedin',
-    callbackNote: 'Use this in LinkedIn Auth settings under Authorized redirect URLs. The alternate callback also works if you want the platform-specific route.',
+    callbackNote: 'Use this exact URL in LinkedIn Auth settings under Authorized redirect URLs. It must match the saved Redirect URI exactly, with no trailing slash or different path.',
     fieldsToPaste: [
       'Client ID from the LinkedIn app Auth tab',
       'Client Secret from the LinkedIn app Auth tab',
@@ -88,7 +89,7 @@ const PLATFORM_SETUP_GUIDES: Record<Platform, SetupGuide> = {
     setupSteps: [
       'Open LinkedIn Developer Portal and create or select the app used for publishing.',
       'In Products, request/enable the product that grants member social posting access.',
-      'In Auth, add the callback URL shown below as an Authorized redirect URL.',
+      'In Auth, add the callback URL shown below as an Authorized redirect URL exactly as shown.',
       'Copy Client ID, Client Secret, Redirect URI, and scopes into this form, then save.',
     ],
     verifySteps: [
@@ -240,8 +241,17 @@ export default function SocialAppsSettingsClient({
   const selectedOperator = useMemo(() => operators.find((o) => o.id === operatorId), [operators, operatorId]);
   const activeFields = PLATFORM_FIELDS[platform];
   const activeGuide = PLATFORM_SETUP_GUIDES[platform];
+  const platformLabel = PLATFORMS.find((p) => p.code === platform)?.label ?? platform;
   const callbackUrl = buildCallbackUrl(activeGuide.callbackPath);
   const alternateCallbackUrl = buildCallbackUrl(activeGuide.alternateCallbackPath);
+  const isOauthPlatform = OAUTH_PLATFORMS.has(platform);
+  const connectDisabledReason = !isOauthPlatform
+    ? null
+    : !operatorId
+      ? 'Select an operator before connecting this platform.'
+      : !configured
+        ? 'Save a complete configuration before connecting.'
+        : null;
 
   useEffect(() => {
     if (scope === 'operator' && !operatorId && operators.length === 1) {
@@ -338,7 +348,11 @@ export default function SocialAppsSettingsClient({
         body: JSON.stringify(payload),
       });
 
-      setMessage('Saved successfully. Configuration is now active for this operator/platform.');
+      if (platform === 'linkedin' && callbackUrl) {
+        setMessage(`Saved successfully. Add this exact URL in LinkedIn Authorized redirect URLs, then click Connect LinkedIn: ${callbackUrl}`);
+      } else {
+        setMessage('Saved successfully. Configuration is now active for this operator/platform.');
+      }
 
       const refreshed = await readConfig(operatorId, platform);
       setFields(refreshed.fields ?? {});
@@ -352,6 +366,15 @@ export default function SocialAppsSettingsClient({
     } finally {
       setSaving(false);
     }
+  }
+
+  function connectPlatform() {
+    if (!isOauthPlatform || connectDisabledReason) {
+      setError(connectDisabledReason ?? 'This platform does not use an OAuth connect flow.');
+      return;
+    }
+
+    window.location.href = `/api/proxy/social/connect/${platform}?operator_id=${encodeURIComponent(operatorId)}`;
   }
 
   async function copyValue(value: string, key: string) {
@@ -490,10 +513,21 @@ export default function SocialAppsSettingsClient({
                 ))}
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <Button onClick={() => void save()} disabled={saving || loading || !endpointAvailable}>
                   {saving ? 'Saving...' : 'Save Configuration'}
                 </Button>
+                {isOauthPlatform && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={connectPlatform}
+                    disabled={saving || loading || Boolean(connectDisabledReason)}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Connect {platformLabel}
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   onClick={() => router.push(`/dashboard/social-connectors`)}
@@ -501,6 +535,9 @@ export default function SocialAppsSettingsClient({
                   Back To Social Connectors
                 </Button>
               </div>
+              {connectDisabledReason && isOauthPlatform && (
+                <p className="text-xs text-muted-foreground">{connectDisabledReason}</p>
+              )}
             </>
           )}
         </CardContent>
