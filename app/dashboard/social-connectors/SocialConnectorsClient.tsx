@@ -201,14 +201,53 @@ function statusLabel(status: UiStatus): string {
   return 'Not connected';
 }
 
-function mapSocialConnectorError(message: string): {
+function mapSocialConnectorError(message: string, code?: string | null): {
   userMessage: string;
   technicalHint?: string;
 } {
   const input = String(message || '').trim();
+  const errorCode = String(code || '').trim();
   const lower = input.toLowerCase();
 
-  if (lower.includes('backend unavailable') || lower.includes('fetch failed') || lower.includes('503')) {
+  if (
+    errorCode === 'provider_permission_denied' ||
+    lower.includes('access_denied') ||
+    lower.includes('not enough permissions') ||
+    lower.includes('missing_scope') ||
+    lower.includes('missing permission') ||
+    lower.includes('(403)')
+  ) {
+    const platformLabel = lower.includes('linkedin') ? 'LinkedIn' : 'Social platform';
+    return {
+      userMessage: `${platformLabel} connect failed because the app is missing required permissions. Check the configured scopes/products, then reconnect.`,
+      technicalHint: input,
+    };
+  }
+
+  if (errorCode === 'provider_config_error') {
+    return {
+      userMessage: 'Social connect failed because the platform app configuration is incomplete or invalid. Check the saved credentials, redirect URI, and scopes, then reconnect.',
+      technicalHint: input,
+    };
+  }
+
+  if (errorCode === 'oauth_state_error') {
+    return {
+      userMessage: 'Social connect session expired or is invalid. Start the connect flow again.',
+      technicalHint: input,
+    };
+  }
+
+  if (
+    errorCode === 'backend_unavailable' ||
+    lower.includes('backend unavailable') ||
+    lower.includes('econnrefused') ||
+    lower.includes('enotfound') ||
+    lower.includes('etimedout') ||
+    lower.includes('request timed out') ||
+    lower.includes('failed to fetch') ||
+    lower.includes('503')
+  ) {
     return {
       userMessage: 'Backend is currently unavailable. Please ensure the backend service is running, then click Refresh.',
       technicalHint: input,
@@ -305,10 +344,11 @@ export default function SocialConnectorsClient({
 
   useEffect(() => {
     const connectError = searchParams.get('social_connect_error');
+    const connectErrorCode = searchParams.get('social_connect_error_code');
     const connectedPlatform = searchParams.get('social_connected');
 
     if (connectError) {
-      const mapped = mapSocialConnectorError(connectError);
+      const mapped = mapSocialConnectorError(connectError, connectErrorCode);
       setError(`Social connect failed: ${mapped.userMessage}`);
       setErrorHint(mapped.technicalHint ?? null);
     } else if (connectedPlatform) {

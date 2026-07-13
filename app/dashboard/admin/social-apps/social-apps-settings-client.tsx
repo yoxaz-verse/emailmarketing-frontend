@@ -46,7 +46,7 @@ const PLATFORM_FIELDS: Record<Platform, { key: string; label: string; secret?: b
     { key: 'client_id', label: 'Client ID' },
     { key: 'client_secret', label: 'Client Secret', secret: true },
     { key: 'redirect_uri', label: 'Redirect URI', placeholder: 'https://emarketing-backend.infra.obaol.com/social/oauth2-credential/callback' },
-    { key: 'scopes', label: 'Scopes (comma-separated)', placeholder: 'w_member_social,r_liteprofile' },
+    { key: 'scopes', label: 'Scopes (comma-separated)', placeholder: 'w_member_social,openid,profile' },
   ],
   meta: [
     { key: 'app_id', label: 'App ID' },
@@ -83,9 +83,9 @@ const PLATFORM_SETUP_GUIDES: Record<Platform, SetupGuide> = {
       'Client ID from the LinkedIn app Auth tab',
       'Client Secret from the LinkedIn app Auth tab',
       'Redirect URI shown below',
-      'Scopes: w_member_social,r_liteprofile',
+      'Scopes: w_member_social,openid,profile',
     ],
-    permissions: ['w_member_social', 'r_liteprofile'],
+    permissions: ['w_member_social', 'openid', 'profile'],
     setupSteps: [
       'Open LinkedIn Developer Portal and create or select the app used for publishing.',
       'In Products, request/enable the product that grants member social posting access.',
@@ -341,7 +341,7 @@ export default function SocialAppsSettingsClient({
         const rawScopes = String(fields.scopes ?? '').trim();
         payload.scopes = rawScopes
           ? rawScopes.split(',').map((v) => v.trim()).filter(Boolean)
-          : ['w_member_social', 'r_liteprofile'];
+          : ['w_member_social', 'openid', 'profile'];
       }
 
       await clientFetch(`/admin/social-apps/${platform}`, {
@@ -515,7 +515,7 @@ export default function SocialAppsSettingsClient({
                       <span className="block text-xs text-muted-foreground">Secret is saved and stays hidden. Leave *** unchanged unless you want to replace it.</span>
                     )}
                     {platform === 'linkedin' && def.key === 'scopes' && (
-                      <span className="block text-xs text-muted-foreground">Saved scopes reload here after saving. Use comma-separated values like w_member_social,r_liteprofile.</span>
+                      <span className="block text-xs text-muted-foreground">Saved scopes reload here after saving. Use comma-separated values like w_member_social,openid,profile.</span>
                     )}
                   </label>
                 ))}
