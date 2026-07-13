@@ -84,6 +84,7 @@ export default function DeleteModal({
         ['Voice-agent links', preview.deletes.campaign_voice_agents],
         ['Send logs', preview.deletes.email_logs],
         ['Tracking events', preview.deletes.email_tracking_events],
+        ['System events', preview.deletes.system_events],
       ]
     : [];
 

@@ -19,6 +19,7 @@ export type CampaignDeletePreview = {
     campaign_voice_agents: number;
     email_logs: number;
     email_tracking_events: number;
+    system_events: number;
   };
   preserves: string[];
 };
