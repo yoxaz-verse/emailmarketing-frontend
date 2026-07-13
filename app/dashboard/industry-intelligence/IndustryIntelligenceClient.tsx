@@ -20,10 +20,14 @@ type IndustrySource = {
   status: string;
   region: string | null;
   sector_focus: string[] | null;
+  source_url?: string | null;
   supports_fetch: boolean;
   supports_manual: boolean;
   auth_ready: boolean;
   health_status: string;
+  last_checked_at?: string | null;
+  last_success_at?: string | null;
+  last_error?: string | null;
   source_origin?: 'db' | 'fallback';
 };
 
@@ -86,6 +90,25 @@ type OpportunityDraft = Partial<Opportunity> & {
   tagsText?: string;
 };
 
+type Summary = {
+  total: number;
+  new_count: number;
+  shortlisted_count: number;
+  applied_count: number;
+  healthy_sources?: number;
+  total_sources?: number;
+  last_run: FetchRun | null;
+  source_health: Array<{
+    id: string;
+    code: string;
+    name: string;
+    health_status: string;
+    last_checked_at: string | null;
+    last_success_at: string | null;
+    last_error: string | null;
+  }>;
+};
+
 const UI_FALLBACK_SOURCES: IndustrySource[] = [
   { id: 'ui-fallback-startupindia', code: 'startupindia', name: 'Startup India', mode: 'api', status: 'active', region: 'India', sector_focus: ['startup', 'agri-tech', 'technology'], supports_fetch: true, supports_manual: true, auth_ready: false, health_status: 'fallback', source_origin: 'fallback' },
   { id: 'ui-fallback-agri_uddaan', code: 'agri_uddaan', name: 'Agri Udaan / Agritech Programs', mode: 'manual', status: 'active', region: 'India', sector_focus: ['agri-tech', 'food-tech'], supports_fetch: false, supports_manual: true, auth_ready: false, health_status: 'fallback', source_origin: 'fallback' },
@@ -128,7 +151,9 @@ function parseTags(value: string | string[] | undefined): string[] {
 
 export default function IndustryIntelligenceClient() {
   const [activeTab, setActiveTab] = useState<'fetch' | 'review'>('fetch');
+  const [hasAutoSelectedTab, setHasAutoSelectedTab] = useState(false);
   const [sources, setSources] = useState<IndustrySource[]>([]);
+  const [summary, setSummary] = useState<Summary | null>(null);
   const [selectedSources, setSelectedSources] = useState<Record<string, boolean>>({});
   const [runs, setRuns] = useState<FetchRun[]>([]);
   const [rows, setRows] = useState<Opportunity[]>([]);
@@ -137,6 +162,7 @@ export default function IndustryIntelligenceClient() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [manualJson, setManualJson] = useState(EXAMPLE_JSON);
+  const [showManualPayload, setShowManualPayload] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, OpportunityDraft>>({});
 
   const [query, setQuery] = useState('');
@@ -157,9 +183,10 @@ export default function IndustryIntelligenceClient() {
   const latestSourceResults = runs.flatMap((run) => run.metadata?.source_results ?? []).slice(0, 12);
 
   const loadMeta = useCallback(async () => {
-    const [sourceData, runData] = await Promise.all([
+    const [sourceData, runData, summaryData] = await Promise.all([
       clientFetch<IndustrySource[]>('/industry-intelligence/sources'),
       clientFetch<FetchRun[]>('/industry-intelligence/fetch-runs?limit=20'),
+      clientFetch<Summary>('/industry-intelligence/summary'),
     ]);
     const sourceRows = (sourceData ?? []).length > 0 ? sourceData : UI_FALLBACK_SOURCES;
     const sortedSources = sourceRows.sort((a, b) => a.name.localeCompare(b.name));
@@ -172,6 +199,7 @@ export default function IndustryIntelligenceClient() {
       return next;
     });
     setRuns(runData ?? []);
+    setSummary(summaryData ?? null);
   }, []);
 
   const loadOpportunities = useCallback(async () => {
@@ -188,6 +216,10 @@ export default function IndustryIntelligenceClient() {
     const response = await clientFetch<{ rows: Opportunity[]; total: number }>(`/industry-intelligence/opportunities?${params.toString()}`);
     setRows(response.rows ?? []);
     setTotalRows(Number(response.total ?? 0));
+    if (!hasAutoSelectedTab && Number(response.total ?? 0) > 0) {
+      setActiveTab('review');
+      setHasAutoSelectedTab(true);
+    }
   }, [page, pageSize, query, sourceFilter, categoryFilter, sectorFilter, stageFilter, statusFilter]);
 
   const refreshAll = useCallback(async () => {
@@ -210,19 +242,19 @@ export default function IndustryIntelligenceClient() {
     void loadOpportunities();
   }, [loadOpportunities]);
 
-  async function runFetch() {
+  async function runFetchForSources(sourceCodes: string[]) {
     setError(null);
     setSuccess(null);
     try {
-      if (chosenSourceCodes.length === 0) throw new Error('Select at least one source to run fetch');
+      if (sourceCodes.length === 0) throw new Error('Select at least one source to run fetch');
 
-      const manualOnly = chosenSourceCodes.length === 1 && sources.find((source) => source.code === chosenSourceCodes[0])?.mode === 'manual';
-      let body: Record<string, unknown> = { source_codes: chosenSourceCodes };
+      const manualOnly = sourceCodes.length === 1 && sources.find((source) => source.code === sourceCodes[0])?.mode === 'manual';
+      let body: Record<string, unknown> = { source_codes: sourceCodes };
 
       if (manualOnly) {
         const parsed = JSON.parse(manualJson);
         if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('Manual JSON must be a non-empty array');
-        body = { source_code: chosenSourceCodes[0], items: parsed };
+        body = { source_code: sourceCodes[0], items: parsed };
       }
 
       const result = await clientFetch<{ summary: { source_count?: number; total_received: number; inserted_count: number; deduped_count: number; failed_count: number } }>(
@@ -231,11 +263,32 @@ export default function IndustryIntelligenceClient() {
       );
 
       const summary = result.summary;
-      setSuccess(`Fetch completed. Sources: ${summary.source_count ?? chosenSourceCodes.length}, Total: ${summary.total_received}, Inserted: ${summary.inserted_count}, Deduped: ${summary.deduped_count}, Failed: ${summary.failed_count}`);
+      setSuccess(`Fetch completed. Sources: ${summary.source_count ?? sourceCodes.length}, Total: ${summary.total_received}, Inserted: ${summary.inserted_count}, Deduped: ${summary.deduped_count}, Failed: ${summary.failed_count}`);
       await refreshAll();
       setActiveTab('review');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to run industry intelligence fetch');
+    }
+  }
+
+  async function runFetch() {
+    await runFetchForSources(chosenSourceCodes);
+  }
+
+  async function runSourceFetch(sourceCode: string) {
+    setError(null);
+    setSuccess(null);
+    try {
+      const result = await clientFetch<{ summary: { total_received: number; inserted_count: number; deduped_count: number; failed_count: number } }>(
+        '/industry-intelligence/fetch-runs',
+        { method: 'POST', body: JSON.stringify({ source_code: sourceCode }), timeoutMs: 30_000 }
+      );
+      const fetchSummary = result.summary;
+      setSuccess(`${sourceCode} fetch completed. Total: ${fetchSummary.total_received}, Inserted: ${fetchSummary.inserted_count}, Deduped: ${fetchSummary.deduped_count}, Failed: ${fetchSummary.failed_count}`);
+      await refreshAll();
+      setActiveTab('review');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : `Failed to fetch ${sourceCode}`);
     }
   }
 
@@ -275,6 +328,22 @@ export default function IndustryIntelligenceClient() {
       await loadOpportunities();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to update opportunity');
+    }
+  }
+
+  async function quickStatus(row: Opportunity, status: OpportunityStatus) {
+    setError(null);
+    setSuccess(null);
+    try {
+      await clientFetch(`/industry-intelligence/opportunities/${row.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      });
+      setSuccess(`Marked ${row.title} as ${status}`);
+      await loadOpportunities();
+      await loadMeta();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update status');
     }
   }
 
@@ -339,6 +408,39 @@ export default function IndustryIntelligenceClient() {
         </div>
       )}
 
+      <div className="grid gap-3 md:grid-cols-5">
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-xs text-muted-foreground">Total</div>
+            <div className="text-2xl font-semibold">{summary?.total ?? totalRows}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-xs text-muted-foreground">New</div>
+            <div className="text-2xl font-semibold">{summary?.new_count ?? 0}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-xs text-muted-foreground">Shortlisted</div>
+            <div className="text-2xl font-semibold">{summary?.shortlisted_count ?? 0}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-xs text-muted-foreground">Applied</div>
+            <div className="text-2xl font-semibold">{summary?.applied_count ?? 0}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-xs text-muted-foreground">Source Health</div>
+            <div className="text-2xl font-semibold">{summary?.healthy_sources ?? 0}/{summary?.total_sources ?? sources.length}</div>
+          </CardContent>
+        </Card>
+      </div>
+
       {activeTab === 'fetch' && (
         <div className="space-y-6">
           <Card>
@@ -373,21 +475,57 @@ export default function IndustryIntelligenceClient() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Button onClick={() => void runFetch()} disabled={loading || chosenSourceCodes.length === 0}>Run Multi-Source Fetch</Button>
+                <Button onClick={() => void runFetch()} disabled={loading || chosenSourceCodes.length === 0}>Fetch Selected Now</Button>
+                <Button variant="outline" onClick={() => {
+                  const allSourceCodes = sources.map((source) => source.code);
+                  setSelectedSources(Object.fromEntries(allSourceCodes.map((code) => [code, true])));
+                  void runFetchForSources(allSourceCodes);
+                }} disabled={loading || sources.length === 0}>Fetch All Now</Button>
                 <Button variant="outline" onClick={() => void refreshAll()} disabled={loading}>Refresh</Button>
               </div>
             </CardContent>
           </Card>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
+            <Card className={showManualPayload ? '' : 'lg:col-span-2'}>
               <CardHeader>
-                <CardTitle>Manual Payload</CardTitle>
+                <div className="flex items-center justify-between gap-3">
+                  <CardTitle>Sources</CardTitle>
+                  <Button variant="outline" onClick={() => setShowManualPayload((value) => !value)}>
+                    {showManualPayload ? 'Hide Manual Import' : 'Show Manual Import'}
+                  </Button>
+                </div>
               </CardHeader>
-              <CardContent>
-                <Textarea value={manualJson} onChange={(event) => setManualJson(event.target.value)} className="min-h-[300px] font-mono text-xs" />
+              <CardContent className="space-y-2">
+                {sources.map((source) => (
+                  <div key={source.id} className="flex flex-col gap-2 rounded border p-3 md:flex-row md:items-center md:justify-between">
+                    <div className="space-y-1">
+                      <div className="font-medium text-sm">{source.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {source.code} | {source.mode} | {source.last_success_at ? `Last success ${new Date(source.last_success_at).toLocaleString()}` : 'No successful fetch yet'}
+                      </div>
+                      {source.source_url && <div className="max-w-xl truncate text-xs text-muted-foreground">{source.source_url}</div>}
+                      {source.last_error && <div className="text-xs text-red-700 dark:text-red-300">{source.last_error}</div>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={source.health_status === 'healthy' ? 'default' : 'outline'}>{source.health_status}</Badge>
+                      <Button size="sm" variant="outline" onClick={() => void runSourceFetch(source.code)} disabled={loading || !source.supports_fetch}>Fetch</Button>
+                    </div>
+                  </div>
+                ))}
               </CardContent>
             </Card>
+
+            {showManualPayload && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Manual Payload</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Textarea value={manualJson} onChange={(event) => setManualJson(event.target.value)} className="min-h-[300px] font-mono text-xs" />
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader>
@@ -477,6 +615,9 @@ export default function IndustryIntelligenceClient() {
                         <div className="text-xs text-muted-foreground">
                           {row.source_name ?? row.source_code ?? 'Unknown source'} | {row.organizer_or_investor ?? 'No organizer'} | {new Date(row.created_at).toLocaleString()}
                         </div>
+                        <div className="text-xs text-muted-foreground">
+                          {row.amount_text ?? 'Amount not listed'} | {row.funding_stage ?? 'Stage not listed'} | {row.deadline_date ? `Deadline ${new Date(row.deadline_date).toLocaleDateString()}` : 'No deadline'}
+                        </div>
                         {row.source_url && (
                           <a className="text-xs text-primary hover:underline" href={row.source_url} target="_blank" rel="noreferrer">
                             {row.source_url}
@@ -528,7 +669,12 @@ export default function IndustryIntelligenceClient() {
 
                     <Textarea placeholder="Notes" value={String(draft.notes ?? row.notes ?? '')} onChange={(event) => patchDraft(row.id, 'notes', event.target.value)} />
 
-                    <Button onClick={() => void saveOpportunity(row)}>Save Review</Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button onClick={() => void saveOpportunity(row)}>Save Review</Button>
+                      <Button variant="outline" onClick={() => void quickStatus(row, 'shortlisted')}>Shortlist</Button>
+                      <Button variant="outline" onClick={() => void quickStatus(row, 'applied')}>Applied</Button>
+                      <Button variant="outline" onClick={() => void quickStatus(row, 'not_relevant')}>Not Relevant</Button>
+                    </div>
                   </div>
                 );
               })}

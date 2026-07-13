@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { clientFetch } from '@/lib/client-fetch';
+import { Check, Copy, ExternalLink } from 'lucide-react';
 
 type Operator = { id: string; name: string; region?: string | null };
 type Platform = 'linkedin' | 'meta' | 'reddit' | 'telegram' | 'whatsapp';
@@ -17,6 +18,19 @@ type PlatformConfigResponse = {
   required_missing: string[];
   fields?: Record<string, string>;
 };
+type SetupGuide = {
+  consoleLabel: string;
+  consoleUrl: string;
+  callbackPath?: string;
+  alternateCallbackPath?: string;
+  callbackNote?: string;
+  fieldsToPaste: string[];
+  permissions: string[];
+  setupSteps: string[];
+  verifySteps: string[];
+};
+
+const FALLBACK_BACKEND_BASE_URL = 'https://emarketing-backend.infra.obaol.com';
 
 const PLATFORMS: { code: Platform; label: string }[] = [
   { code: 'linkedin', label: 'LinkedIn' },
@@ -36,15 +50,15 @@ const PLATFORM_FIELDS: Record<Platform, { key: string; label: string; secret?: b
   meta: [
     { key: 'app_id', label: 'App ID' },
     { key: 'app_secret', label: 'App Secret', secret: true },
-    { key: 'redirect_uri', label: 'Redirect URI', placeholder: 'https://emarketing-backend.infra.obaol.com/api/auth/meta/callback' },
+    { key: 'redirect_uri', label: 'Redirect URI', placeholder: 'https://emarketing-backend.infra.obaol.com/social/callback/meta' },
     { key: 'page_access_token', label: 'Page Access Token', secret: true },
     { key: 'business_account_id', label: 'Business Account ID' },
   ],
   reddit: [
     { key: 'client_id', label: 'Client ID' },
     { key: 'client_secret', label: 'Client Secret', secret: true },
-    { key: 'redirect_uri', label: 'Redirect URI' },
-    { key: 'user_agent', label: 'User Agent' },
+    { key: 'redirect_uri', label: 'Redirect URI', placeholder: 'https://emarketing-backend.infra.obaol.com/social/callback/reddit' },
+    { key: 'user_agent', label: 'User Agent', placeholder: 'obaol-social-connector/1.0 by u_your_reddit_username' },
   ],
   telegram: [
     { key: 'bot_token', label: 'Bot Token', secret: true },
@@ -57,8 +71,143 @@ const PLATFORM_FIELDS: Record<Platform, { key: string; label: string; secret?: b
   ],
 };
 
+const PLATFORM_SETUP_GUIDES: Record<Platform, SetupGuide> = {
+  linkedin: {
+    consoleLabel: 'LinkedIn Developer Portal',
+    consoleUrl: 'https://www.linkedin.com/developers/apps',
+    callbackPath: '/social/oauth2-credential/callback',
+    alternateCallbackPath: '/social/callback/linkedin',
+    callbackNote: 'Use this in LinkedIn Auth settings under Authorized redirect URLs. The alternate callback also works if you want the platform-specific route.',
+    fieldsToPaste: [
+      'Client ID from the LinkedIn app Auth tab',
+      'Client Secret from the LinkedIn app Auth tab',
+      'Redirect URI shown below',
+      'Scopes: w_member_social,r_liteprofile',
+    ],
+    permissions: ['w_member_social', 'r_liteprofile'],
+    setupSteps: [
+      'Open LinkedIn Developer Portal and create or select the app used for publishing.',
+      'In Products, request/enable the product that grants member social posting access.',
+      'In Auth, add the callback URL shown below as an Authorized redirect URL.',
+      'Copy Client ID, Client Secret, Redirect URI, and scopes into this form, then save.',
+    ],
+    verifySteps: [
+      'Go back to Social Connectors, select the operator, and click Connect for LinkedIn.',
+      'Approve the LinkedIn permission screen.',
+      'After redirect, Refresh should show Connected and ready.',
+    ],
+  },
+  meta: {
+    consoleLabel: 'Meta Developers',
+    consoleUrl: 'https://developers.facebook.com/apps/',
+    callbackPath: '/social/callback/meta',
+    callbackNote: 'Use this exact URL in Facebook Login Valid OAuth Redirect URIs.',
+    fieldsToPaste: [
+      'App ID from Meta Developers',
+      'App Secret from Meta Developers',
+      'Redirect URI shown below',
+      'Page Access Token if your publishing flow needs a page token',
+      'Business Account ID for the connected business',
+    ],
+    permissions: ['pages_manage_posts', 'pages_read_engagement', 'business_management', 'instagram_basic'],
+    setupSteps: [
+      'Open Meta Developers and create or select the Facebook/Instagram publishing app.',
+      'Add Facebook Login or the relevant Meta login product and add the callback URL shown below.',
+      'Request the permissions listed here for the app mode you plan to use.',
+      'Copy App ID, App Secret, Redirect URI, and business/page values into this form, then save.',
+    ],
+    verifySteps: [
+      'Go back to Social Connectors, select the operator, and click Connect for Meta.',
+      'Approve the Meta permission screen with the account/page that should publish.',
+      'After redirect, Refresh should show Connected and ready.',
+    ],
+  },
+  reddit: {
+    consoleLabel: 'Reddit Apps',
+    consoleUrl: 'https://www.reddit.com/prefs/apps',
+    callbackPath: '/social/callback/reddit',
+    callbackNote: 'Paste this exact URL into the redirect uri field on the Reddit app.',
+    fieldsToPaste: [
+      'Client ID shown under the Reddit app name',
+      'Client Secret from the Reddit app',
+      'Redirect URI shown below',
+      'User Agent, for example: obaol-social-connector/1.0 by u_your_username',
+    ],
+    permissions: ['identity', 'submit'],
+    setupSteps: [
+      'Open Reddit Apps and create a new app for this integration.',
+      'Choose web app if available for your account and paste the callback URL shown below.',
+      'Copy the client ID, client secret, redirect URI, and a descriptive user agent into this form.',
+      'Save the configuration before starting the Reddit connect flow.',
+    ],
+    verifySteps: [
+      'Go back to Social Connectors, select the operator, and click Connect for Reddit.',
+      'Approve identity and submit permissions in Reddit.',
+      'After redirect, Refresh should show Connected and ready.',
+    ],
+  },
+  telegram: {
+    consoleLabel: 'BotFather in Telegram',
+    consoleUrl: 'https://t.me/BotFather',
+    fieldsToPaste: [
+      'Bot Token from BotFather',
+      'Chat ID for the channel, group, or chat where posts should go',
+    ],
+    permissions: ['Bot must be able to post in the target chat/channel'],
+    setupSteps: [
+      'Open BotFather in Telegram and create a bot with /newbot.',
+      'Copy the bot token into this form.',
+      'Add the bot to the target channel or group and give it permission to post.',
+      'Find the target chat ID and paste it into this form, then save.',
+    ],
+    verifySteps: [
+      'Go back to Social Connectors, select the operator, and click Connect for Telegram.',
+      'The backend validates the bot token and chat access directly.',
+      'Refresh should show Connected and ready with bot metadata.',
+    ],
+  },
+  whatsapp: {
+    consoleLabel: 'WhatsApp Cloud API Setup',
+    consoleUrl: 'https://developers.facebook.com/docs/whatsapp/cloud-api/get-started',
+    fieldsToPaste: [
+      'Phone Number ID from WhatsApp Cloud API setup',
+      'Business Account ID from Meta Business settings',
+      'Access Token with access to the WhatsApp business account',
+    ],
+    permissions: ['Token must be valid for the WhatsApp Business Account and phone number'],
+    setupSteps: [
+      'Open Meta WhatsApp Cloud API setup and choose the business/app used for messaging.',
+      'Copy the Phone Number ID and WhatsApp Business Account ID.',
+      'Create or copy an access token that can read the business account and send messages.',
+      'Paste the values into this form, then save.',
+    ],
+    verifySteps: [
+      'Go back to Social Connectors, select the operator, and click Connect for WhatsApp.',
+      'The backend validates the token and business account directly.',
+      'Refresh should show Connected and ready with business metadata.',
+    ],
+  },
+};
+
 function normalizePlatform(raw: string): Platform {
   return PLATFORMS.some((p) => p.code === raw) ? (raw as Platform) : 'linkedin';
+}
+
+function normalizeBaseUrl(value?: string): string {
+  const candidate = String(value ?? '').trim();
+  if (!candidate) return FALLBACK_BACKEND_BASE_URL;
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return FALLBACK_BACKEND_BASE_URL;
+    return parsed.toString().replace(/\/+$/, '');
+  } catch {
+    return FALLBACK_BACKEND_BASE_URL;
+  }
+}
+
+function buildCallbackUrl(path?: string): string | null {
+  if (!path) return null;
+  return `${normalizeBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL)}${path}`;
 }
 
 export default function SocialAppsSettingsClient({
@@ -86,8 +235,13 @@ export default function SocialAppsSettingsClient({
   const [endpointAvailable, setEndpointAvailable] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(loadError ?? null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const selectedOperator = useMemo(() => operators.find((o) => o.id === operatorId), [operators, operatorId]);
+  const activeFields = PLATFORM_FIELDS[platform];
+  const activeGuide = PLATFORM_SETUP_GUIDES[platform];
+  const callbackUrl = buildCallbackUrl(activeGuide.callbackPath);
+  const alternateCallbackUrl = buildCallbackUrl(activeGuide.alternateCallbackPath);
 
   useEffect(() => {
     if (scope === 'operator' && !operatorId && operators.length === 1) {
@@ -146,8 +300,6 @@ export default function SocialAppsSettingsClient({
     void run();
   }, [operatorId, platform, scope]);
 
-  const activeFields = PLATFORM_FIELDS[platform];
-
   async function save() {
     if (scope === 'operator' && !operatorId) {
       setError('Select an operator first.');
@@ -199,6 +351,16 @@ export default function SocialAppsSettingsClient({
       setError(msg);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function copyValue(value: string, key: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedKey(key);
+      window.setTimeout(() => setCopiedKey((current) => (current === key ? null : current)), 1600);
+    } catch {
+      setError('Could not copy to clipboard. Select the value and copy it manually.');
     }
   }
 
@@ -341,6 +503,110 @@ export default function SocialAppsSettingsClient({
               </div>
             </>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Setup Guide</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm font-medium">{PLATFORMS.find((p) => p.code === platform)?.label} setup checklist</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Open the provider console, paste the required values, save this page, then connect from Social Connectors.
+              </p>
+            </div>
+            <a
+              href={activeGuide.consoleUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border/50 bg-background/50 px-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+            >
+              {activeGuide.consoleLabel}
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          </div>
+
+          {callbackUrl && (
+            <div className="rounded-md border border-border/60 bg-muted/30 p-3">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">Callback URL to paste</p>
+                  <p className="mt-1 break-all font-mono text-xs text-muted-foreground">{callbackUrl}</p>
+                  {activeGuide.callbackNote && <p className="mt-2 text-xs text-muted-foreground">{activeGuide.callbackNote}</p>}
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void copyValue(callbackUrl, `${platform}-callback`)}
+                  className="shrink-0"
+                >
+                  {copiedKey === `${platform}-callback` ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {copiedKey === `${platform}-callback` ? 'Copied' : 'Copy'}
+                </Button>
+              </div>
+
+              {alternateCallbackUrl && (
+                <div className="mt-3 flex flex-col gap-2 rounded-md border border-border/60 bg-background/40 p-2 md:flex-row md:items-center md:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium">Alternate callback</p>
+                    <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">{alternateCallbackUrl}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void copyValue(alternateCallbackUrl, `${platform}-alternate-callback`)}
+                    className="shrink-0"
+                  >
+                    {copiedKey === `${platform}-alternate-callback` ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    {copiedKey === `${platform}-alternate-callback` ? 'Copied' : 'Copy'}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+              <p className="text-sm font-medium">Fields To Paste</p>
+              <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
+                {activeGuide.fieldsToPaste.map((item) => (
+                  <li key={item} className="rounded border border-border/50 bg-background/40 px-2 py-1.5">{item}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+              <p className="text-sm font-medium">Permissions / Scopes</p>
+              <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
+                {activeGuide.permissions.map((item) => (
+                  <li key={item} className="rounded border border-border/50 bg-background/40 px-2 py-1.5 font-mono text-xs">{item}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+              <p className="text-sm font-medium">Verify After Saving</p>
+              <ol className="mt-2 list-decimal space-y-2 pl-4 text-sm text-muted-foreground">
+                {activeGuide.verifySteps.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ol>
+            </div>
+          </div>
+
+          <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+            <p className="text-sm font-medium">Provider Steps</p>
+            <ol className="mt-2 list-decimal space-y-2 pl-4 text-sm text-muted-foreground">
+              {activeGuide.setupSteps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+          </div>
         </CardContent>
       </Card>
     </div>

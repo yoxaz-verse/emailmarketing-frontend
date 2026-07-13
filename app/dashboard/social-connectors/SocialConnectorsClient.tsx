@@ -37,6 +37,13 @@ type Operator = {
 type OperatorLoadErrorKind = 'backend_unavailable' | 'unauthorized' | 'unknown';
 
 const PLATFORM_ORDER = ['linkedin', 'meta', 'reddit', 'telegram', 'whatsapp'];
+const PLATFORM_LABELS: Record<string, string> = {
+  linkedin: 'LinkedIn',
+  meta: 'Meta',
+  reddit: 'Reddit',
+  telegram: 'Telegram',
+  whatsapp: 'WhatsApp',
+};
 type UiStatus = SocialConnectionStatus | 'not_connected';
 type GuideContent = {
   intro: string;
@@ -156,6 +163,16 @@ function toTitle(value: string): string {
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+function platformLabel(code: string, fallback?: string | null): string {
+  return fallback || PLATFORM_LABELS[code] || toTitle(code);
+}
+
+function socialAppSettingsUrl(platformCode: string, selectedOperatorId: string): string {
+  const platform = encodeURIComponent(platformCode);
+  if (!selectedOperatorId) return `/dashboard/admin/social-apps?platform=${platform}&scope=global`;
+  return `/dashboard/admin/social-apps?operator_id=${encodeURIComponent(selectedOperatorId)}&platform=${platform}&scope=operator`;
 }
 
 function sortConnectors(connectors: SocialConnector[]): SocialConnector[] {
@@ -292,7 +309,7 @@ export default function SocialConnectorsClient({
 
     if (connectError) {
       const mapped = mapSocialConnectorError(connectError);
-      setError(`LinkedIn OAuth start failed: ${mapped.userMessage}`);
+      setError(`Social connect failed: ${mapped.userMessage}`);
       setErrorHint(mapped.technicalHint ?? null);
     } else if (connectedPlatform) {
       setSuccessMessage(`${toTitle(connectedPlatform)} connected successfully.`);
@@ -330,7 +347,7 @@ export default function SocialConnectorsClient({
                 ))}
               </select>
               {!selectedOperatorId && (
-                <p className="text-xs text-amber-700 dark:text-amber-300 dark:text-amber-300">Select an operator to start LinkedIn connect flow.</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 dark:text-amber-300">Select an operator to start a social connect flow. Configure opens global app settings until an operator is selected.</p>
               )}
               {isAdmin && hasOperatorLoadFailure && (
                 <p className="text-xs text-rose-700 dark:text-rose-300">{operatorLoadError}</p>
@@ -377,11 +394,13 @@ export default function SocialConnectorsClient({
                 verifySteps: ['Refresh this page and confirm status is updated.'],
               };
               const isExpanded = expandedPlatform === connector.code;
+              const label = platformLabel(connector.code, connector.name);
+              const settingsUrl = socialAppSettingsUrl(connector.code, selectedOperatorId);
 
               return (
                 <div key={connector.code} className="rounded-lg border border-border/60 bg-muted/30 dark:bg-white/[0.02] p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold">{connector.name || toTitle(connector.code)}</p>
+                    <p className="text-sm font-semibold">{label}</p>
                     <Badge className={statusBadge(effectiveStatus)}>
                       {statusLabel(effectiveStatus)}
                     </Badge>
@@ -403,12 +422,12 @@ export default function SocialConnectorsClient({
                   )}
                   {isOauthSupported && isAdmin && selectedOperatorId && !oauthAppConfigured && (
                     <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-300 dark:text-amber-200">
-                      LinkedIn app credentials are not configured for this operator. Configure in admin social app settings.
+                      {label} app credentials are not configured for this operator. Open Configure and paste the provider app details first.
                     </div>
                   )}
                   {isAdmin && selectedOperatorId && !appConfigured && missingFields.length > 0 && (
                     <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-300 dark:text-amber-200">
-                      Missing app config fields: {missingFields.join(', ')}
+                      Missing {label} app config fields: {missingFields.join(', ')}
                     </div>
                   )}
 
@@ -424,15 +443,8 @@ export default function SocialConnectorsClient({
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={!selectedOperatorId}
                         onClick={() => {
-                          if (!selectedOperatorId) {
-                            setError('Select an operator before opening social app settings.');
-                            setErrorHint(null);
-                            return;
-                          }
-                          const nextUrl = `/dashboard/admin/social-apps?operator_id=${encodeURIComponent(selectedOperatorId)}&platform=${encodeURIComponent(connector.code)}`;
-                          window.location.href = nextUrl;
+                          window.location.href = settingsUrl;
                         }}
                       >
                         Configure
@@ -487,6 +499,14 @@ export default function SocialConnectorsClient({
                     <div className="mt-3 rounded-lg border border-border/60 bg-muted/40 dark:bg-black/20 p-3 text-xs">
                       <p className="font-medium text-sm">Integration Guide</p>
                       <p className="mt-1 text-muted-foreground">{guide.intro}</p>
+                      {isAdmin && (
+                        <a
+                          href={settingsUrl}
+                          className="mt-2 inline-flex text-xs font-medium text-primary underline-offset-4 hover:underline"
+                        >
+                          Open {label} configuration page
+                        </a>
+                      )}
 
                       <div className="mt-3">
                         <p className="font-medium">Setup steps</p>
