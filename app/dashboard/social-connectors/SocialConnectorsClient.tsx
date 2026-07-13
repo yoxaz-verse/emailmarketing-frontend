@@ -398,10 +398,10 @@ export default function SocialConnectorsClient({
               const settingsUrl = socialAppSettingsUrl(connector.code, selectedOperatorId);
 
               return (
-                <div key={connector.code} className="rounded-lg border border-border/60 bg-muted/30 dark:bg-white/[0.02] p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold">{label}</p>
-                    <Badge className={statusBadge(effectiveStatus)}>
+                <div key={connector.code} className="min-w-0 rounded-lg border border-border/60 bg-muted/30 dark:bg-white/[0.02] p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <p className="min-w-0 text-sm font-semibold">{label}</p>
+                    <Badge className={`${statusBadge(effectiveStatus)} max-w-full whitespace-normal text-center`}>
                       {statusLabel(effectiveStatus)}
                     </Badge>
                   </div>
@@ -415,26 +415,27 @@ export default function SocialConnectorsClient({
                   </div>
 
                   {conn?.reason && (
-                    <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-300 dark:text-amber-200">
+                    <div className="mt-2 break-words rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-300 dark:text-amber-200">
                       <p className="font-medium">Why not connected?</p>
                       <p className="mt-1">{conn.reason}</p>
                     </div>
                   )}
                   {isOauthSupported && isAdmin && selectedOperatorId && !oauthAppConfigured && (
-                    <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-300 dark:text-amber-200">
+                    <div className="mt-2 break-words rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-300 dark:text-amber-200">
                       {label} app credentials are not configured for this operator. Open Configure and paste the provider app details first.
                     </div>
                   )}
                   {isAdmin && selectedOperatorId && !appConfigured && missingFields.length > 0 && (
-                    <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-300 dark:text-amber-200">
+                    <div className="mt-2 break-words rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-300 dark:text-amber-200">
                       Missing {label} app config fields: {missingFields.join(', ')}
                     </div>
                   )}
 
-                  <div className="mt-3 flex items-center gap-2">
+                  <div className="mt-3 flex flex-wrap items-start gap-2">
                     <Button
                       size="sm"
                       variant="outline"
+                      className="min-w-[8.5rem]"
                       onClick={() => setExpandedPlatform((prev) => (prev === connector.code ? null : connector.code))}
                     >
                       {isExpanded ? 'Hide Guide' : 'Open Guide'}
@@ -443,6 +444,7 @@ export default function SocialConnectorsClient({
                       <Button
                         size="sm"
                         variant="outline"
+                        className="min-w-[7rem]"
                         onClick={() => {
                           window.location.href = settingsUrl;
                         }}
@@ -454,6 +456,7 @@ export default function SocialConnectorsClient({
                     {isOauthSupported && (
                       <Button
                         size="sm"
+                        className="min-w-[7rem]"
                         disabled={isAdmin && (!selectedOperatorId || !hasOperators || hasOperatorLoadFailure || !oauthAppConfigured)}
                         onClick={() => {
                           const query = isAdmin && selectedOperatorId
@@ -470,6 +473,7 @@ export default function SocialConnectorsClient({
                       <Button
                         size="sm"
                         variant="outline"
+                        className="min-w-[7rem]"
                         onClick={async () => {
                           try {
                             if (isAdmin && !selectedOperatorId) {

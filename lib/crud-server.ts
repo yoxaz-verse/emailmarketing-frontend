@@ -8,6 +8,21 @@ export type CrudPage<T = any> = {
   page_size: number;
 };
 
+export type CampaignDeletePreview = {
+  campaign: { id: string; name: string | null; status: string | null };
+  canDelete: boolean;
+  blocker?: string;
+  deletes: {
+    campaigns: 1;
+    campaign_leads: number;
+    campaign_inboxes: number;
+    campaign_voice_agents: number;
+    email_logs: number;
+    email_tracking_events: number;
+  };
+  preserves: string[];
+};
+
 export const crudServer = {
   
   list: (table: string) =>
@@ -32,6 +47,9 @@ export const crudServer = {
     serverFetch(`/crud/${table}/${id}`, {
       method: 'DELETE'
     }),
+
+  campaignDeletePreview: (id: string) =>
+    serverFetch<CampaignDeletePreview>(`/campaigns/${id}/delete-preview`),
 
   bulkDelete: (table: string, ids: string[]) =>
     serverFetch<{ success: boolean; deletedCount: number; requestedCount?: number; filteredCount?: number }>(`/crud/${table}/bulk-delete`, {

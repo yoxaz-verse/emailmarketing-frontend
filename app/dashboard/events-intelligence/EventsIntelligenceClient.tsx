@@ -11,7 +11,7 @@ import { clientFetch } from '@/lib/client-fetch';
 import { cn } from '@/lib/utils';
 
 type EventScope = 'international' | 'india' | 'kerala' | 'district';
-type ProviderType = 'rss' | 'ics' | 'api';
+type ProviderType = 'rss' | 'ics' | 'api' | 'html';
 type EventStatus = 'discovered' | 'planned' | 'ignored' | 'expired';
 
 type EventSource = {
@@ -24,6 +24,7 @@ type EventSource = {
   state: string | null;
   district: string | null;
   categories: string[];
+  parser_key: string | null;
   active: boolean;
   last_ingested_at: string | null;
   last_error: string | null;
@@ -215,6 +216,7 @@ export default function EventsIntelligenceClient() {
           state: sourceForm.state.trim() || null,
           district: sourceForm.district.trim() || null,
           categories: parseCsv(sourceForm.categories_csv),
+          parser_key: sourceForm.provider_type === 'html' ? 'generic_html_events' : null,
           trust_score: 0.7,
           polling_interval_minutes: 360,
           active: true,
@@ -471,8 +473,9 @@ export default function EventsIntelligenceClient() {
                   <option value="rss">RSS</option>
                   <option value="ics">ICS</option>
                   <option value="api">API</option>
+                  <option value="html">HTML Page</option>
                 </select>
-                <Input placeholder="Feed or API URL" value={sourceForm.source_url} onChange={(e) => setSourceForm((v) => ({ ...v, source_url: e.target.value }))} />
+                <Input placeholder="Feed, API, calendar, or page URL" value={sourceForm.source_url} onChange={(e) => setSourceForm((v) => ({ ...v, source_url: e.target.value }))} />
                 <select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={sourceForm.geography_scope} onChange={(e) => setSourceForm((v) => ({ ...v, geography_scope: e.target.value as EventScope }))}>
                   {SCOPE_OPTIONS.filter((option) => option.value).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>

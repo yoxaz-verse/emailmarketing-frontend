@@ -2,6 +2,7 @@
 'use server';
 
 import { crudServer } from '@/lib/crud-server';
+import type { CampaignDeletePreview } from '@/lib/crud-server';
 import { revalidatePath } from 'next/cache';
 
 export async function createRow(
@@ -31,6 +32,14 @@ export async function deleteRow(
     revalidatePath(`/dashboard/${table}`);
     return { success: true };
   }
+
+export async function getDeletePreview(
+  table: string,
+  id: string
+): Promise<CampaignDeletePreview | null> {
+  if (table !== 'campaigns') return null;
+  return crudServer.campaignDeletePreview(id);
+}
 
 export async function bulkDeleteRows(
   table: string,
