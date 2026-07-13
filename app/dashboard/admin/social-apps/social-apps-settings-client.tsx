@@ -245,6 +245,8 @@ export default function SocialAppsSettingsClient({
   const callbackUrl = buildCallbackUrl(activeGuide.callbackPath);
   const alternateCallbackUrl = buildCallbackUrl(activeGuide.alternateCallbackPath);
   const isOauthPlatform = OAUTH_PLATFORMS.has(platform);
+  const savedRedirectUri = String(fields.redirect_uri ?? '').trim();
+  const linkedinRedirectToRegister = savedRedirectUri || callbackUrl || '';
   const connectDisabledReason = !isOauthPlatform
     ? null
     : !operatorId
@@ -349,7 +351,7 @@ export default function SocialAppsSettingsClient({
       });
 
       if (platform === 'linkedin' && callbackUrl) {
-        setMessage(`Saved successfully. Add this exact URL in LinkedIn Authorized redirect URLs, then click Connect LinkedIn: ${callbackUrl}`);
+        setMessage(`Saved successfully. Add this exact URL in LinkedIn Authorized redirect URLs, then click Connect LinkedIn: ${String(payload.redirect_uri ?? callbackUrl)}`);
       } else {
         setMessage('Saved successfully. Configuration is now active for this operator/platform.');
       }
@@ -509,9 +511,25 @@ export default function SocialAppsSettingsClient({
                       onChange={(e) => setFields((prev) => ({ ...prev, [def.key]: e.target.value }))}
                       className="w-full rounded-md border border-border bg-background px-3 py-2"
                     />
+                    {platform === 'linkedin' && def.key === 'client_secret' && fields.client_secret === '***' && (
+                      <span className="block text-xs text-muted-foreground">Secret is saved and stays hidden. Leave *** unchanged unless you want to replace it.</span>
+                    )}
+                    {platform === 'linkedin' && def.key === 'scopes' && (
+                      <span className="block text-xs text-muted-foreground">Saved scopes reload here after saving. Use comma-separated values like w_member_social,r_liteprofile.</span>
+                    )}
                   </label>
                 ))}
               </div>
+
+              {platform === 'linkedin' && linkedinRedirectToRegister && (
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200">
+                  <p className="font-medium">Registered in LinkedIn?</p>
+                  <p className="mt-1">
+                    The LinkedIn app for this Client ID must include this exact Redirect URI before Connect will work:
+                    <span className="ml-1 break-all font-mono text-xs">{linkedinRedirectToRegister}</span>
+                  </p>
+                </div>
+              )}
 
               <div className="flex flex-wrap items-center gap-3">
                 <Button onClick={() => void save()} disabled={saving || loading || !endpointAvailable}>
