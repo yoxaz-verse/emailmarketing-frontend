@@ -44,7 +44,7 @@ const PLATFORM_LABELS: Record<string, string> = {
   telegram: 'Telegram',
   whatsapp: 'WhatsApp',
 };
-type UiStatus = SocialConnectionStatus | 'not_connected';
+type UiStatus = SocialConnectionStatus | 'app_configured' | 'not_connected';
 type GuideContent = {
   intro: string;
   support: string;
@@ -186,8 +186,9 @@ function sortConnectors(connectors: SocialConnector[]): SocialConnector[] {
   });
 }
 
-function statusBadge(status: SocialConnectionStatus | 'manual_assisted' | 'api_enabled' | 'not_connected') {
+function statusBadge(status: SocialConnectionStatus | 'manual_assisted' | 'api_enabled' | 'app_configured' | 'not_connected') {
   if (status === 'connected' || status === 'api_enabled') return 'bg-green-600 text-white';
+  if (status === 'app_configured') return 'bg-blue-600 text-white';
   if (status === 'expired') return 'bg-amber-600 text-white';
   if (status === 'missing_scope') return 'bg-orange-600 text-white';
   if (status === 'manual_assisted') return 'bg-blue-600 text-white';
@@ -196,6 +197,7 @@ function statusBadge(status: SocialConnectionStatus | 'manual_assisted' | 'api_e
 
 function statusLabel(status: UiStatus): string {
   if (status === 'connected') return 'Connected and ready';
+  if (status === 'app_configured') return 'App configured';
   if (status === 'expired') return 'Connection expired';
   if (status === 'missing_scope') return 'Missing permission';
   return 'Not connected';
@@ -204,6 +206,7 @@ function statusLabel(status: UiStatus): string {
 function mapSocialConnectorError(message: string, code?: string | null): {
   userMessage: string;
   technicalHint?: string;
+  retryAdvice?: string;
 } {
   const input = String(message || '').trim();
   const errorCode = String(code || '').trim();
@@ -221,6 +224,7 @@ function mapSocialConnectorError(message: string, code?: string | null): {
     return {
       userMessage: `${platformLabel} connect failed because the app is missing required permissions. Check the configured scopes/products, then reconnect.`,
       technicalHint: input,
+      retryAdvice: 'Update the platform app scopes/products in Configure, save, then click Connect again.',
     };
   }
 
@@ -228,6 +232,7 @@ function mapSocialConnectorError(message: string, code?: string | null): {
     return {
       userMessage: 'Social connect failed because the platform app configuration is incomplete or invalid. Check the saved credentials, redirect URI, and scopes, then reconnect.',
       technicalHint: input,
+      retryAdvice: 'Open Configure, fix the app credentials and redirect URI, save, then click Connect again.',
     };
   }
 
@@ -235,6 +240,7 @@ function mapSocialConnectorError(message: string, code?: string | null): {
     return {
       userMessage: 'Social connect session expired or is invalid. Start the connect flow again.',
       technicalHint: input,
+      retryAdvice: 'Click Connect again to start a fresh authorization session.',
     };
   }
 
@@ -251,6 +257,7 @@ function mapSocialConnectorError(message: string, code?: string | null): {
     return {
       userMessage: 'Backend is currently unavailable. Please ensure the backend service is running, then click Refresh.',
       technicalHint: input,
+      retryAdvice: 'Use Refresh after backend/service health is restored.',
     };
   }
 
@@ -286,6 +293,7 @@ export default function SocialConnectorsClient({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorHint, setErrorHint] = useState<string | null>(null);
+  const [errorRetryAdvice, setErrorRetryAdvice] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [expandedPlatform, setExpandedPlatform] = useState<string | null>(null);
   const [selectedOperatorId, setSelectedOperatorId] = useState('');
@@ -305,6 +313,7 @@ export default function SocialConnectorsClient({
     setLoading(true);
     setError(null);
     setErrorHint(null);
+    setErrorRetryAdvice(null);
     try {
       if (isAdmin && !selectedOperatorId) {
         const connectorData = await clientFetch<SocialConnector[]>('/social/connectors');
@@ -327,6 +336,7 @@ export default function SocialConnectorsClient({
       const mapped = mapSocialConnectorError(rawMessage);
       setError(mapped.userMessage);
       setErrorHint(mapped.technicalHint ?? null);
+      setErrorRetryAdvice(mapped.retryAdvice ?? null);
     } finally {
       setLoading(false);
     }
@@ -351,6 +361,7 @@ export default function SocialConnectorsClient({
       const mapped = mapSocialConnectorError(connectError, connectErrorCode);
       setError(`Social connect failed: ${mapped.userMessage}`);
       setErrorHint(mapped.technicalHint ?? null);
+      setErrorRetryAdvice(mapped.retryAdvice ?? null);
     } else if (connectedPlatform) {
       setSuccessMessage(`${toTitle(connectedPlatform)} connected successfully.`);
     }
@@ -410,7 +421,7 @@ export default function SocialConnectorsClient({
             <div className="mb-4 rounded border border-red-500/30 bg-rose-500/10 p-2 text-sm text-rose-700 dark:text-rose-300">
               <p>{error}</p>
               {errorHint && <p className="mt-1 text-xs text-rose-700/80 dark:text-rose-200/80">Technical hint: {errorHint}</p>}
-              <p className="mt-1 text-xs text-rose-700/80 dark:text-rose-200/80">Retry: use Refresh after backend/service health is restored.</p>
+              {errorRetryAdvice && <p className="mt-1 text-xs text-rose-700/80 dark:text-rose-200/80">Retry: {errorRetryAdvice}</p>}
             </div>
           )}
 
@@ -424,7 +435,7 @@ export default function SocialConnectorsClient({
                 : true;
               const appConfigured = Boolean((connector.metadata as Record<string, unknown> | undefined)?.app_configured);
               const missingFields = asMissingFields(connector.metadata as Record<string, unknown> | undefined);
-              const effectiveStatus: UiStatus = conn?.status ?? (connector.credentials_active ? 'connected' : 'not_connected');
+              const effectiveStatus: UiStatus = conn?.status ?? (isAdmin && !selectedOperatorId && oauthAppConfigured ? 'app_configured' : 'not_connected');
               const guide = PLATFORM_GUIDES[connector.code] ?? {
                 intro: 'Connector guide is not yet configured for this platform.',
                 support: 'Check with engineering for platform-specific setup.',
@@ -519,6 +530,7 @@ export default function SocialConnectorsClient({
                             if (isAdmin && !selectedOperatorId) {
                               setError('Select an operator before disconnecting this social integration.');
                               setErrorHint(null);
+                              setErrorRetryAdvice('Select an operator, then disconnect the operator-specific connection.');
                               return;
                             }
                             const query = isAdmin && selectedOperatorId
@@ -531,6 +543,7 @@ export default function SocialConnectorsClient({
                             const mapped = mapSocialConnectorError(rawMessage);
                             setError(mapped.userMessage);
                             setErrorHint(mapped.technicalHint ?? null);
+                            setErrorRetryAdvice(mapped.retryAdvice ?? null);
                           }
                         }}
                       >
