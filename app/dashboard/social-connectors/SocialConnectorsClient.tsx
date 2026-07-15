@@ -288,6 +288,8 @@ export default function SocialConnectorsClient({
   operatorLoadError?: string;
   operatorLoadErrorKind?: OperatorLoadErrorKind;
 }) {
+  const searchParams = useSearchParams();
+  const callbackOperatorId = String(searchParams.get('operator_id') ?? '').trim();
   const [connectors, setConnectors] = useState<SocialConnector[]>([]);
   const [connections, setConnections] = useState<SocialConnection[]>([]);
   const [loading, setLoading] = useState(false);
@@ -296,8 +298,7 @@ export default function SocialConnectorsClient({
   const [errorRetryAdvice, setErrorRetryAdvice] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [expandedPlatform, setExpandedPlatform] = useState<string | null>(null);
-  const [selectedOperatorId, setSelectedOperatorId] = useState('');
-  const searchParams = useSearchParams();
+  const [selectedOperatorId, setSelectedOperatorId] = useState(callbackOperatorId);
 
   const isAdmin = role === 'admin' || role === 'superadmin';
   const hasOperators = operators.length > 0;
@@ -351,6 +352,12 @@ export default function SocialConnectorsClient({
       setSelectedOperatorId(String(operators[0]?.id ?? ''));
     }
   }, [isAdmin, operators, selectedOperatorId]);
+
+  useEffect(() => {
+    if (isAdmin && callbackOperatorId && callbackOperatorId !== selectedOperatorId) {
+      setSelectedOperatorId(callbackOperatorId);
+    }
+  }, [callbackOperatorId, isAdmin, selectedOperatorId]);
 
   useEffect(() => {
     const connectError = searchParams.get('social_connect_error');

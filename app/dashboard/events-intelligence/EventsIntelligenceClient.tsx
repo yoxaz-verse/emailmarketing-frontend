@@ -83,6 +83,13 @@ const STATUS_OPTIONS: Array<{ value: '' | EventStatus; label: string }> = [
   { value: 'expired', label: 'Expired' },
 ];
 
+const CATEGORY_PRESETS = [
+  { label: 'AgriTech', value: 'agritech' },
+  { label: 'Startup', value: 'startup' },
+  { label: 'AI', value: 'ai' },
+  { label: 'Food Export', value: 'food export' },
+];
+
 function parseCsv(input: string): string[] {
   return Array.from(new Set(input.split(',').map((item) => item.trim()).filter(Boolean)));
 }
@@ -92,6 +99,11 @@ function formatDateTime(value: string) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value));
+}
+
+function formatOptionalDateTime(value: string | null) {
+  if (!value) return 'Not refreshed yet';
+  return formatDateTime(value);
 }
 
 function statusBadge(status: EventStatus) {
@@ -175,11 +187,11 @@ export default function EventsIntelligenceClient() {
     }).length;
   }, [events]);
 
-  const refreshAll = async () => {
+  const refreshAll = async (nextFilters = filters) => {
     setLoading(true);
     setError(null);
     try {
-      const query = buildQuery(filters);
+      const query = buildQuery(nextFilters);
       const [eventData, sourceData] = await Promise.all([
         clientFetch<EventListResponse>(`/events?${query}`),
         clientFetch<EventSource[]>('/events/sources'),
@@ -199,7 +211,13 @@ export default function EventsIntelligenceClient() {
   }, []);
 
   const applyFilters = async () => {
-    await refreshAll();
+    await refreshAll(filters);
+  };
+
+  const applyCategoryPreset = async (category: string) => {
+    const nextFilters = { ...filters, category };
+    setFilters(nextFilters);
+    await refreshAll(nextFilters);
   };
 
   const createSource = async () => {
@@ -335,6 +353,23 @@ export default function EventsIntelligenceClient() {
             <Filter className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold">Filters</h2>
           </div>
+          <div className="mb-3 flex flex-wrap gap-2">
+            {CATEGORY_PRESETS.map((preset) => (
+              <Button
+                key={preset.value}
+                size="sm"
+                variant={filters.category === preset.value ? 'default' : 'outline'}
+                onClick={() => void applyCategoryPreset(preset.value)}
+              >
+                {preset.label}
+              </Button>
+            ))}
+            {filters.category && (
+              <Button size="sm" variant="ghost" onClick={() => void applyCategoryPreset('')}>
+                Clear
+              </Button>
+            )}
+          </div>
           <div className="grid gap-3 md:grid-cols-4 lg:grid-cols-8">
             <select className="h-9 rounded-md border bg-background px-3 text-sm" value={filters.scope} onChange={(e) => setFilters((v) => ({ ...v, scope: e.target.value }))}>
               {SCOPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -355,6 +390,7 @@ export default function EventsIntelligenceClient() {
             <Input placeholder="Country" value={filters.country} onChange={(e) => setFilters((v) => ({ ...v, country: e.target.value }))} />
             <Input placeholder="State" value={filters.state} onChange={(e) => setFilters((v) => ({ ...v, state: e.target.value }))} />
             <Input placeholder="District" value={filters.district} onChange={(e) => setFilters((v) => ({ ...v, district: e.target.value }))} />
+            <Input placeholder="Category" value={filters.category} onChange={(e) => setFilters((v) => ({ ...v, category: e.target.value }))} />
             <Button variant="outline" onClick={() => void applyFilters()}>
               <Search className="mr-2 h-4 w-4" />
               Apply
@@ -491,16 +527,32 @@ export default function EventsIntelligenceClient() {
               <CardHeader>
                 <CardTitle className="text-base">Sources</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="max-h-[640px] space-y-2 overflow-y-auto pr-1">
                 {sources.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No sources configured yet.</p>
-                ) : sources.slice(0, 8).map((source) => (
+                ) : sources.map((source) => (
                   <div key={source.id} className="rounded-md border p-3 text-sm">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium">{source.source_name}</span>
-                      <Badge variant={source.active ? 'outline' : 'secondary'}>{source.provider_type}</Badge>
+                      <div className="flex shrink-0 gap-1">
+                        <Badge variant={source.active ? 'outline' : 'secondary'}>{source.active ? 'Active' : 'Paused'}</Badge>
+                        <Badge variant="secondary">{source.provider_type}</Badge>
+                      </div>
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">{source.geography_scope}{source.last_error ? ` - ${source.last_error}` : ''}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{source.geography_scope} · {formatOptionalDateTime(source.last_ingested_at)}</p>
+                    {source.last_error && <p className="mt-1 text-xs text-destructive">{source.last_error}</p>}
+                    {source.categories?.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {source.categories.slice(0, 6).map((category) => (
+                          <Badge key={category} variant="outline" className="text-[11px]">
+                            {category}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    <a className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary" href={source.source_url} target="_blank" rel="noreferrer">
+                      Open source <ExternalLink className="h-3 w-3" />
+                    </a>
                   </div>
                 ))}
               </CardContent>

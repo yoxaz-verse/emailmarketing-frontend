@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { clientFetch } from '@/lib/client-fetch';
-import { Check, Copy, ExternalLink } from 'lucide-react';
+import { Cable, Check, Copy, ExternalLink } from 'lucide-react';
 
 type Operator = { id: string; name: string; region?: string | null };
 type Platform = 'linkedin' | 'meta' | 'reddit' | 'telegram' | 'whatsapp';
@@ -542,13 +542,16 @@ export default function SocialAppsSettingsClient({
                     onClick={connectPlatform}
                     disabled={saving || loading || Boolean(connectDisabledReason)}
                   >
-                    <ExternalLink className="h-4 w-4" />
+                    <Cable className="h-4 w-4" />
                     Connect {platformLabel}
                   </Button>
                 )}
                 <Button
                   variant="outline"
-                  onClick={() => router.push(`/dashboard/social-connectors`)}
+                  onClick={() => {
+                    const query = operatorId ? `?operator_id=${encodeURIComponent(operatorId)}` : '';
+                    router.push(`/dashboard/social-connectors${query}`);
+                  }}
                 >
                   Back To Social Connectors
                 </Button>
