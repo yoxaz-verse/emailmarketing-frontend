@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { isAdminRole } from '@/lib/dashboard-access';
+import { isAdminRole, normalizeModuleAccessFlags, type ModuleAccessFlags, type ModuleAccessKey } from '@/lib/dashboard-access';
 import {
     LayoutDashboard,
     Mail,
@@ -87,6 +87,20 @@ const adminItems = [
     { label: 'Validation Monitor', href: '/dashboard/admin/validation-monitor', icon: UserCog },
 ];
 
+const moduleSections: Array<{
+    module: ModuleAccessKey;
+    title: string;
+    items: NavItem[];
+    match: 'exact' | 'prefix';
+}> = [
+    { module: 'marketing', title: 'Marketing', items: marketingItems, match: 'exact' },
+    { module: 'newsletter', title: 'Newsletter', items: newsletterItems, match: 'exact' },
+    { module: 'social_media', title: 'Social Media', items: socialMediaItems, match: 'exact' },
+    { module: 'openflow_ai', title: 'OpenFlow AI', items: openFlowItems, match: 'prefix' },
+    { module: 'inquiry', title: 'Inquiry', items: inquiryItems, match: 'prefix' },
+    { module: 'industry_intelligence', title: 'Industry Intelligence', items: industryIntelligenceItems, match: 'prefix' },
+];
+
 type NavItem = {
     label: string;
     href: string;
@@ -94,9 +108,10 @@ type NavItem = {
     comingSoon?: boolean;
 };
 
-export default function Sidebar({ role, mobileOpen = false, onClose }: { role?: string; mobileOpen?: boolean; onClose?: () => void }) {
+export default function Sidebar({ role, accessFlags, mobileOpen = false, onClose }: { role?: string; accessFlags?: ModuleAccessFlags; mobileOpen?: boolean; onClose?: () => void }) {
     const pathname = usePathname();
     const isAdmin = isAdminRole(role);
+    const normalizedAccess = normalizeModuleAccessFlags(accessFlags ?? {}, role);
 
 const renderNavItem = (item: NavItem, isActive: boolean) => (
         <li key={item.href}>
@@ -150,36 +165,21 @@ const renderNavItem = (item: NavItem, isActive: boolean) => (
                     {mainItems.map((item) => renderNavItem(item, pathname === item.href))}
                 </ul>
 
-                <div>
-                    <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                        Marketing
-                    </h3>
-                    <ul className="space-y-1">
-                        {marketingItems.map((item) => renderNavItem(item, pathname === item.href))}
-                    </ul>
-                </div>
-
-                {isAdmin && (
-                    <div>
-                        <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                            Newsletter
-                        </h3>
-                        <ul className="space-y-1">
-                            {newsletterItems.map((item) => renderNavItem(item, pathname === item.href))}
-                        </ul>
-                    </div>
-                )}
-
-                {isAdmin && (
-                    <div>
-                        <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                            Social Media
-                        </h3>
-                        <ul className="space-y-1">
-                            {socialMediaItems.map((item) => renderNavItem(item, pathname === item.href))}
-                        </ul>
-                    </div>
-                )}
+                {moduleSections.map((section) => (
+                    normalizedAccess[section.module] ? (
+                        <div key={section.module}>
+                            <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+                                {section.title}
+                            </h3>
+                            <ul className="space-y-1">
+                                {section.items.map((item) => renderNavItem(
+                                    item,
+                                    section.match === 'prefix' ? pathname.startsWith(item.href) : pathname === item.href
+                                ))}
+                            </ul>
+                        </div>
+                    ) : null
+                ))}
 
                 {isAdmin && (
                     <div>

@@ -56,20 +56,22 @@ type GuideContent = {
 
 const PLATFORM_GUIDES: Record<string, GuideContent> = {
   linkedin: {
-    intro: 'Use OAuth to connect your LinkedIn account for direct API publishing.',
+    intro: 'Use OAuth to connect LinkedIn for direct publishing. If LinkedIn blocks profile lookup, add the Actor / Member URN in Configure and reconnect.',
     support: 'Direct OAuth/API publishing is available now.',
     requiresOauth: true,
     steps: [
       'Click Connect to start LinkedIn OAuth.',
       'Approve the requested permissions in LinkedIn.',
-      'Return to this page and click Refresh to sync the latest status.',
+      'Return to this page and click Refresh. If the card asks for Actor / Member URN, add it in Configure and reconnect.',
     ],
     requiredValues: [
-      'No manual keys required here.',
-      'OAuth grants are stored after approval.',
+      'LinkedIn app credentials saved in Configure.',
+      'Scopes: w_member_social.',
+      'Actor / Member URN if profile lookup is blocked.',
     ],
     verifySteps: [
       'Status badge should show Connected and ready.',
+      'The card should not show Actor / Member URN required.',
       'Auth should show oauth2 in capabilities.',
       'You should be able to publish LinkedIn posts without manual fallback.',
     ],
@@ -225,6 +227,14 @@ function mapSocialConnectorError(message: string, code?: string | null): {
       userMessage: `${platformLabel} connect failed because the app is missing required permissions. Check the configured scopes/products, then reconnect.`,
       technicalHint: input,
       retryAdvice: 'Update the platform app scopes/products in Configure, save, then click Connect again.',
+    };
+  }
+
+  if (lower.includes('actor') && lower.includes('urn')) {
+    return {
+      userMessage: 'LinkedIn connected, but publishing needs an Actor / Member URN.',
+      technicalHint: input,
+      retryAdvice: 'Open Configure, paste the LinkedIn Actor / Member URN, save, then reconnect LinkedIn.',
     };
   }
 
@@ -443,6 +453,7 @@ export default function SocialConnectorsClient({
               const appConfigured = Boolean((connector.metadata as Record<string, unknown> | undefined)?.app_configured);
               const missingFields = asMissingFields(connector.metadata as Record<string, unknown> | undefined);
               const effectiveStatus: UiStatus = conn?.status ?? (isAdmin && !selectedOperatorId && oauthAppConfigured ? 'app_configured' : 'not_connected');
+              const needsLinkedInActorUrn = connector.code === 'linkedin' && conn?.status === 'disconnected' && String(conn.reason ?? '').toLowerCase().includes('actor');
               const guide = PLATFORM_GUIDES[connector.code] ?? {
                 intro: 'Connector guide is not yet configured for this platform.',
                 support: 'Check with engineering for platform-specific setup.',
@@ -474,8 +485,16 @@ export default function SocialConnectorsClient({
 
                   {conn?.reason && (
                     <div className="mt-2 break-words rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-300 dark:text-amber-200">
-                      <p className="font-medium">Why not connected?</p>
+                      <p className="font-medium">{needsLinkedInActorUrn ? 'Actor / Member URN required' : 'Why not connected?'}</p>
                       <p className="mt-1">{conn.reason}</p>
+                      {needsLinkedInActorUrn && isAdmin && (
+                        <a
+                          href={settingsUrl}
+                          className="mt-2 inline-flex font-medium text-amber-800 underline-offset-4 hover:underline dark:text-amber-100"
+                        >
+                          Open LinkedIn configuration
+                        </a>
+                      )}
                     </div>
                   )}
                   {isOauthSupported && isAdmin && selectedOperatorId && !oauthAppConfigured && (

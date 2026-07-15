@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
+import type { ModuleAccessFlags } from '@/lib/dashboard-access';
 
-export default function DashboardShell({ role, email, children }: { role?: string; email: string; children: React.ReactNode }) {
+export default function DashboardShell({ role, accessFlags, email, children }: { role?: string; accessFlags?: ModuleAccessFlags; email: string; children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
@@ -20,7 +21,7 @@ export default function DashboardShell({ role, email, children }: { role?: strin
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar role={role} mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+      <Sidebar role={role} accessFlags={accessFlags} mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
       {mobileNavOpen && (
         <button type="button" aria-label="Close navigation" className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden" onClick={() => setMobileNavOpen(false)} />
       )}

@@ -6,6 +6,7 @@ import SelectField from './SelectField';
 import MultiSelectField from './MultiSelectField';
 import { RelationMap } from '@/lib/resolveRelation';
 import { cn } from '@/lib/utils';
+import { MODULE_ACCESS_KEYS, type ModuleAccessKey, normalizeModuleAccessFlags } from '@/lib/dashboard-access';
 
 type UiVariant = 'default' | 'campaign';
 
@@ -52,6 +53,9 @@ export function FieldRenderer({
 
     case 'boolean':
       return <BooleanField {...props} />;
+
+    case 'moduleAccess':
+      return <ModuleAccessField {...props} />;
 
     case 'relation':
       return renderRelationField(field, value, onChange, relations, uiVariant);
@@ -219,6 +223,70 @@ export function BooleanField({ field, value, onChange }: any) {
           )}
         />
       </button>
+    </div>
+  );
+}
+
+const MODULE_ACCESS_LABELS: Record<ModuleAccessKey, string> = {
+  marketing: 'Marketing',
+  newsletter: 'Newsletter',
+  social_media: 'Social Media',
+  openflow_ai: 'OpenFlow AI',
+  inquiry: 'Inquiry',
+  industry_intelligence: 'Industry Intelligence',
+};
+
+export function ModuleAccessField({ field, value, onChange, form }: any) {
+  const role = String(form?.role ?? '').toLowerCase();
+  const isAdmin = role === 'admin' || role === 'superadmin';
+  const flags = normalizeModuleAccessFlags(value ?? {}, role);
+
+  return (
+    <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
+      <div>
+        <p className="text-sm font-medium">{field.label}</p>
+        {field.description ? (
+          <p className="mt-1 text-xs text-muted-foreground">{field.description}</p>
+        ) : null}
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {MODULE_ACCESS_KEYS.map((key) => {
+          const checked = flags[key] === true;
+          return (
+            <button
+              key={key}
+              type="button"
+              disabled={isAdmin}
+              onClick={() => onChange({ ...flags, [key]: !checked })}
+              className={cn(
+                'flex min-h-10 items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors',
+                checked
+                  ? 'border-primary/50 bg-primary/10 text-foreground'
+                  : 'border-border bg-background text-muted-foreground',
+                isAdmin ? 'cursor-not-allowed opacity-70' : 'hover:border-primary/40 hover:text-foreground'
+              )}
+            >
+              <span className="font-medium">{MODULE_ACCESS_LABELS[key]}</span>
+              <span
+                className={cn(
+                  'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
+                  checked ? 'bg-green-500' : 'bg-muted'
+                )}
+              >
+                <span
+                  className={cn(
+                    'inline-block h-3.5 w-3.5 transform rounded-full bg-card transition-transform',
+                    checked ? 'translate-x-5' : 'translate-x-1'
+                  )}
+                />
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {isAdmin ? (
+        <p className="text-xs text-muted-foreground">Admins have full access automatically.</p>
+      ) : null}
     </div>
   );
 }

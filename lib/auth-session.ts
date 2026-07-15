@@ -1,4 +1,4 @@
-const AUTH_COOKIE_NAMES = ['auth_token', 'user_role', 'operator_id', 'login_error'] as const;
+const AUTH_COOKIE_NAMES = ['auth_token', 'user_role', 'operator_id', 'user_access_flags', 'login_error'] as const;
 const MAX_AUTH_COOKIE_AGE_SECONDS = 60 * 60 * 12;
 const DEFAULT_CLOCK_SKEW_SECONDS = 30;
 

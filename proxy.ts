@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isAllowedDashboardPathForRole } from '@/lib/dashboard-access';
+import { isAllowedDashboardPathForRole, parseModuleAccessCookie } from '@/lib/dashboard-access';
 import { clearAuthCookies, isTokenExpired } from '@/lib/auth-session';
 
 export default function proxy(req: NextRequest) {
@@ -12,6 +12,7 @@ export default function proxy(req: NextRequest) {
 
   const token = req.cookies.get('auth_token')?.value;
   const role = req.cookies.get('user_role')?.value;
+  const accessFlags = parseModuleAccessCookie(req.cookies.get('user_access_flags')?.value);
   const hasInvalidToken = Boolean(token) && isTokenExpired(token);
 
   if (!token && pathname.startsWith('/dashboard')) {
@@ -30,8 +31,8 @@ export default function proxy(req: NextRequest) {
     return clearAuthCookies(response);
   }
 
-  if (token && !hasInvalidToken && pathname.startsWith('/dashboard') && !isAllowedDashboardPathForRole(role, pathname)) {
-    console.log(`[Middleware] Non-admin route blocked for ${pathname}, redirecting to /dashboard`);
+  if (token && !hasInvalidToken && pathname.startsWith('/dashboard') && !isAllowedDashboardPathForRole(role, pathname, accessFlags)) {
+    console.log(`[Middleware] Dashboard route blocked for ${pathname}, redirecting to /dashboard`);
     return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 

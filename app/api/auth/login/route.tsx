@@ -8,6 +8,7 @@ type LoginBackendResponse = {
   user?: {
     role?: string;
     operator_id?: string | null;
+    access_flags?: Record<string, boolean>;
   };
   error?: string;
   message?: string;
@@ -18,6 +19,7 @@ type LoginBackendSuccess = {
   user: {
     role: string;
     operator_id?: string | null;
+    access_flags?: Record<string, boolean>;
   };
 };
 
@@ -137,6 +139,14 @@ export async function POST(req: Request) {
   });
 
   cookieStore.set('user_role', data.user.role, {
+    httpOnly: true,
+    path: '/',
+    sameSite: 'lax',
+    secure: shouldUseSecureCookies,
+    maxAge,
+  });
+
+  cookieStore.set('user_access_flags', encodeURIComponent(JSON.stringify(data.user.access_flags ?? {})), {
     httpOnly: true,
     path: '/',
     sameSite: 'lax',

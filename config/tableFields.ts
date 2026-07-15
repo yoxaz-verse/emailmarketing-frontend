@@ -6,6 +6,7 @@ export type FieldType =
   | "number"
   | "select"
   | "boolean"  
+  | "moduleAccess"
   | 'relation'
   |"adminOnly"
   | "date"
@@ -91,7 +92,15 @@ export const tableConfig: Record<string, TableField[]> = {
       inTable: false,
       // description: "Enable operator capabilities for this user",
     }
-,    
+,
+    {
+      label: "Module Access",
+      key: "access_flags",
+      type: "moduleAccess",
+      inForm: true,
+      inTable: false,
+      description: "Choose which dashboard modules this user can access.",
+    },
     
     {
       label: "Created At",

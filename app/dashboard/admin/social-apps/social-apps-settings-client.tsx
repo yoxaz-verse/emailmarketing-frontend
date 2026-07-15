@@ -18,6 +18,24 @@ type PlatformConfigResponse = {
   required_missing: string[];
   fields?: Record<string, string>;
 };
+type LinkedInDiagnostics = {
+  app_config_source: 'operator' | 'global' | 'missing';
+  configured: boolean;
+  missing_fields: string[];
+  redirect_uri: string;
+  expected_callback_url: string;
+  redirect_uri_matches_expected: boolean;
+  dashboard_redirect_base: string;
+  scopes: string[];
+  unsupported_identity_scopes: string[];
+  actor_urn_configured: boolean;
+  connection_status: string;
+  connection_reason: string | null;
+  connected_scopes: string[];
+  connection_has_actor_urn: boolean;
+  last_error: string | null;
+  note: string;
+};
 type SetupGuide = {
   consoleLabel: string;
   consoleUrl: string;
@@ -46,7 +64,8 @@ const PLATFORM_FIELDS: Record<Platform, { key: string; label: string; secret?: b
     { key: 'client_id', label: 'Client ID' },
     { key: 'client_secret', label: 'Client Secret', secret: true },
     { key: 'redirect_uri', label: 'Redirect URI', placeholder: 'https://emarketing-backend.infra.obaol.com/social/oauth2-credential/callback' },
-    { key: 'scopes', label: 'Scopes (comma-separated)', placeholder: 'w_member_social,openid,profile' },
+    { key: 'scopes', label: 'Scopes (comma-separated)', placeholder: 'w_member_social' },
+    { key: 'actor_urn', label: 'Actor / Member URN', placeholder: 'urn:li:person:member-id or raw member id' },
   ],
   meta: [
     { key: 'app_id', label: 'App ID' },
@@ -83,14 +102,15 @@ const PLATFORM_SETUP_GUIDES: Record<Platform, SetupGuide> = {
       'Client ID from the LinkedIn app Auth tab',
       'Client Secret from the LinkedIn app Auth tab',
       'Redirect URI shown below',
-      'Scopes: w_member_social,openid,profile',
+      'Scopes: w_member_social',
+      'Actor / Member URN if LinkedIn blocks profile lookup',
     ],
-    permissions: ['w_member_social', 'openid', 'profile'],
+    permissions: ['w_member_social'],
     setupSteps: [
       'Open LinkedIn Developer Portal and create or select the app used for publishing.',
       'In Products, request/enable the product that grants member social posting access.',
       'In Auth, add the callback URL shown below as an Authorized redirect URL exactly as shown.',
-      'Copy Client ID, Client Secret, Redirect URI, and scopes into this form, then save.',
+      'Copy Client ID, Client Secret, Redirect URI, scopes, and Actor / Member URN if needed into this form, then save.',
     ],
     verifySteps: [
       'Go back to Social Connectors, select the operator, and click Connect for LinkedIn.',
@@ -237,6 +257,7 @@ export default function SocialAppsSettingsClient({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(loadError ?? null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [linkedinDiagnostics, setLinkedinDiagnostics] = useState<LinkedInDiagnostics | null>(null);
 
   const selectedOperator = useMemo(() => operators.find((o) => o.id === operatorId), [operators, operatorId]);
   const activeFields = PLATFORM_FIELDS[platform];
@@ -247,6 +268,8 @@ export default function SocialAppsSettingsClient({
   const isOauthPlatform = OAUTH_PLATFORMS.has(platform);
   const savedRedirectUri = String(fields.redirect_uri ?? '').trim();
   const linkedinRedirectToRegister = savedRedirectUri || callbackUrl || '';
+  const linkedinScopes = String(fields.scopes ?? '').split(',').map((v) => v.trim()).filter(Boolean);
+  const linkedinUnsupportedScopes = linkedinScopes.filter((scopeValue) => ['openid', 'profile'].includes(scopeValue));
   const connectDisabledReason = !isOauthPlatform
     ? null
     : !operatorId
@@ -279,12 +302,18 @@ export default function SocialAppsSettingsClient({
     throw lastError instanceof Error ? lastError : new Error('Failed to load app config');
   }
 
+  async function readLinkedInDiagnostics(activeOperatorId: string): Promise<LinkedInDiagnostics | null> {
+    if (!activeOperatorId) return null;
+    return clientFetch<LinkedInDiagnostics>(`/admin/social-apps/linkedin/diagnostics?operator_id=${encodeURIComponent(activeOperatorId)}`);
+  }
+
   useEffect(() => {
     if (scope === 'operator' && !operatorId) {
       setFields({});
       setMissing([]);
       setConfigured(false);
       setEndpointAvailable(true);
+      setLinkedinDiagnostics(null);
       return;
     }
 
@@ -298,12 +327,18 @@ export default function SocialAppsSettingsClient({
         setMissing(data.required_missing ?? []);
         setConfigured(Boolean(data.configured));
         setEndpointAvailable(true);
+        if (platform === 'linkedin' && operatorId) {
+          setLinkedinDiagnostics(await readLinkedInDiagnostics(operatorId));
+        } else {
+          setLinkedinDiagnostics(null);
+        }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Failed to load app config';
         setEndpointAvailable(!msg.toLowerCase().includes('endpoint is not available'));
         setError(msg);
         setConfigured(false);
         setMissing([]);
+        setLinkedinDiagnostics(null);
       } finally {
         setLoading(false);
       }
@@ -341,7 +376,7 @@ export default function SocialAppsSettingsClient({
         const rawScopes = String(fields.scopes ?? '').trim();
         payload.scopes = rawScopes
           ? rawScopes.split(',').map((v) => v.trim()).filter(Boolean)
-          : ['w_member_social', 'openid', 'profile'];
+          : ['w_member_social'];
       }
 
       await clientFetch(`/admin/social-apps/${platform}`, {
@@ -360,6 +395,9 @@ export default function SocialAppsSettingsClient({
       setFields(refreshed.fields ?? {});
       setMissing(refreshed.required_missing ?? []);
       setConfigured(Boolean(refreshed.configured));
+      if (platform === 'linkedin' && operatorId) {
+        setLinkedinDiagnostics(await readLinkedInDiagnostics(operatorId));
+      }
       setEndpointAvailable(true);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save app config';
@@ -515,7 +553,10 @@ export default function SocialAppsSettingsClient({
                       <span className="block text-xs text-muted-foreground">Secret is saved and stays hidden. Leave *** unchanged unless you want to replace it.</span>
                     )}
                     {platform === 'linkedin' && def.key === 'scopes' && (
-                      <span className="block text-xs text-muted-foreground">Saved scopes reload here after saving. Use comma-separated values like w_member_social,openid,profile.</span>
+                      <span className="block text-xs text-muted-foreground">Use w_member_social for the current LinkedIn app. Add openid/profile only after enabling the matching LinkedIn product.</span>
+                    )}
+                    {platform === 'linkedin' && def.key === 'actor_urn' && (
+                      <span className="block text-xs text-muted-foreground">Required when LinkedIn blocks profile lookup. Paste urn:li:person:... or the raw member id, then reconnect LinkedIn.</span>
                     )}
                   </label>
                 ))}
@@ -528,6 +569,40 @@ export default function SocialAppsSettingsClient({
                     The LinkedIn app for this Client ID must include this exact Redirect URI before Connect will work:
                     <span className="ml-1 break-all font-mono text-xs">{linkedinRedirectToRegister}</span>
                   </p>
+                </div>
+              )}
+
+              {platform === 'linkedin' && linkedinUnsupportedScopes.length > 0 && (
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200">
+                  <p className="font-medium">LinkedIn scope warning</p>
+                  <p className="mt-1">
+                    Saved scopes include {linkedinUnsupportedScopes.join(', ')}. Keep only w_member_social unless the LinkedIn app has the matching sign-in/OIDC product enabled.
+                  </p>
+                </div>
+              )}
+
+              {platform === 'linkedin' && linkedinDiagnostics && (
+                <div className="rounded-md border border-border/60 bg-muted/30 p-3 text-sm">
+                  <p className="font-medium">LinkedIn Diagnostics</p>
+                  <div className="mt-2 grid gap-2 md:grid-cols-2">
+                    <p className="text-muted-foreground">Config source: <span className="font-medium text-foreground">{linkedinDiagnostics.app_config_source}</span></p>
+                    <p className="text-muted-foreground">Config complete: <span className="font-medium text-foreground">{linkedinDiagnostics.configured ? 'Yes' : 'No'}</span></p>
+                    <p className="text-muted-foreground">Callback match: <span className="font-medium text-foreground">{linkedinDiagnostics.redirect_uri_matches_expected ? 'Yes' : 'No'}</span></p>
+                    <p className="text-muted-foreground">Connection: <span className="font-medium text-foreground">{linkedinDiagnostics.connection_status}</span></p>
+                    <p className="text-muted-foreground">Actor URN in config: <span className="font-medium text-foreground">{linkedinDiagnostics.actor_urn_configured ? 'Yes' : 'No'}</span></p>
+                    <p className="text-muted-foreground">Actor URN in connection: <span className="font-medium text-foreground">{linkedinDiagnostics.connection_has_actor_urn ? 'Yes' : 'No'}</span></p>
+                  </div>
+                  {linkedinDiagnostics.missing_fields.length > 0 && (
+                    <p className="mt-2 text-amber-700 dark:text-amber-200">Missing fields: {linkedinDiagnostics.missing_fields.join(', ')}</p>
+                  )}
+                  {linkedinDiagnostics.unsupported_identity_scopes.length > 0 && (
+                    <p className="mt-2 text-amber-700 dark:text-amber-200">Scopes needing extra LinkedIn products: {linkedinDiagnostics.unsupported_identity_scopes.join(', ')}</p>
+                  )}
+                  {linkedinDiagnostics.connection_reason && (
+                    <p className="mt-2 text-muted-foreground">Reason: {linkedinDiagnostics.connection_reason}</p>
+                  )}
+                  <p className="mt-2 break-all font-mono text-xs text-muted-foreground">Callback: {linkedinDiagnostics.expected_callback_url}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">{linkedinDiagnostics.note}</p>
                 </div>
               )}
 

@@ -4,9 +4,12 @@ import { cookies } from 'next/headers';
 import { serverFetch } from '@/lib/server/server-fetch';
 import { isBackendUnavailableError } from '@/lib/server/backend-error';
 import BackendUnavailableScreen from '@/components/dashboard/BackendUnavailableScreen';
+import { normalizeModuleAccessFlags } from '@/lib/dashboard-access';
 
 type AuthMeResponse = {
   email?: string | null;
+  role?: string | null;
+  access_flags?: Record<string, boolean> | null;
 };
 
 export default async function DashboardLayout({
@@ -16,7 +19,6 @@ export default async function DashboardLayout({
 }) {
   const cookieStore = await cookies();
   const token = cookieStore.get('auth_token')?.value;
-  const role = cookieStore.get('user_role')?.value;
   if (!token) {
     redirect('/login');
   }
@@ -40,5 +42,8 @@ export default async function DashboardLayout({
     );
   }
 
-  return <DashboardShell role={role} email={String(session?.email ?? '').trim()}>{children}</DashboardShell>;
+  const role = String(session?.role ?? cookieStore.get('user_role')?.value ?? '').trim();
+  const accessFlags = normalizeModuleAccessFlags(session?.access_flags ?? {}, role);
+
+  return <DashboardShell role={role} accessFlags={accessFlags} email={String(session?.email ?? '').trim()}>{children}</DashboardShell>;
 }

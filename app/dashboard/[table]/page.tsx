@@ -5,7 +5,7 @@ import { crudServer } from '@/lib/crud-server';
 import { resolveRelations } from '@/lib/resolveRelation';
 import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
-import { isAdminRole } from '@/lib/dashboard-access';
+import { canAccessDashboardPath, parseModuleAccessCookie } from '@/lib/dashboard-access';
 import { buildCrudPageParams, type PageSearchParams } from '@/lib/pagination';
 
 export const dynamic = 'force-dynamic';
@@ -24,8 +24,8 @@ export default async function Page({
   }
   const cookieStore = await cookies(); // ✅ FIX
   const role = cookieStore.get('user_role')?.value;
-  const isAdmin = isAdminRole(role);
-  if (!isAdmin && table !== 'campaign_leads') {
+  const accessFlags = parseModuleAccessCookie(cookieStore.get('user_access_flags')?.value);
+  if (!canAccessDashboardPath(`/dashboard/${table}`, accessFlags, role)) {
     redirect('/dashboard');
   }
   const { params: pageParams, q } = buildCrudPageParams(query);
