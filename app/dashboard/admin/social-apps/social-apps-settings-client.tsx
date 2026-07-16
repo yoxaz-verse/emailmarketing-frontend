@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { clientFetch } from '@/lib/client-fetch';
-import { Cable, Check, Copy, ExternalLink } from 'lucide-react';
+import { Cable, Check, Copy, ExternalLink, X } from 'lucide-react';
 
 type Operator = { id: string; name: string; region?: string | null };
 type Platform = 'linkedin' | 'meta' | 'reddit' | 'telegram' | 'whatsapp';
@@ -38,7 +38,9 @@ type LinkedInDiagnostics = {
   actor_resolution_status?: string;
   connection_status: string;
   connection_reason: string | null;
+  configured_scopes?: string[];
   connected_scopes: string[];
+  reconnect_required_for_posting_scope?: boolean;
   connection_has_token: boolean;
   connection_has_actor_urn: boolean;
   last_error: string | null;
@@ -67,13 +69,14 @@ const PLATFORMS: { code: Platform; label: string }[] = [
   { code: 'whatsapp', label: 'WhatsApp' },
 ];
 const OAUTH_PLATFORMS = new Set<Platform>(['linkedin', 'meta', 'reddit']);
+const LINKEDIN_RECOMMENDED_SCOPES = ['w_member_social', 'r_profile_basicinfo', 'openid', 'profile'];
 
 const PLATFORM_FIELDS: Record<Platform, { key: string; label: string; secret?: boolean; placeholder?: string }[]> = {
   linkedin: [
     { key: 'client_id', label: 'Client ID' },
     { key: 'client_secret', label: 'Client Secret', secret: true },
     { key: 'redirect_uri', label: 'Redirect URI', placeholder: 'https://emarketing-backend.infra.obaol.com/social/oauth2-credential/callback' },
-    { key: 'scopes', label: 'Scopes (comma-separated)', placeholder: 'w_member_social' },
+    { key: 'scopes', label: 'Scopes', placeholder: 'w_member_social' },
     { key: 'actor_urn', label: 'LinkedIn Member URN (advanced fallback)', placeholder: 'urn:li:person:member-id or raw member id' },
   ],
   meta: [
@@ -239,6 +242,105 @@ function buildCallbackUrl(path?: string): string | null {
   return `${normalizeBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL)}${path}`;
 }
 
+function parseScopeTags(value?: string | string[]): string[] {
+  const source = Array.isArray(value) ? value : [value ?? ''];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const part of source) {
+    for (const item of String(part ?? '').split(/[,\s]+/)) {
+      const scope = item.trim();
+      if (!scope || seen.has(scope)) continue;
+      seen.add(scope);
+      out.push(scope);
+    }
+  }
+  return out;
+}
+
+function ScopeTagInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [draft, setDraft] = useState('');
+  const tags = parseScopeTags(value);
+
+  function commitScopes(raw: string) {
+    const next = parseScopeTags([...tags, raw]);
+    onChange(next.join(','));
+    setDraft('');
+  }
+
+  function removeScope(scope: string) {
+    onChange(tags.filter((tag) => tag !== scope).join(','));
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex min-h-10 flex-wrap items-center gap-2 rounded-md border border-border bg-background px-2 py-2">
+        {tags.map((scope) => (
+          <span key={scope} className="inline-flex h-7 items-center gap-1 rounded border border-border/70 bg-muted/40 px-2 text-xs font-medium text-foreground">
+            {scope}
+            <button
+              type="button"
+              aria-label={`Remove ${scope}`}
+              onClick={() => removeScope(scope)}
+              className="inline-flex h-4 w-4 items-center justify-center rounded hover:bg-background"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+        <input
+          type="text"
+          value={draft}
+          placeholder={tags.length > 0 ? 'Add scope' : 'Type scope and press Enter'}
+          onChange={(event) => {
+            const next = event.target.value;
+            if (/[,\s]/.test(next)) {
+              commitScopes(next);
+              return;
+            }
+            setDraft(next);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ',' || event.key === ' ') {
+              event.preventDefault();
+              commitScopes(draft);
+            } else if (event.key === 'Backspace' && !draft && tags.length > 0) {
+              event.preventDefault();
+              onChange(tags.slice(0, -1).join(','));
+            }
+          }}
+          onPaste={(event) => {
+            const pasted = event.clipboardData.getData('text');
+            if (parseScopeTags(pasted).length > 1) {
+              event.preventDefault();
+              commitScopes(pasted);
+            }
+          }}
+          className="h-7 min-w-44 flex-1 bg-transparent px-1 text-sm outline-none placeholder:text-muted-foreground"
+        />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {LINKEDIN_RECOMMENDED_SCOPES.map((scope) => (
+          <button
+            key={scope}
+            type="button"
+            onClick={() => commitScopes(scope)}
+            disabled={tags.includes(scope)}
+            className="rounded border border-border/60 px-2 py-1 text-xs text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {scope}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function linkedInActorUrnError(value?: string): string | null {
   const raw = String(value ?? '').trim();
   if (!raw || raw === '***') return null;
@@ -293,7 +395,7 @@ export default function SocialAppsSettingsClient({
   const savedRedirectUri = String(fields.redirect_uri ?? '').trim();
   const linkedinCanonicalCallbackUrl = linkedinDiagnostics?.canonical_callback_url || linkedinDiagnostics?.expected_callback_url || callbackUrl || '';
   const linkedinRedirectToRegister = linkedinCanonicalCallbackUrl || savedRedirectUri || '';
-  const linkedinScopes = String(fields.scopes ?? '').split(',').map((v) => v.trim()).filter(Boolean);
+  const linkedinScopes = parseScopeTags(fields.scopes);
   const linkedinUnsupportedScopes = linkedinScopes.filter((scopeValue) => ['openid', 'profile'].includes(scopeValue));
   const linkedinSavedRedirectSupported = linkedinDiagnostics?.redirect_uri_supported ?? Boolean(savedRedirectUri && linkedinDiagnostics?.accepted_callback_urls?.includes(savedRedirectUri));
   const linkedinSavedRedirectRecommended = linkedinDiagnostics?.redirect_uri_exact ?? linkedinDiagnostics?.redirect_uri_recommended ?? Boolean(savedRedirectUri && linkedinCanonicalCallbackUrl && savedRedirectUri === linkedinCanonicalCallbackUrl);
@@ -417,10 +519,8 @@ export default function SocialAppsSettingsClient({
 
       if (platform === 'linkedin') {
         payload.redirect_uri = linkedinCanonicalCallbackUrl || callbackUrl || fields.redirect_uri || '';
-        const rawScopes = String(fields.scopes ?? '').trim();
-        payload.scopes = rawScopes
-          ? rawScopes.split(',').map((v) => v.trim()).filter(Boolean)
-          : ['w_member_social'];
+        const scopeTags = parseScopeTags(fields.scopes);
+        payload.scopes = scopeTags.length > 0 ? scopeTags : ['w_member_social'];
       }
 
       await clientFetch(`/admin/social-apps/${platform}`, {
@@ -590,14 +690,21 @@ export default function SocialAppsSettingsClient({
                 {visibleFields.map((def) => (
                   <label key={def.key} className="text-sm space-y-1">
                     <span>{def.label}</span>
-                    <input
-                      type={def.secret ? 'password' : 'text'}
-                      value={platform === 'linkedin' && def.key === 'redirect_uri' && linkedinCanonicalCallbackUrl ? linkedinCanonicalCallbackUrl : fields[def.key] ?? ''}
-                      placeholder={def.placeholder ?? ''}
-                      readOnly={platform === 'linkedin' && def.key === 'redirect_uri'}
-                      onChange={(e) => setFields((prev) => ({ ...prev, [def.key]: e.target.value }))}
-                      className="w-full rounded-md border border-border bg-background px-3 py-2"
-                    />
+                    {platform === 'linkedin' && def.key === 'scopes' ? (
+                      <ScopeTagInput
+                        value={fields.scopes ?? ''}
+                        onChange={(value) => setFields((prev) => ({ ...prev, scopes: value }))}
+                      />
+                    ) : (
+                      <input
+                        type={def.secret ? 'password' : 'text'}
+                        value={platform === 'linkedin' && def.key === 'redirect_uri' && linkedinCanonicalCallbackUrl ? linkedinCanonicalCallbackUrl : fields[def.key] ?? ''}
+                        placeholder={def.placeholder ?? ''}
+                        readOnly={platform === 'linkedin' && def.key === 'redirect_uri'}
+                        onChange={(e) => setFields((prev) => ({ ...prev, [def.key]: e.target.value }))}
+                        className="w-full rounded-md border border-border bg-background px-3 py-2"
+                      />
+                    )}
                     {platform === 'linkedin' && def.key === 'redirect_uri' && (
                       <span className="block text-xs text-muted-foreground">This canonical callback is saved automatically for LinkedIn. Legacy callback paths remain accepted only for compatibility.</span>
                     )}
@@ -605,7 +712,7 @@ export default function SocialAppsSettingsClient({
                       <span className="block text-xs text-muted-foreground">Secret is saved and stays hidden. Leave *** unchanged unless you want to replace it.</span>
                     )}
                     {platform === 'linkedin' && def.key === 'scopes' && (
-                      <span className="block text-xs text-muted-foreground">Use w_member_social for the current LinkedIn app. Add openid/profile only after enabling the matching LinkedIn product.</span>
+                      <span className="block text-xs text-muted-foreground">Press Enter, comma, or space to add a scope. Use w_member_social for posting; add profile scopes only after enabling the matching LinkedIn product.</span>
                     )}
                   </label>
                 ))}
@@ -683,6 +790,9 @@ export default function SocialAppsSettingsClient({
                     <p className="text-muted-foreground">Actor resolution: <span className="font-medium text-foreground">{linkedinDiagnostics.actor_resolution_status ?? 'pending_connect'}</span></p>
                     <p className="text-muted-foreground">Actor URN in connection: <span className="font-medium text-foreground">{linkedinDiagnostics.connection_has_actor_urn ? 'Yes' : 'No'}</span></p>
                   </div>
+                  {linkedinDiagnostics.reconnect_required_for_posting_scope && (
+                    <p className="mt-2 text-amber-700 dark:text-amber-200">Reconnect required: saved token is missing the posting scope.</p>
+                  )}
                   {linkedinDiagnostics.missing_fields.length > 0 && (
                     <p className="mt-2 text-amber-700 dark:text-amber-200">Missing fields: {linkedinDiagnostics.missing_fields.join(', ')}</p>
                   )}
@@ -692,6 +802,8 @@ export default function SocialAppsSettingsClient({
                   {linkedinDiagnostics.connection_reason && (
                     <p className="mt-2 text-muted-foreground">Reason: {linkedinDiagnostics.connection_reason}</p>
                   )}
+                  <p className="mt-2 break-all font-mono text-xs text-muted-foreground">Configured scopes: {(linkedinDiagnostics.configured_scopes ?? linkedinDiagnostics.scopes).join(', ') || 'None'}</p>
+                  <p className="mt-2 break-all font-mono text-xs text-muted-foreground">Connected token scopes: {linkedinDiagnostics.connected_scopes.join(', ') || 'None'}</p>
                   <p className="mt-2 break-all font-mono text-xs text-muted-foreground">Canonical callback: {linkedinDiagnostics.canonical_callback_url ?? linkedinDiagnostics.expected_callback_url}</p>
                   <p className="mt-2 text-xs text-muted-foreground">{linkedinDiagnostics.note}</p>
                 </div>
