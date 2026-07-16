@@ -12,6 +12,15 @@ export const MODULE_ACCESS_KEYS = [
 export type ModuleAccessKey = typeof MODULE_ACCESS_KEYS[number];
 export type ModuleAccessFlags = Record<ModuleAccessKey, boolean>;
 
+export const MODULE_ACCESS_LABELS: Record<ModuleAccessKey, string> = {
+  marketing: 'Marketing',
+  newsletter: 'Newsletter',
+  social_media: 'Social Media',
+  openflow_ai: 'OpenFlow AI',
+  inquiry: 'Inquiry',
+  industry_intelligence: 'Industry Intelligence',
+};
+
 const DASHBOARD_MODULE_RULES: Array<{
   module: ModuleAccessKey;
   exact: string[];
@@ -74,6 +83,31 @@ export function isAdminRole(role?: string | null): boolean {
   return ADMIN_ROLES.has((role ?? '').toLowerCase());
 }
 
+function parseRawAccessFlags(raw: unknown): Record<string, unknown> | null {
+  if (!raw) return null;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return parseRawAccessFlags(parsed);
+    } catch {
+      return null;
+    }
+  }
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>;
+  }
+  return null;
+}
+
+function parseAccessBoolean(value: unknown): boolean {
+  if (value === true || value === 1) return true;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
+  }
+  return false;
+}
+
 export function emptyModuleAccess(): ModuleAccessFlags {
   return MODULE_ACCESS_KEYS.reduce((acc, key) => {
     acc[key] = false;
@@ -96,16 +130,25 @@ export function normalizeModuleAccessFlags(
     return fullModuleAccess();
   }
 
+  const parsed = parseRawAccessFlags(raw);
   const normalized = emptyModuleAccess();
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+  if (!parsed) {
     return normalized;
   }
 
   for (const key of MODULE_ACCESS_KEYS) {
-    normalized[key] = (raw as Record<string, unknown>)[key] === true;
+    normalized[key] = parseAccessBoolean(parsed[key]);
   }
 
   return normalized;
+}
+
+export function formatModuleAccessFlags(raw: unknown, role?: string | null): string {
+  const flags = normalizeModuleAccessFlags(raw, role);
+  const labels = MODULE_ACCESS_KEYS
+    .filter((key) => flags[key])
+    .map((key) => MODULE_ACCESS_LABELS[key]);
+  return labels.length > 0 ? labels.join(', ') : 'No modules';
 }
 
 export function parseModuleAccessCookie(value?: string | null): Partial<ModuleAccessFlags> {

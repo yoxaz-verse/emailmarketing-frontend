@@ -35,7 +35,7 @@ import DeleteModal from './DeleteModal';
 import { bulkDeleteRows } from './action';
 import { RelationMap } from '@/lib/resolveRelation';
 import { cn } from '@/lib/utils';
-import { isAdminRole } from '@/lib/dashboard-access';
+import { formatModuleAccessFlags, isAdminRole } from '@/lib/dashboard-access';
 
 type Props = {
   table: string;
@@ -76,7 +76,11 @@ function formatUtcDateTime(date: Date): string {
   return `${year}-${month}-${day} ${hour}:${minute} UTC`;
 }
 
-function formatDisplayValue(field: any, rawValue: any): any {
+function formatDisplayValue(field: any, rawValue: any, row?: any): any {
+  if (field?.type === 'moduleAccess') {
+    return formatModuleAccessFlags(rawValue, row?.role);
+  }
+
   if (rawValue == null || rawValue === '') return '—';
 
   if (field?.type === 'dateTime') {
@@ -340,7 +344,7 @@ export default function DynamicTable({
           .map((f) => {
             if (f.badge) return escapeCsv(Boolean(row[f.key]));
             if (f.type === 'relation') return escapeCsv(resolveRelationValue(row, f));
-            return escapeCsv(formatDisplayValue(f, row[f.key]));
+            return escapeCsv(formatDisplayValue(f, row[f.key], row));
           })
           .join(',')
       )
@@ -613,7 +617,7 @@ export default function DynamicTable({
                       if (f.type === 'relation') {
                         displayValue = resolveRelationValue(row, f);
                       } else {
-                        displayValue = formatDisplayValue(f, row[f.key]);
+                        displayValue = formatDisplayValue(f, row[f.key], row);
                       }
 
                       return (

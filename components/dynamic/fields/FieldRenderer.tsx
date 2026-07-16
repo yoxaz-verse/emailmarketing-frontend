@@ -6,7 +6,7 @@ import SelectField from './SelectField';
 import MultiSelectField from './MultiSelectField';
 import { RelationMap } from '@/lib/resolveRelation';
 import { cn } from '@/lib/utils';
-import { MODULE_ACCESS_KEYS, type ModuleAccessKey, normalizeModuleAccessFlags } from '@/lib/dashboard-access';
+import { MODULE_ACCESS_KEYS, MODULE_ACCESS_LABELS, normalizeModuleAccessFlags } from '@/lib/dashboard-access';
 
 type UiVariant = 'default' | 'campaign';
 
@@ -226,15 +226,6 @@ export function BooleanField({ field, value, onChange }: any) {
     </div>
   );
 }
-
-const MODULE_ACCESS_LABELS: Record<ModuleAccessKey, string> = {
-  marketing: 'Marketing',
-  newsletter: 'Newsletter',
-  social_media: 'Social Media',
-  openflow_ai: 'OpenFlow AI',
-  inquiry: 'Inquiry',
-  industry_intelligence: 'Industry Intelligence',
-};
 
 export function ModuleAccessField({ field, value, onChange, form }: any) {
   const role = String(form?.role ?? '').toLowerCase();

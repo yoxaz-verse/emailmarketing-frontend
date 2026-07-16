@@ -98,7 +98,7 @@ export const tableConfig: Record<string, TableField[]> = {
       key: "access_flags",
       type: "moduleAccess",
       inForm: true,
-      inTable: false,
+      inTable: true,
       description: "Choose which dashboard modules this user can access.",
     },
     
