@@ -308,9 +308,6 @@ export default function SocialAppsSettingsClient({
     if (platform === 'linkedin' && !linkedinSavedRedirectRecommended) {
       return 'Save the canonical LinkedIn Redirect URI before connecting.';
     }
-    if (platform === 'linkedin' && linkedinNeedsActorFallback && !String(fields.actor_urn ?? '').trim()) {
-      return 'Enter the LinkedIn Member URN fallback, save, then reconnect.';
-    }
     return null;
   })();
 
