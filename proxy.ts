@@ -33,7 +33,9 @@ export default function proxy(req: NextRequest) {
 
   if (token && !hasInvalidToken && pathname.startsWith('/dashboard') && !isAllowedDashboardPathForRole(role, pathname, accessFlags)) {
     console.log(`[Middleware] Dashboard route blocked for ${pathname}, redirecting to /dashboard`);
-    return NextResponse.redirect(new URL('/dashboard', req.url));
+    const url = new URL('/dashboard', req.url);
+    url.searchParams.set('access_denied', pathname);
+    return NextResponse.redirect(url);
   }
 
   if (token && !hasInvalidToken && pathname === '/login') {

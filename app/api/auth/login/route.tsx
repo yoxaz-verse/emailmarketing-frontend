@@ -31,6 +31,19 @@ function isLoginBackendSuccess(data: LoginBackendResponse | null): data is Login
   return true;
 }
 
+function backendHost(apiBase: string): string {
+  try {
+    return new URL(apiBase).host;
+  } catch {
+    return 'invalid-api-base';
+  }
+}
+
+function isLikelyBackendUnavailable(status: number, contentType: string): boolean {
+  if (status === 502 || status === 503 || status === 504) return true;
+  return status >= 500 && !contentType.toLowerCase().includes('application/json');
+}
+
 export async function POST(req: Request) {
   const contentType = req.headers.get('content-type') || '';
 
@@ -82,19 +95,28 @@ export async function POST(req: Request) {
     return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(errorMessage)}`, req.url));
   }
 
+  const backendContentType = backendRes.headers.get('content-type') || '';
   const responseText = await backendRes.text();
   let backendData: LoginBackendResponse | null = null;
   try {
     backendData = responseText ? JSON.parse(responseText) : null;
   } catch (e) {
-    console.error('[AUTH LOGIN] JSON Parse Error:', e);
+    console.error('[AUTH LOGIN] JSON Parse Error:', {
+      message: e instanceof Error ? e.message : 'unknown parse error',
+      backendHost: backendHost(apiBase),
+      status: backendRes.status,
+      contentType: backendContentType,
+    });
   }
 
   if (!backendRes.ok) {
+    const backendUnavailable = isLikelyBackendUnavailable(backendRes.status, backendContentType);
     const errorMessage =
       backendData?.error ||
       backendData?.message ||
-      'Login failed. Backend unavailable or returned invalid response.';
+      (backendUnavailable
+        ? 'Backend unavailable. Please check the backend service health and retry.'
+        : 'Login failed. Backend returned invalid response.');
     const status =
       backendRes.status >= 400 && backendRes.status <= 599
         ? backendRes.status

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -58,6 +59,7 @@ type OperationsSummaryData = {
 };
 
 export default function OverviewPage() {
+  const searchParams = useSearchParams();
   const REQUEST_TIMEOUT_MS = 12000;
   const RETRY_DELAY_MS = 800;
   const [data, setData] = useState<OperationsSummaryData | null>(null);
@@ -157,6 +159,7 @@ export default function OverviewPage() {
     if (connectionState === 'loading') return 'Loading';
     return 'Error';
   }, [connectionState]);
+  const accessDeniedPath = searchParams.get('access_denied');
 
   return (
     <div className="space-y-8">
@@ -185,6 +188,11 @@ export default function OverviewPage() {
       <div className="text-xs text-muted-foreground">
         API status: <span className="font-medium text-foreground">{statusLabel}</span>
       </div>
+      {accessDeniedPath && (
+        <div className="rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200">
+          Access denied for {accessDeniedPath}. Ask an admin to enable the required dashboard module for your user.
+        </div>
+      )}
 
       {/* Main Metrics Grid */}
       <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">

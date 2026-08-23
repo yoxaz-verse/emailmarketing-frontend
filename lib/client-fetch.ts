@@ -8,6 +8,24 @@ type ApiErrorShape = {
 
 let hasTriggeredAuthRedirect = false;
 
+function parseErrorShape(raw: string): ApiErrorShape | null {
+  try {
+    const parsed = JSON.parse(raw) as ApiErrorShape;
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function isAuthInvalidationError(status: number, raw: string): boolean {
+  if (status === 401) return true;
+  if (status !== 403) return false;
+
+  const parsed = parseErrorShape(raw);
+  const message = String(parsed?.error ?? parsed?.message ?? raw).trim();
+  return /unauthorized|invalid token|token expired|jwt expired|invalid signature|authentication required|session expired|sign(?:ed)? in again|user disabled/i.test(message);
+}
+
 function isHtmlLikeResponse(raw: string): boolean {
   const trimmed = raw.trim().toLowerCase();
   return trimmed.startsWith('<!doctype html') || trimmed.startsWith('<html');
@@ -112,7 +130,7 @@ export async function clientFetch<T>(
   if (res.status === 401 || res.status === 403) {
     const raw = await res.text();
 
-    if (typeof window !== 'undefined') {
+    if (isAuthInvalidationError(res.status, raw) && typeof window !== 'undefined') {
       if (!hasTriggeredAuthRedirect) {
         hasTriggeredAuthRedirect = true;
         window.location.href = '/api/auth/logout?reason=session-expired';

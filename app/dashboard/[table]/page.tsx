@@ -26,7 +26,7 @@ export default async function Page({
   const role = cookieStore.get('user_role')?.value;
   const accessFlags = parseModuleAccessCookie(cookieStore.get('user_access_flags')?.value);
   if (!canAccessDashboardPath(`/dashboard/${table}`, accessFlags, role)) {
-    redirect('/dashboard');
+    redirect(`/dashboard?access_denied=${encodeURIComponent(`/dashboard/${table}`)}`);
   }
   const { params: pageParams, q } = buildCrudPageParams(query);
   const [relations, page] = await Promise.all([
