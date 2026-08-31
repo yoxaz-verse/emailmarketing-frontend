@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { clientFetch } from '@/lib/client-fetch';
 
-type SocialConnectionStatus = 'connected' | 'expired' | 'missing_scope' | 'disconnected';
+type SocialConnectionStatus = 'connected' | 'expired' | 'missing_scope' | 'identity_required' | 'disconnected';
 
 type SocialConnection = {
   platform_code: string;
@@ -193,6 +193,7 @@ function statusBadge(status: SocialConnectionStatus | 'manual_assisted' | 'api_e
   if (status === 'app_configured') return 'bg-blue-600 text-white';
   if (status === 'expired') return 'bg-amber-600 text-white';
   if (status === 'missing_scope') return 'bg-orange-600 text-white';
+  if (status === 'identity_required') return 'bg-amber-600 text-white';
   if (status === 'manual_assisted') return 'bg-blue-600 text-white';
   return 'bg-muted text-foreground dark:bg-slate-600 dark:text-white';
 }
@@ -202,6 +203,7 @@ function statusLabel(status: UiStatus): string {
   if (status === 'app_configured') return 'App configured';
   if (status === 'expired') return 'Connection expired';
   if (status === 'missing_scope') return 'Missing permission';
+  if (status === 'identity_required') return 'Account selection needed';
   return 'Not connected';
 }
 

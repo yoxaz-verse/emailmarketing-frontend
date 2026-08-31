@@ -22,7 +22,7 @@ type DialogMode = 'create' | 'edit';
 type DialogStep = 1 | 2 | 3;
 
 type Operator = { id: string; name: string; region?: string | null };
-type ConnectorStatus = 'connected' | 'expired' | 'missing_scope' | 'disconnected';
+type ConnectorStatus = 'connected' | 'expired' | 'missing_scope' | 'identity_required' | 'disconnected';
 type SocialConnection = {
   platform_code: string;
   status: ConnectorStatus;
@@ -52,6 +52,12 @@ type BackendJob = {
     hashtags?: string[];
     timezone?: string;
     scheduled_at?: string | null;
+    platform_overrides?: Partial<Record<PlatformCode, {
+      content?: string;
+      media?: string[];
+      cta_url?: string;
+      hashtags?: string[];
+    }>>;
   };
   scheduled_at: string | null;
   operator_id?: string | null;
@@ -81,6 +87,7 @@ type ScheduledSocialPost = {
   createdAt: string;
   operatorId?: string | null;
   error?: string | null;
+  platformOverrides?: Partial<Record<PlatformCode, PlatformOverride>>;
 };
 type ComposerDraft = {
   scheduledDate: string;
@@ -90,6 +97,24 @@ type ComposerDraft = {
   ctaUrl: string;
   hashtagsCsv: string;
   mediaCsv: string;
+};
+type PlatformOverride = {
+  content?: string;
+  media?: string[];
+  cta_url?: string;
+  hashtags?: string[];
+};
+type OptimizeResponse = {
+  post_input: BackendJob['post_input'];
+  platform_overrides: Partial<Record<PlatformCode, PlatformOverride>>;
+  validation_errors: string[];
+  warnings: Record<string, string[]>;
+  readiness: {
+    platform_code: PlatformCode;
+    status: string;
+    reason: string;
+    missing_fields: string[];
+  }[];
 };
 type PlatformReadiness = {
   ready: boolean;
@@ -295,6 +320,15 @@ function getPlatformReadiness(
     };
   }
 
+  if (platform === 'meta' && !String(connection.metadata?.selected_page_id ?? '').trim()) {
+    return {
+      ready: false,
+      status: 'identity_required',
+      message: 'Meta is connected, but no Facebook Page was selected. Reconnect Meta with page permissions.',
+      missingFields: ['selected_page_id'],
+    };
+  }
+
   return {
     ready: true,
     status: 'ready',
@@ -344,6 +378,7 @@ function normalizeJobs(jobs: BackendJob[]): ScheduledSocialPost[] {
       createdAt: first?.created_at ?? new Date().toISOString(),
       operatorId: first?.operator_id ?? first?.social_publish_requests?.operator_id ?? null,
       error: errors[0] ?? null,
+      platformOverrides: postInput.platform_overrides ?? {},
     };
   });
 }
@@ -373,8 +408,11 @@ export default function SocialSchedulingClient({
   const [draft, setDraft] = useState<ComposerDraft>(defaultDraftForDate(new Date()));
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [optimizedOverrides, setOptimizedOverrides] = useState<Partial<Record<PlatformCode, PlatformOverride>>>({});
+  const [optimizationWarnings, setOptimizationWarnings] = useState<string[]>([]);
 
   const quarterHourOptions = useMemo(() => buildQuarterHourOptions(), []);
   const today = useMemo(() => new Date(), []);
@@ -490,6 +528,8 @@ export default function SocialSchedulingClient({
     setDialogStep(1);
     setActivePostId(null);
     setSelectedTemplateId(null);
+    setOptimizedOverrides({});
+    setOptimizationWarnings([]);
     const nextDraft = defaultDraftForDate(prefill);
     if (!readinessByPlatform.linkedin.ready) {
       nextDraft.platforms = { meta: false, linkedin: false, reddit: false, telegram: false, whatsapp: false };
@@ -506,6 +546,8 @@ export default function SocialSchedulingClient({
     setDialogStep(2);
     setActivePostId(post.requestId);
     setSelectedTemplateId(null);
+    setOptimizedOverrides(post.platformOverrides ?? {});
+    setOptimizationWarnings([]);
     setDraft(createDraftFromPost(post));
     setComposerOpen(true);
     setError(null);
@@ -535,30 +577,39 @@ export default function SocialSchedulingClient({
     setError(null);
     return true;
   };
-  const savePost = async () => {
+  const buildSchedulePayload = (overrides: Partial<Record<PlatformCode, PlatformOverride>> = optimizedOverrides) => {
+    const local = composeLocalDateTime(draft.scheduledDate, draft.scheduledTime);
+    if (!local) return null;
+    const platformOverrides = Object.keys(overrides).length > 0 ? overrides : undefined;
+    return {
+      targets: getSelectedPlatforms(draft.platforms),
+      post_input: {
+        content: draft.content.trim(),
+        media: draft.mediaCsv.split(',').map((s) => s.trim()).filter(Boolean),
+        cta_url: draft.ctaUrl.trim() || undefined,
+        hashtags: draft.hashtagsCsv.split(',').map((s) => s.trim()).filter(Boolean),
+        timezone: IST_TIMEZONE,
+        scheduled_at: local.toISOString(),
+        ...(platformOverrides ? { platform_overrides: platformOverrides } : {}),
+      },
+      ...(isAdmin ? { operator_id: selectedOperatorId } : {}),
+    };
+  };
+  const savePost = async (overrides: Partial<Record<PlatformCode, PlatformOverride>> = optimizedOverrides) => {
     setError(null);
     setSuccess(null);
-    const local = composeLocalDateTime(draft.scheduledDate, draft.scheduledTime);
-    if (!local || !validateStepOne()) return;
+    if (!validateStepOne()) return;
     if (!draft.content.trim()) {
       setError('Post content is required.');
       return;
     }
+    const payload = buildSchedulePayload(overrides);
+    if (!payload) {
+      setError('Please select a valid date and time.');
+      return;
+    }
     setSaving(true);
     try {
-      const platforms = getSelectedPlatforms(draft.platforms);
-      const payload = {
-        targets: platforms,
-        post_input: {
-          content: draft.content.trim(),
-          media: draft.mediaCsv.split(',').map((s) => s.trim()).filter(Boolean),
-          cta_url: draft.ctaUrl.trim() || undefined,
-          hashtags: draft.hashtagsCsv.split(',').map((s) => s.trim()).filter(Boolean),
-          timezone: IST_TIMEZONE,
-          scheduled_at: local.toISOString(),
-        },
-        ...(isAdmin ? { operator_id: selectedOperatorId } : {}),
-      };
       if (dialogMode === 'edit' && activePostId) {
         await clientFetch(`/social/publish-requests/${encodeURIComponent(activePostId)}`, {
           method: 'PATCH',
@@ -575,12 +626,57 @@ export default function SocialSchedulingClient({
       }
       setComposerOpen(false);
       setActivePostId(null);
-      setSuccess('Schedule saved.');
+      setOptimizedOverrides({});
+      setOptimizationWarnings([]);
+      setSuccess(Object.keys(overrides).length > 0 ? 'Optimized schedule saved.' : 'Schedule saved.');
       await loadData();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save schedule');
     } finally {
       setSaving(false);
+    }
+  };
+  const optimizeAndSchedule = async () => {
+    setError(null);
+    setSuccess(null);
+    setOptimizationWarnings([]);
+    if (!validateStepOne()) return;
+    if (!draft.content.trim()) {
+      setError('Post content is required.');
+      return;
+    }
+    const payload = buildSchedulePayload({});
+    if (!payload) return;
+    setOptimizing(true);
+    try {
+      const optimized = await clientFetch<OptimizeResponse>('/social/optimize', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const blocking = (optimized.readiness ?? []).filter((item) => item.status !== 'ready');
+      if (blocking.length > 0) {
+        setError(blocking.map((item) => item.reason).join(' '));
+        return;
+      }
+      const nextOverrides = optimized.platform_overrides ?? {};
+      const primary = selectedPlatforms.find((platform) => nextOverrides[platform]?.content) ?? selectedPlatforms[0];
+      if (primary && nextOverrides[primary]?.content) {
+        const primaryOverride = nextOverrides[primary]!;
+        setDraft((prev) => ({
+          ...prev,
+          content: primaryOverride.content ?? prev.content,
+          hashtagsCsv: Array.isArray(primaryOverride.hashtags) ? primaryOverride.hashtags.join(',') : prev.hashtagsCsv,
+          mediaCsv: Array.isArray(primaryOverride.media) ? primaryOverride.media.join(',') : prev.mediaCsv,
+          ctaUrl: primaryOverride.cta_url ?? prev.ctaUrl,
+        }));
+      }
+      setOptimizedOverrides(nextOverrides);
+      setOptimizationWarnings(Object.values(optimized.warnings ?? {}).flat());
+      await savePost(nextOverrides);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to optimize and schedule');
+    } finally {
+      setOptimizing(false);
     }
   };
   const changeAnchor = (direction: 'prev' | 'next' | 'today') => {
@@ -619,6 +715,8 @@ export default function SocialSchedulingClient({
       hashtagsCsv: template.hashtags.join(','),
       ctaUrl: template.ctaUrlPlaceholder ?? prev.ctaUrl,
     }));
+    setOptimizedOverrides({});
+    setOptimizationWarnings([]);
     setError(unavailable.length > 0
       ? `${unavailable.map((platform) => PLATFORM_LABELS[platform]).join(', ')} not selected because the platform is not ready.`
       : null);
@@ -849,6 +947,11 @@ export default function SocialSchedulingClient({
               <Button size="sm" variant={dialogStep === 3 ? 'default' : 'ghost'} onClick={() => setDialogStep(3)}>3. Content</Button>
             </div>
             {error && <div className="mb-3 rounded border border-red-500/30 bg-red-500/10 p-2 text-sm text-red-700 dark:text-red-300">{error}</div>}
+            {optimizationWarnings.length > 0 && (
+              <div className="mb-3 rounded border border-amber-500/30 bg-amber-500/10 p-2 text-sm text-amber-700 dark:text-amber-200">
+                {Array.from(new Set(optimizationWarnings)).join(' ')}
+              </div>
+            )}
             {dialogStep === 1 ? (
               <div className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-2">
@@ -947,6 +1050,11 @@ export default function SocialSchedulingClient({
                 <Input value={draft.ctaUrl} onChange={(e) => setDraft((prev) => ({ ...prev, ctaUrl: e.target.value }))} placeholder="CTA URL (optional)" />
                 <Input value={draft.hashtagsCsv} onChange={(e) => setDraft((prev) => ({ ...prev, hashtagsCsv: e.target.value }))} placeholder="Hashtags comma-separated" />
                 <Input className="md:col-span-2" value={draft.mediaCsv} onChange={(e) => setDraft((prev) => ({ ...prev, mediaCsv: e.target.value }))} placeholder="Media URLs comma-separated" />
+                {Object.keys(optimizedOverrides).length > 0 && (
+                  <div className="md:col-span-2 rounded-lg border border-green-500/30 bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-300">
+                    Optimized platform drafts are attached to this schedule.
+                  </div>
+                )}
               </div>
             )}
             <div className="mt-5 flex justify-between">
@@ -958,7 +1066,14 @@ export default function SocialSchedulingClient({
                 ) : dialogStep === 2 ? (
                   <Button onClick={() => setDialogStep(3)}>Continue</Button>
                 ) : (
-                  <Button onClick={() => void savePost()} disabled={saving}>{saving ? 'Saving...' : dialogMode === 'edit' ? 'Save Changes' : 'Save Schedule'}</Button>
+                  <>
+                    <Button variant="outline" onClick={() => void savePost({})} disabled={saving || optimizing}>
+                      {saving ? 'Saving...' : dialogMode === 'edit' ? 'Save Changes' : 'Save Schedule'}
+                    </Button>
+                    <Button onClick={() => void optimizeAndSchedule()} disabled={saving || optimizing}>
+                      {optimizing || saving ? 'Working...' : 'Optimize + Schedule'}
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
