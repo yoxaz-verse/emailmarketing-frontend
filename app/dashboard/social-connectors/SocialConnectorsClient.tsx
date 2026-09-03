@@ -329,6 +329,8 @@ export default function SocialConnectorsClient({
 
   async function runPrimaryAction() {
     if (!canUseOperator) return;
+    if (status.next_action === 'enable_automation') return enableAutomation();
+    if (status.next_action === 'ready') return loadStatus();
     const target = nextPlatform ?? activeSetup;
     if (!target) return;
     if (target.platform_code !== activePlatform) {
@@ -340,7 +342,6 @@ export default function SocialConnectorsClient({
     if (target.next_action === 'configure_credentials') return saveCredentials(target.platform_code);
     if (target.next_action === 'connect_account') return startConnect(target.platform_code);
     if (target.next_action === 'select_account') return saveAccountSelection();
-    if (status.next_action === 'enable_automation') return enableAutomation();
     return loadStatus();
   }
 
