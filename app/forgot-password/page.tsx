@@ -22,6 +22,15 @@ export default function ForgotPasswordPage() {
 
     const API_URL = '/api/proxy';
 
+    const getResponseError = async (res: Response, fallback: string) => {
+        try {
+            const data = await res.json();
+            return String(data?.error || fallback);
+        } catch {
+            return fallback;
+        }
+    };
+
     const handleRequest = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -35,8 +44,7 @@ export default function ForgotPasswordPage() {
                 toast.success('Verification code sent');
                 setStep('VERIFY');
             } else {
-                const data = await res.json();
-                toast.error(data.error || 'Failed to send code');
+                toast.error(await getResponseError(res, 'Failed to send code'));
             }
         } catch {
             toast.error('Connection error');
@@ -61,8 +69,7 @@ export default function ForgotPasswordPage() {
                 toast.success('Code verified');
                 setStep('RESET');
             } else {
-                const data = await res.json();
-                toast.error(data.error || 'Invalid code');
+                toast.error(await getResponseError(res, 'Invalid code'));
             }
         } catch {
             toast.error('Connection error');
@@ -93,8 +100,7 @@ export default function ForgotPasswordPage() {
                 toast.success('Password updated successfully');
                 setStep('SUCCESS');
             } else {
-                const data = await res.json();
-                toast.error(data.error || 'Reset failed');
+                toast.error(await getResponseError(res, 'Reset failed'));
             }
         } catch {
             toast.error('Connection error');
