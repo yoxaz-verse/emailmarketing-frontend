@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { clientFetch } from '@/lib/client-fetch';
-import { Bot, Cable, CheckCircle2, CircleAlert, RefreshCw, Settings2, Zap } from 'lucide-react';
+import { Bot, Cable, CheckCircle2, CircleAlert, ExternalLink, RefreshCw, Settings2, Zap } from 'lucide-react';
 
 type SocialConnectionStatus = 'connected' | 'expired' | 'missing_scope' | 'identity_required' | 'disconnected';
 type Operator = { id: string; name: string; region?: string | null };
@@ -26,6 +26,8 @@ type PlatformSetup = {
   label: string;
   credential_configured: boolean;
   credential_missing_fields: string[];
+  credential_source?: 'operator' | 'global' | 'env' | 'missing';
+  one_click_available?: boolean;
   credential_fields: Record<string, string>;
   connection_status: SocialConnectionStatus;
   connection_reason: string | null;
@@ -110,6 +112,9 @@ function mapSocialConnectorError(message: string): string {
   if (lower.includes('backend unavailable') || lower.includes('failed to fetch') || lower.includes('timed out')) {
     return 'Backend is unavailable. Start or restart the backend service, then refresh this setup page.';
   }
+  if (lower.includes('one-click') || lower.includes('global obaol linkedin app')) {
+    return message;
+  }
   if (lower.includes('operator-owned') || lower.includes('missing required fields')) {
     return message;
   }
@@ -129,6 +134,7 @@ function statusBadgeClass(platform: PlatformSetup): string {
 
 function platformStatusText(platform: PlatformSetup): string {
   if (platform.setup_ready) return 'Ready';
+  if (platform.one_click_available && !platform.connected) return 'Ready to connect';
   if (!platform.credential_configured) return 'Credentials needed';
   if (!platform.connected) return 'Connect needed';
   if (platform.next_action === 'select_account') return 'Account selection';
@@ -174,9 +180,15 @@ export default function SocialConnectorsClient({
   const readyCount = status.platforms.filter((platform) => platform.setup_ready).length;
   const configuredCount = status.platforms.filter((platform) => platform.credential_configured).length;
   const connectedCount = status.platforms.filter((platform) => platform.connected).length;
+  const activeOneClick = activePlatform === 'linkedin' && Boolean(activeSetup?.one_click_available);
+  const activeGlobalLinkedIn = activeOneClick && activeSetup?.credential_source !== 'operator';
+  const activeMissingLinkedIn = activePlatform === 'linkedin' && !activeSetup?.credential_configured;
 
   const nextPlatform = useMemo(() => {
-    return status.platforms.find((platform) => platform.next_action !== 'ready') ?? status.platforms[0] ?? null;
+    return status.platforms.find((platform) => platform.one_click_available && !platform.connected)
+      ?? status.platforms.find((platform) => platform.next_action !== 'ready')
+      ?? status.platforms[0]
+      ?? null;
   }, [status.platforms]);
 
   const loadStatus = useCallback(async () => {
@@ -335,11 +347,21 @@ export default function SocialConnectorsClient({
     if (!target) return;
     if (target.platform_code !== activePlatform) {
       setActivePlatform(target.platform_code);
-      setMessage(`Review ${target.label} setup, then continue.`);
+      setMessage(target.one_click_available ? `${target.label} is ready. Click Connect to continue.` : `Review ${target.label} setup, then continue.`);
       return;
     }
     setActivePlatform(target.platform_code);
-    if (target.next_action === 'configure_credentials') return saveCredentials(target.platform_code);
+    if (target.next_action === 'configure_credentials') {
+      if (target.platform_code === 'linkedin') {
+        if (isAdmin) {
+          window.location.href = `/dashboard/admin/social-apps?operator_id=${encodeURIComponent(selectedOperatorId)}&platform=linkedin&scope=global`;
+          return;
+        }
+        setError('LinkedIn one-click connect is not configured yet. Ask an admin to configure the global OBAOL LinkedIn app.');
+        return;
+      }
+      return saveCredentials(target.platform_code);
+    }
     if (target.next_action === 'connect_account') return startConnect(target.platform_code);
     if (target.next_action === 'select_account') return saveAccountSelection();
     return loadStatus();
@@ -350,8 +372,12 @@ export default function SocialConnectorsClient({
     ? 'Select operator'
     : status.next_action === 'ready'
       ? 'Social Engine ready'
-      : nextPlatform?.next_action === 'configure_credentials'
-        ? `Save ${nextPlatform.label} credentials`
+      : nextPlatform?.one_click_available && !nextPlatform.connected
+        ? `Connect ${nextPlatform.label}`
+        : nextPlatform?.next_action === 'configure_credentials'
+          ? nextPlatform.platform_code === 'linkedin'
+            ? 'Configure LinkedIn app'
+            : `Save ${nextPlatform.label} credentials`
         : nextPlatform?.next_action === 'connect_account'
           ? `Connect ${nextPlatform.label}`
           : nextPlatform?.next_action === 'select_account'
@@ -364,7 +390,7 @@ export default function SocialConnectorsClient({
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Social Engine</h2>
           <p className="text-sm text-muted-foreground">
-            One setup flow for operator-owned social apps, account connection, scheduling, and approval-first agent automation.
+            Connect operator channels with OBAOL-managed app credentials, then schedule and approve agent-prepared posts.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => void loadStatus()} disabled={loading}>
@@ -381,7 +407,7 @@ export default function SocialConnectorsClient({
               Setup Social Engine
             </CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
-              Configure each operator&apos;s provider apps once, connect accounts, then let the optimizer and agents prepare posts for approval.
+              Choose an operator, connect at least one channel, then let the optimizer and agents prepare posts for approval.
             </p>
           </div>
           <Button onClick={() => void runPrimaryAction()} disabled={primaryDisabled} className="min-w-[14rem]">
@@ -409,7 +435,7 @@ export default function SocialConnectorsClient({
                 ))}
               </select>
               {!selectedOperatorId && (
-                <p className="text-xs text-amber-700 dark:text-amber-300">Select an operator to run setup with operator-owned credentials.</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">Select an operator to connect channels.</p>
               )}
               {operatorLoadError && <p className="text-xs text-rose-700 dark:text-rose-300">{operatorLoadError}</p>}
               {operatorLoadErrorKind === 'backend_unavailable' && (
@@ -456,6 +482,8 @@ export default function SocialConnectorsClient({
               label: item.label,
               credential_configured: false,
               credential_missing_fields: [],
+              credential_source: 'missing' as const,
+              one_click_available: false,
               credential_fields: {},
               connection_status: 'disconnected' as SocialConnectionStatus,
               connection_reason: null,
@@ -479,6 +507,11 @@ export default function SocialConnectorsClient({
                     <p className="mt-1 text-xs text-muted-foreground">
                       {platform.can_publish ? 'API publishing' : 'Setup required'} · {platform.can_schedule ? 'Scheduler ready' : 'Scheduler gated'}
                     </p>
+                    {platform.credential_source && platform.credential_source !== 'missing' && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {platform.credential_source === 'operator' ? 'Operator app configured' : 'OBAOL app configured'}
+                      </p>
+                    )}
                   </div>
                   <Badge className={`${statusBadgeClass(platform)} whitespace-nowrap`}>{platformStatusText(platform)}</Badge>
                 </div>
@@ -501,27 +534,60 @@ export default function SocialConnectorsClient({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-3">
-              {PLATFORM_FIELDS[activePlatform].map((field) => (
-                <div key={field.key} className="grid gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">{field.label}</label>
-                  <Input
-                    type={field.secret ? 'password' : 'text'}
-                    value={formValues[field.key] ?? ''}
-                    placeholder={field.placeholder}
-                    onChange={(event) => setFormValues((prev) => ({ ...prev, [field.key]: event.target.value }))}
-                  />
-                </div>
-              ))}
-            </div>
+            {activeGlobalLinkedIn ? (
+              <div className="rounded-md border border-green-500/30 bg-emerald-500/10 p-3">
+                <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
+                  LinkedIn is ready for one-click connection.
+                </p>
+                <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-300">
+                  OBAOL&apos;s LinkedIn app is already configured. The operator only needs to approve access.
+                </p>
+              </div>
+            ) : activeMissingLinkedIn ? (
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  LinkedIn one-click connect needs the global OBAOL app first.
+                </p>
+                <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                  Configure the LinkedIn client ID, secret, callback, and scopes once in admin settings.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {PLATFORM_FIELDS[activePlatform].map((field) => (
+                  <div key={field.key} className="grid gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">{field.label}</label>
+                    <Input
+                      type={field.secret ? 'password' : 'text'}
+                      value={formValues[field.key] ?? ''}
+                      placeholder={field.placeholder}
+                      onChange={(event) => setFormValues((prev) => ({ ...prev, [field.key]: event.target.value }))}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => void saveCredentials()} disabled={saving || !canUseOperator}>
-                Save credentials
-              </Button>
-              <Button variant="outline" onClick={() => void startConnect()} disabled={saving || !canUseOperator || !activeSetup?.credential_configured}>
+              {!activeGlobalLinkedIn && !activeMissingLinkedIn && (
+                <Button onClick={() => void saveCredentials()} disabled={saving || !canUseOperator}>
+                  Save credentials
+                </Button>
+              )}
+              <Button variant={activeOneClick ? 'default' : 'outline'} onClick={() => void startConnect()} disabled={saving || !canUseOperator || !activeSetup?.credential_configured}>
                 {PLATFORMS.find((item) => item.code === activePlatform)?.connectLabel ?? 'Connect'}
               </Button>
+              {activeMissingLinkedIn && isAdmin && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    window.location.href = `/dashboard/admin/social-apps?operator_id=${encodeURIComponent(selectedOperatorId)}&platform=linkedin&scope=global`;
+                  }}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Configure LinkedIn app
+                </Button>
+              )}
               <Button
                 variant="outline"
                 onClick={async () => {

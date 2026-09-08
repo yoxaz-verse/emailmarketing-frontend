@@ -28,6 +28,7 @@ import {
 
 const mainItems = [
     { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
+    { label: 'Communications', href: '/dashboard/communications', icon: Mail },
 ];
 
 const marketingItems = [

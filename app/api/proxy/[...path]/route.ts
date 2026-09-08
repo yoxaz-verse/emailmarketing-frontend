@@ -11,8 +11,10 @@ function pickSafeResponseHeaders(upstream: Response): Headers {
   const headers = new Headers();
   const contentType = upstream.headers.get('content-type');
   const cacheControl = upstream.headers.get('cache-control');
+  const contentDisposition = upstream.headers.get('content-disposition');
   if (contentType) headers.set('content-type', contentType);
   if (cacheControl) headers.set('cache-control', cacheControl);
+  if (contentDisposition) headers.set('content-disposition', contentDisposition);
   return headers;
 }
 

@@ -173,7 +173,7 @@ export function canAccessDashboardPath(
   const normalizedPath =
     normalizeDashboardPath(pathname);
 
-  if (normalizedPath === '/dashboard') {
+  if (normalizedPath === '/dashboard' || normalizedPath === '/dashboard/communications') {
     return true;
   }
 

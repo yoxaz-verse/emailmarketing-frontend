@@ -10,7 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 
 type SourceMode = 'manual' | 'rss' | 'api' | 'webhook';
 type OpportunityStatus = 'new' | 'reviewed' | 'shortlisted' | 'applied' | 'not_relevant' | 'closed';
-type OpportunityCategory = 'seed_funding' | 'grant' | 'accelerator' | 'pitch_event' | 'demo_day' | 'investor_call' | 'ecosystem_program';
+type IntelligenceType = 'opportunity' | 'funding_news';
+type OpportunityCategory = 'seed_funding' | 'funding_news' | 'grant' | 'accelerator' | 'pitch_event' | 'demo_day' | 'investor_call' | 'ecosystem_program';
 
 type IndustrySource = {
   id: string;
@@ -82,6 +83,7 @@ type Opportunity = {
   opportunity_date: string | null;
   organizer_or_investor: string | null;
   relevance_score: number | null;
+  intelligence_type?: IntelligenceType | null;
   status: OpportunityStatus;
   owner: string | null;
   notes: string | null;
@@ -114,6 +116,8 @@ type SourceForm = {
 
 type Summary = {
   total: number;
+  opportunity_count?: number;
+  funding_news_count?: number;
   new_count: number;
   shortlisted_count: number;
   applied_count: number;
@@ -140,9 +144,20 @@ const UI_FALLBACK_SOURCES: IndustrySource[] = [
   { id: 'ui-fallback-investindia', code: 'investindia', name: 'Invest India Programs', mode: 'api', status: 'active', region: 'India', sector_focus: ['startup', 'agri-tech', 'export'], supports_fetch: true, supports_manual: true, auth_ready: false, health_status: 'fallback', source_origin: 'fallback' },
 ];
 
-const CATEGORIES: OpportunityCategory[] = ['seed_funding', 'grant', 'accelerator', 'pitch_event', 'demo_day', 'investor_call', 'ecosystem_program'];
+const CATEGORIES: OpportunityCategory[] = ['seed_funding', 'grant', 'accelerator', 'pitch_event', 'demo_day', 'investor_call', 'ecosystem_program', 'funding_news'];
 const STATUSES: OpportunityStatus[] = ['new', 'reviewed', 'shortlisted', 'applied', 'not_relevant', 'closed'];
 const SOURCE_MODES: SourceMode[] = ['rss', 'api', 'manual', 'webhook'];
+
+const CATEGORY_LABELS: Record<OpportunityCategory, string> = {
+  seed_funding: 'Seed funding',
+  funding_news: 'Funding news',
+  grant: 'Grant',
+  accelerator: 'Accelerator',
+  pitch_event: 'Pitch event',
+  demo_day: 'Demo day',
+  investor_call: 'Investor call',
+  ecosystem_program: 'Ecosystem program',
+};
 
 const EMPTY_SOURCE_FORM: SourceForm = {
   name: '',
@@ -166,6 +181,7 @@ const EXAMPLE_JSON = JSON.stringify(
       source_name: 'Manual Research',
       source_url: 'https://example.com/agritech-pitch-program',
       category: 'pitch_event',
+      intelligence_type: 'opportunity',
       sector: 'agri-tech',
       geography: 'India',
       funding_stage: 'seed',
@@ -238,6 +254,7 @@ export default function IndustryIntelligenceClient() {
   const [sectorFilter, setSectorFilter] = useState('');
   const [stageFilter, setStageFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [reviewType, setReviewType] = useState<IntelligenceType>('opportunity');
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
 
@@ -274,6 +291,7 @@ export default function IndustryIntelligenceClient() {
     const params = new URLSearchParams();
     params.set('page', String(page));
     params.set('page_size', String(pageSize));
+    params.set('intelligence_type', reviewType);
     if (query.trim()) params.set('q', query.trim());
     if (sourceFilter) params.set('source_code', sourceFilter);
     if (categoryFilter) params.set('category', categoryFilter);
@@ -288,7 +306,7 @@ export default function IndustryIntelligenceClient() {
       setActiveTab('review');
       setHasAutoSelectedTab(true);
     }
-  }, [page, pageSize, query, sourceFilter, categoryFilter, sectorFilter, stageFilter, statusFilter]);
+  }, [page, pageSize, reviewType, query, sourceFilter, categoryFilter, sectorFilter, stageFilter, statusFilter]);
 
   const refreshAll = useCallback(async () => {
     setLoading(true);
@@ -333,6 +351,7 @@ export default function IndustryIntelligenceClient() {
       const summary = result.summary;
       setSuccess(`Fetch completed. Sources: ${summary.source_count ?? sourceCodes.length}, Total: ${summary.total_received}, Inserted: ${summary.inserted_count}, Deduped: ${summary.deduped_count}, Failed: ${summary.failed_count}`);
       await refreshAll();
+      setReviewType('opportunity');
       setActiveTab('review');
     } catch (err: unknown) {
       setError(err instanceof Error ? describeSourceError(err.message) ?? err.message : 'Failed to run industry intelligence fetch');
@@ -354,6 +373,7 @@ export default function IndustryIntelligenceClient() {
       const fetchSummary = result.summary;
       setSuccess(`${sourceCode} fetch completed. Total: ${fetchSummary.total_received}, Inserted: ${fetchSummary.inserted_count}, Deduped: ${fetchSummary.deduped_count}, Failed: ${fetchSummary.failed_count}`);
       await refreshAll();
+      setReviewType('opportunity');
       setActiveTab('review');
     } catch (err: unknown) {
       setError(err instanceof Error ? describeSourceError(err.message) ?? err.message : `Failed to fetch ${sourceCode}`);
@@ -502,6 +522,7 @@ export default function IndustryIntelligenceClient() {
     try {
       const params = new URLSearchParams();
       params.set('format', format);
+      params.set('intelligence_type', reviewType);
       if (query.trim()) params.set('q', query.trim());
       if (sourceFilter) params.set('source_code', sourceFilter);
       if (categoryFilter) params.set('category', categoryFilter);
@@ -542,7 +563,7 @@ export default function IndustryIntelligenceClient() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Funding & Pitch Intelligence</h2>
-          <p className="text-sm text-muted-foreground">Fetch and review India tech/agri-tech funding, grant, accelerator, investor, and pitch opportunities.</p>
+          <p className="text-sm text-muted-foreground">Separate funding news from grants, accelerators, investor calls, and pitch opportunities for OBAOL.</p>
         </div>
         <div className="flex gap-2">
           <Button variant={activeTab === 'fetch' ? 'default' : 'outline'} onClick={() => setActiveTab('fetch')}>Fetch</Button>
@@ -558,7 +579,7 @@ export default function IndustryIntelligenceClient() {
         </div>
       )}
 
-      <div className="grid gap-3 md:grid-cols-5">
+      <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
         <Card>
           <CardContent className="p-4">
             <div className="text-xs text-muted-foreground">Total</div>
@@ -567,8 +588,14 @@ export default function IndustryIntelligenceClient() {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-xs text-muted-foreground">New</div>
-            <div className="text-2xl font-semibold">{summary?.new_count ?? 0}</div>
+            <div className="text-xs text-muted-foreground">Opportunities</div>
+            <div className="text-2xl font-semibold">{summary?.opportunity_count ?? totalRows}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-xs text-muted-foreground">Funding News</div>
+            <div className="text-2xl font-semibold">{summary?.funding_news_count ?? 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -785,9 +812,32 @@ export default function IndustryIntelligenceClient() {
 
       {activeTab === 'review' && (
         <div className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={reviewType === 'opportunity' ? 'default' : 'outline'}
+              onClick={() => {
+                setReviewType('opportunity');
+                setCategoryFilter('');
+                setPage(1);
+              }}
+            >
+              Funding Opportunities
+            </Button>
+            <Button
+              variant={reviewType === 'funding_news' ? 'default' : 'outline'}
+              onClick={() => {
+                setReviewType('funding_news');
+                setCategoryFilter('');
+                setPage(1);
+              }}
+            >
+              Funding News
+            </Button>
+          </div>
+
           <Card>
             <CardHeader>
-              <CardTitle>Review Filters + Export</CardTitle>
+              <CardTitle>{reviewType === 'opportunity' ? 'Opportunity Filters + Export' : 'Funding News Filters + Export'}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
               <Input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Search title/source/notes" />
@@ -797,7 +847,9 @@ export default function IndustryIntelligenceClient() {
               </select>
               <select className="rounded-md border border-border bg-background px-3 py-2 text-sm" value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); setPage(1); }}>
                 <option value="">All Categories</option>
-                {CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+                {CATEGORIES
+                  .filter((category) => reviewType === 'funding_news' ? category === 'funding_news' : category !== 'funding_news')
+                  .map((category) => <option key={category} value={category}>{CATEGORY_LABELS[category]}</option>)}
               </select>
               <Input value={sectorFilter} onChange={(event) => { setSectorFilter(event.target.value); setPage(1); }} placeholder="Sector" />
               <Input value={stageFilter} onChange={(event) => { setStageFilter(event.target.value); setPage(1); }} placeholder="Stage" />
@@ -812,10 +864,10 @@ export default function IndustryIntelligenceClient() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Opportunity Queue ({totalRows})</CardTitle>
+              <CardTitle>{reviewType === 'opportunity' ? 'Funding Opportunity Queue' : 'Funding News'} ({totalRows})</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {rows.length === 0 && <div className="text-sm text-muted-foreground">No opportunities found for current filters.</div>}
+              {rows.length === 0 && <div className="text-sm text-muted-foreground">No {reviewType === 'opportunity' ? 'funding opportunities' : 'funding news'} found for current filters.</div>}
               {rows.map((row) => {
                 const draft = drafts[row.id] ?? {};
                 return (
@@ -836,7 +888,8 @@ export default function IndustryIntelligenceClient() {
                         )}
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <Badge variant="outline">{row.category}</Badge>
+                        <Badge variant="outline">{row.intelligence_type === 'funding_news' ? 'Funding news' : 'Opportunity'}</Badge>
+                        <Badge variant="outline">{CATEGORY_LABELS[row.category] ?? row.category}</Badge>
                         <Badge variant={row.status === 'shortlisted' || row.status === 'applied' ? 'default' : 'outline'}>{row.status}</Badge>
                         <Badge variant="secondary">score {row.relevance_score ?? 0}</Badge>
                       </div>
@@ -846,7 +899,11 @@ export default function IndustryIntelligenceClient() {
 
                     <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-4">
                       <select className="rounded-md border border-border bg-background px-3 py-2 text-sm" value={String(draft.category ?? row.category)} onChange={(event) => patchDraft(row.id, 'category', event.target.value)}>
-                        {CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+                        {CATEGORIES.map((category) => <option key={category} value={category}>{CATEGORY_LABELS[category]}</option>)}
+                      </select>
+                      <select className="rounded-md border border-border bg-background px-3 py-2 text-sm" value={String(draft.intelligence_type ?? row.intelligence_type ?? 'opportunity')} onChange={(event) => patchDraft(row.id, 'intelligence_type', event.target.value)}>
+                        <option value="opportunity">Funding opportunity</option>
+                        <option value="funding_news">Funding news</option>
                       </select>
                       <select className="rounded-md border border-border bg-background px-3 py-2 text-sm" value={String(draft.status ?? row.status)} onChange={(event) => patchDraft(row.id, 'status', event.target.value)}>
                         {STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}

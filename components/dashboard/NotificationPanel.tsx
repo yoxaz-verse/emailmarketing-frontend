@@ -1,129 +1,22 @@
 "use client";
-
-import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useState } from 'react';
 import { Bell } from 'lucide-react';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-function getRelativeTime(dateString: string) {
-    try {
-        const date = new Date(dateString);
-        const now = new Date();
-        const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-        if (diffInSeconds < 10) return 'Just now';
-        if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
-        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-        return `${Math.floor(diffInSeconds / 86400)}d ago`;
-    } catch (e) {
-        return 'recently';
-    }
-}
-
+import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { type Feed, markRead, useCommunications } from '@/lib/communications';
 export default function NotificationPanel() {
-    const [notifications, setNotifications] = useState<any[]>([]);
-    const [loading, setLoading] = useState(false);
-
-    const fetchNotifications = async () => {
-        // Temporarily disabled to prevent "Failed to fetch" errors
-        return;
-        setLoading(true);
-        try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-            const res = await fetch(`${API_URL}/stats/notifications`);
-            if (res.ok) {
-                const data = await res.json();
-                setNotifications(data);
-            }
-        } catch (err) {
-            console.error('Failed to fetch notifications', err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Initial fetch to show the red dot if there are notifications
-    useEffect(() => {
-        fetchNotifications();
-    }, []);
-
-    return (
-        <DropdownMenu onOpenChange={(open) => open && fetchNotifications()}>
-            <DropdownMenuTrigger asChild>
-                <button className="relative p-2 text-muted-foreground hover:text-primary rounded-full hover:bg-accent/60 transition-colors outline-none cursor-pointer group">
-                    <Bell className="h-5 w-5 transform group-hover:rotate-12 transition-transform" />
-                    {notifications.length > 0 && (
-                        <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-background animate-pulse"></span>
-                    )}
-                </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 mt-2 p-0 overflow-hidden shadow-2xl border-border bg-popover text-popover-foreground animate-in fade-in zoom-in-95 duration-200">
-                <DropdownMenuLabel className="p-4 bg-muted/40 border-b border-border">
-                    <div className="flex items-center justify-between">
-                        <span className="font-bold text-foreground tracking-tight">Notifications</span>
-                        <span className="text-[10px] font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full uppercase tracking-widest ring-1 ring-primary/20">
-                            Activity
-                        </span>
-                    </div>
-                </DropdownMenuLabel>
-
-                <div className="max-h-[380px] overflow-y-auto">
-                    {loading && notifications.length === 0 ? (
-                        <div className="p-12 text-center">
-                            <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3" />
-                            <p className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Updating feed...</p>
-                        </div>
-                    ) : notifications.length === 0 ? (
-                        <div className="p-12 text-center">
-                            <div className="bg-muted w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <Bell className="h-6 w-6 text-muted-foreground/60" />
-                            </div>
-                            <p className="text-sm font-semibold text-foreground">Quiet for now</p>
-                            <p className="text-xs text-muted-foreground mt-1">No notifications yet</p>
-                        </div>
-                    ) : (
-                        <div className="divide-y divide-border">
-                            {notifications.map((n) => (
-                                <div key={n.id} className="p-4 hover:bg-muted/60 transition-all cursor-default group/item">
-                                    <div className="flex gap-3">
-                                        <div className="mt-1 flex-shrink-0">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 group-hover/item:scale-125 transition-transform" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-sm text-foreground leading-relaxed font-medium">
-                                                {n.message}
-                                            </p>
-                                            <div className="flex items-center gap-2 mt-2">
-                                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">
-                                                    {n.type?.replace(/_/g, ' ')}
-                                                </span>
-                                                <span className="text-[10px] text-muted-foreground/60">•</span>
-                                                <p className="text-[10px] text-muted-foreground font-medium italic" suppressHydrationWarning>
-                                                    {getRelativeTime(n.created_at)}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                <DropdownMenuSeparator className="m-0" />
-                <button
-                    onClick={() => setNotifications([])}
-                    className="w-full p-3.5 text-[10px] font-bold text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all uppercase tracking-[0.2em] border-t border-border"
-                >
-                    Mark all as read
-                </button>
-            </DropdownMenuContent>
-        </DropdownMenu>
-    );
+  const {data,error,loading,refresh}=useCommunications<Feed>('/communications?limit=6');
+  const [actionError,setActionError]=useState('');
+  async function readAll(){if(!data)return;try{await markRead(null,data.as_of);setActionError('');}catch(e){setActionError((e as Error).message);}}
+  return <DropdownMenu onOpenChange={open=>{if(open)void refresh();}}>
+    <DropdownMenuTrigger asChild><button className="relative rounded-full p-2 text-muted-foreground hover:bg-accent" aria-label={`Notifications${data ? `, ${data.unread_count} unread` : ''}`}><Bell className="h-5 w-5"/>{Boolean(data?.unread_count)&&<span className="absolute -right-1 -top-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">{data!.unread_count>99?'99+':data!.unread_count}</span>}</button></DropdownMenuTrigger>
+    <DropdownMenuContent align="end" className="w-[min(360px,calc(100vw-24px))] p-0">
+      <DropdownMenuLabel className="border-b border-border p-4">Communications</DropdownMenuLabel>
+      {(error||actionError)&&<div role="alert" className="p-3 text-xs text-amber-600">{actionError||error} {data?'Showing last loaded updates.':''} <button className="underline" onClick={()=>void refresh()}>Retry</button></div>}
+      {!data&&loading&&<p className="p-5 text-sm">Loading updates…</p>}
+      {data?.items.length===0&&<p className="p-8 text-center text-sm text-muted-foreground">No communications yet</p>}
+      <div className="max-h-80 overflow-y-auto divide-y divide-border">{data?.items.map(item=><Link key={item.id} href={`/dashboard/communications?item=${item.id}`} className="block p-4 hover:bg-muted"><div className="flex gap-2"><p className="line-clamp-2 text-sm font-medium">{item.title}</p>{item.unread&&<span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Unread"/>}</div><p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{item.preview}</p><p className="mt-2 text-xs text-muted-foreground">{item.source} · {new Date(item.occurred_at).toLocaleString()}</p></Link>)}</div>
+      <div className="flex justify-between border-t border-border p-3 text-xs"><button disabled={!data} onClick={()=>void readAll()}>Mark all as read</button><Link href="/dashboard/communications" className="text-primary">View all</Link></div>
+    </DropdownMenuContent>
+  </DropdownMenu>;
 }
