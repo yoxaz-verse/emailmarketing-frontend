@@ -18,6 +18,7 @@ export default async function Page({
   searchParams: Promise<PageSearchParams>;
 }) {
   const { table } = await params;
+  if (table === 'api_keys') redirect('/dashboard/developers/api-keys');
   const query = await searchParams;
   if (!tableConfig[table]) {
     notFound();

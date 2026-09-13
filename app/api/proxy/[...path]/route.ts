@@ -109,6 +109,7 @@ async function proxy(req: NextRequest, path: string[]) {
         return clearAuthCookies(NextResponse.json(parsed, { status }));
       }
       const response = NextResponse.json(parsed, { status });
+      if (backendPath.startsWith('developer-keys')) response.headers.set('Cache-Control', 'no-store');
       const durationMs = Math.round(performance.now() - startedAt);
       response.headers.set('Server-Timing', `upstream;dur=${durationMs}`);
       response.headers.set('X-Response-Bytes', String(Buffer.byteLength(raw, 'utf8')));

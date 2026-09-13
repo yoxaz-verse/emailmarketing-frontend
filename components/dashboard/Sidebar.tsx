@@ -23,12 +23,14 @@ import {
     Newspaper,
     Cpu,
     Link2,
-    Landmark
+    Landmark,
+    KeyRound
 } from 'lucide-react';
 
 const mainItems = [
     { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
     { label: 'Communications', href: '/dashboard/communications', icon: Mail },
+    { label: 'API Keys', href: '/dashboard/developers/api-keys', icon: KeyRound },
 ];
 
 const marketingItems = [

@@ -209,6 +209,8 @@ export default function EventsIntelligenceClient() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [ingesting, setIngesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [eventsLoaded, setEventsLoaded] = useState(false);
+  const [sourcesLoaded, setSourcesLoaded] = useState(false);
   const [lastIngestion, setLastIngestion] = useState<IngestionSummary | null>(null);
   const [runs, setRuns] = useState<EventIngestionRun[]>([]);
   const [selectedSourceIds, setSelectedSourceIds] = useState<Record<string, boolean>>({});
@@ -270,27 +272,45 @@ export default function EventsIntelligenceClient() {
   const refreshAll = async (nextFilters = filters) => {
     setLoading(true);
     setError(null);
+    const query = buildQuery(nextFilters);
+    const requests = [
+      { label: 'Events', path: `/events?${query}` },
+      { label: 'Sources', path: '/events/sources' },
+      { label: 'Recent runs', path: '/events/ingest/runs' },
+    ] as const;
+
     try {
-      const query = buildQuery(nextFilters);
-      const [eventData, sourceData, runData] = await Promise.all([
-        clientFetch<EventListResponse>(`/events?${query}`),
-        clientFetch<EventSource[]>('/events/sources'),
-        clientFetch<EventIngestionRun[]>('/events/ingest/runs'),
+      const [eventResult, sourceResult, runResult] = await Promise.allSettled([
+        clientFetch<EventListResponse>(requests[0].path),
+        clientFetch<EventSource[]>(requests[1].path),
+        clientFetch<EventIngestionRun[]>(requests[2].path),
       ]);
-      setEvents(eventData.rows || []);
-      setSources(sourceData || []);
-      setRuns(runData || []);
-      setSelectedSourceIds((prev) => {
-        const next = { ...prev };
-        for (const source of sourceData || []) {
-          if (source.active && next[source.id] === undefined) next[source.id] = true;
-          if (!source.active) delete next[source.id];
-        }
-        return next;
-      });
-      if (eventData.rows?.length && !selectedEventId) setSelectedEventId(eventData.rows[0].id);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load events');
+      setEventsLoaded(eventResult.status === 'fulfilled');
+      setSourcesLoaded(sourceResult.status === 'fulfilled');
+      if (eventResult.status === 'fulfilled') setEvents(eventResult.value.rows || []);
+      if (runResult.status === 'fulfilled') setRuns(runResult.value || []);
+      if (sourceResult.status === 'fulfilled') {
+        const sourceData = sourceResult.value;
+        setSources(sourceData || []);
+        setSelectedSourceIds((prev) => {
+          const next = { ...prev };
+          for (const source of sourceData || []) {
+            if (source.active && next[source.id] === undefined) next[source.id] = true;
+            if (!source.active) delete next[source.id];
+          }
+          return next;
+        });
+      }
+      if (eventResult.status === 'fulfilled' && eventResult.value.rows?.length && !selectedEventId) {
+        setSelectedEventId(eventResult.value.rows[0].id);
+      }
+
+      const failures = [eventResult, sourceResult, runResult].flatMap((result, index) =>
+        result.status === 'rejected'
+          ? [`${requests[index].label} (GET /api/proxy${requests[index].path}): ${result.reason instanceof Error ? result.reason.message : 'Request failed'}`]
+          : []
+      );
+      if (failures.length) setError(failures.join(' • '));
     } finally {
       setLoading(false);
     }
@@ -487,19 +507,19 @@ export default function EventsIntelligenceClient() {
         <section className="grid gap-3 md:grid-cols-4">
           <div className="rounded-md border bg-card p-4">
             <p className="text-xs font-medium uppercase text-muted-foreground">Visible Events</p>
-            <p className="mt-2 text-2xl font-semibold">{events.length}</p>
+            <p className="mt-2 text-2xl font-semibold">{eventsLoaded ? events.length : '—'}</p>
           </div>
           <div className="rounded-md border bg-card p-4">
             <p className="text-xs font-medium uppercase text-muted-foreground">Next 7 Days</p>
-            <p className="mt-2 text-2xl font-semibold">{nextSevenCount}</p>
+            <p className="mt-2 text-2xl font-semibold">{eventsLoaded ? nextSevenCount : '—'}</p>
           </div>
           <div className="rounded-md border bg-card p-4">
             <p className="text-xs font-medium uppercase text-muted-foreground">Planned</p>
-            <p className="mt-2 text-2xl font-semibold">{plannedCount}</p>
+            <p className="mt-2 text-2xl font-semibold">{eventsLoaded ? plannedCount : '—'}</p>
           </div>
           <div className="rounded-md border bg-card p-4">
             <p className="text-xs font-medium uppercase text-muted-foreground">Sources</p>
-            <p className="mt-2 text-2xl font-semibold">{sources.length}</p>
+            <p className="mt-2 text-2xl font-semibold">{sourcesLoaded ? sources.length : '—'}</p>
           </div>
         </section>
 
@@ -515,7 +535,9 @@ export default function EventsIntelligenceClient() {
             <div>
               <h2 className="text-sm font-semibold">Source Matrix</h2>
               <p className="text-xs text-muted-foreground">
-                Selected sources: {chosenSourceIds.length} of {activeSources.length} active
+                {sourcesLoaded
+                  ? `Selected sources: ${chosenSourceIds.length} of ${activeSources.length} active`
+                  : 'Sources unavailable'}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -622,6 +644,10 @@ export default function EventsIntelligenceClient() {
           <div className="space-y-3">
             {loading ? (
               <div className="rounded-md border bg-card p-8 text-sm text-muted-foreground">Loading upcoming events...</div>
+            ) : !eventsLoaded ? (
+              <div className="rounded-md border bg-card p-8 text-sm text-muted-foreground">
+                Events could not be loaded. Check the failed request above and retry.
+              </div>
             ) : events.length === 0 ? (
               <div className="rounded-md border bg-card p-8 text-sm text-muted-foreground">
                 No upcoming events match these filters. Add a source or refresh existing sources.
@@ -771,7 +797,9 @@ export default function EventsIntelligenceClient() {
               </CardHeader>
               <CardContent className="max-h-[640px] space-y-2 overflow-y-auto pr-1">
                 {sources.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No sources configured yet.</p>
+                  <p className="text-sm text-muted-foreground">
+                    {sourcesLoaded ? 'No sources configured yet.' : 'Sources could not be loaded.'}
+                  </p>
                 ) : sources.map((source) => (
                   <div key={source.id} className="rounded-md border p-3 text-sm">
                     <div className="flex items-center justify-between gap-2">

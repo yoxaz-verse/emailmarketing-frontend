@@ -1,14 +1,19 @@
 "use client";
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Bell, Mail, RefreshCw, Send, ArrowLeft, ExternalLink } from 'lucide-react';
 import { clientFetch } from '@/lib/client-fetch';
 import { type Detail, type Feed, markRead, notifyCommunications, useCommunications } from '@/lib/communications';
 
 const control='rounded-lg border border-border bg-background px-3 py-2 text-sm disabled:opacity-50';
 export default function CommunicationsPage() {
+  return <Suspense fallback={<p className="p-6">Loading communications…</p>}><CommunicationCenter/></Suspense>;
+}
+function CommunicationCenter() {
+  const linkedItem=useSearchParams().get('item');
   const [kind,setKind]=useState(''),[source,setSource]=useState(''),[search,setSearch]=useState(''),[query,setQuery]=useState(''),[unread,setUnread]=useState(false),[page,setPage]=useState(1),[selected,setSelected]=useState<string|null>(null),[actionError,setActionError]=useState('');
-  useEffect(()=>{const id=new URLSearchParams(window.location.search).get('item');if(id)setSelected(id);},[]);
+  useEffect(()=>{if(linkedItem)setSelected(linkedItem);},[linkedItem]);
   useEffect(()=>{const timer=setTimeout(()=>{setQuery(search);setPage(1);},300);return()=>clearTimeout(timer);},[search]);
   const params=new URLSearchParams({kind,source,search:query,unread:String(unread),page:String(page)});
   const feed=useCommunications<Feed>(`/communications?${params}`);

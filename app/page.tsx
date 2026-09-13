@@ -72,6 +72,7 @@ export default async function LandingPage() {
                 {ctaLabel}
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Link>
+              <Link href="/developers/api" className="inline-flex items-center rounded-xl border border-border px-6 py-4 font-semibold hover:bg-muted">API guide</Link>
             </div>
           </div>
         </section>

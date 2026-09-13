@@ -54,6 +54,13 @@ type SetupStatus = {
   platforms: PlatformSetup[];
 };
 
+type SetupPreflight = {
+  ok: boolean;
+  code?: string;
+  message?: string;
+  error?: string;
+};
+
 const PLATFORMS: { code: Platform; label: string; connectLabel: string }[] = [
   { code: 'linkedin', label: 'LinkedIn', connectLabel: 'Connect LinkedIn' },
   { code: 'meta', label: 'Meta / Instagram', connectLabel: 'Connect Meta' },
@@ -107,8 +114,39 @@ function toTitle(value: string): string {
   return value.split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
 }
 
-function mapSocialConnectorError(message: string): string {
+function mapSocialConnectorError(message: string, code?: string | null): string {
+  const normalizedCode = String(code ?? '').trim().toLowerCase();
+  if (normalizedCode === 'auth_service_misconfigured') {
+    return 'Backend Supabase auth is misconfigured. Update the Supabase service role key/project config, restart backend, then try LinkedIn again.';
+  }
+  if (normalizedCode === 'auth_service_unavailable') {
+    return 'Supabase is unavailable from the backend right now. Check backend connectivity, then try LinkedIn again.';
+  }
+  if (normalizedCode === 'social_oauth_schema_missing') {
+    return 'Social OAuth tables are missing. Apply the social OAuth schema migration, restart backend, then try again.';
+  }
+  if (normalizedCode === 'provider_config_missing' || normalizedCode === 'provider_config_error') {
+    return 'LinkedIn one-click connect needs the global OBAOL LinkedIn app credentials first.';
+  }
+  if (normalizedCode === 'oauth_state_error') {
+    return 'LinkedIn returned, but the OAuth state was missing, expired, or invalid. Start Connect LinkedIn again from this page.';
+  }
+  if (normalizedCode === 'provider_permission_denied') {
+    return 'LinkedIn rejected the connection because required permissions are missing or were denied. Confirm the app has w_member_social, then reconnect.';
+  }
+
   const lower = String(message || '').toLowerCase();
+  if (
+    lower.includes('supabase rejected') ||
+    lower.includes('unregistered api key') ||
+    lower.includes('invalid api key') ||
+    lower.includes('auth_service_misconfigured')
+  ) {
+    return 'Backend Supabase auth is misconfigured. Update the Supabase service role key/project config, restart backend, then try LinkedIn again.';
+  }
+  if (lower.includes('social oauth schema') || lower.includes('social_oauth_schema_missing')) {
+    return 'Social OAuth tables are missing. Apply the social OAuth schema migration, restart backend, then try again.';
+  }
   if (lower.includes('backend unavailable') || lower.includes('failed to fetch') || lower.includes('timed out')) {
     return 'Backend is unavailable. Start or restart the backend service, then refresh this setup page.';
   }
@@ -228,14 +266,37 @@ export default function SocialConnectorsClient({
   useEffect(() => {
     const connectedPlatform = searchParams.get('social_connected');
     const connectError = searchParams.get('social_connect_error');
+    const connectErrorCode = searchParams.get('social_connect_error_code');
     if (connectedPlatform) {
-      setMessage(`${toTitle(connectedPlatform)} connected. Continue the setup below.`);
+      setMessage(`${toTitle(connectedPlatform)} authorization returned. Checking connection status...`);
       setActivePlatform(connectedPlatform as Platform);
     }
     if (connectError) {
-      setError(mapSocialConnectorError(connectError));
+      setError(mapSocialConnectorError(connectError, connectErrorCode));
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    const connectedPlatform = searchParams.get('social_connected') as Platform | null;
+    if (!connectedPlatform || loading || status.platforms.length === 0) return;
+
+    const platform = status.platforms.find((item) => item.platform_code === connectedPlatform);
+    if (!platform) return;
+
+    if (platform.setup_ready) {
+      setError(null);
+      setMessage(`${platform.label} connected and ready.`);
+      return;
+    }
+
+    if (platform.connected) {
+      setMessage(`${platform.label} connected. ${platformStatusText(platform)} is still required.`);
+      return;
+    }
+
+    setMessage(null);
+    setError(mapSocialConnectorError(platform.connection_reason || `${platform.label} did not finish connecting.`));
+  }, [loading, searchParams, status.platforms]);
 
   useEffect(() => {
     const fields = activeSetup?.credential_fields ?? {};
@@ -282,6 +343,13 @@ export default function SocialConnectorsClient({
     setError(null);
     setMessage(null);
     try {
+      const preflight = await clientFetch<SetupPreflight>('/social/setup/preflight', {
+        method: 'POST',
+        body: JSON.stringify({ operator_id: selectedOperatorId || undefined, platform }),
+      });
+      if (!preflight?.ok) {
+        throw new Error(preflight?.message || preflight?.error || 'Social setup preflight failed');
+      }
       const data = await clientFetch<{ redirect_url: string }>('/social/setup/start', {
         method: 'POST',
         body: JSON.stringify({ operator_id: selectedOperatorId || undefined, platform }),
@@ -493,35 +561,62 @@ export default function SocialConnectorsClient({
               setup_ready: false,
               next_action: 'configure_credentials' as NextAction,
             }))).map((platform) => (
-              <button
+              <div
                 key={platform.platform_code}
-                type="button"
-                onClick={() => setActivePlatform(platform.platform_code)}
-                className={`rounded-md border p-3 text-left transition hover:border-primary/60 ${
+                className={`min-w-0 rounded-md border p-3 transition hover:border-primary/60 ${
                   activePlatform === platform.platform_code ? 'border-primary bg-primary/5' : 'border-border/60 bg-muted/20'
                 }`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-medium">{platform.label}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {platform.can_publish ? 'API publishing' : 'Setup required'} · {platform.can_schedule ? 'Scheduler ready' : 'Scheduler gated'}
-                    </p>
-                    {platform.credential_source && platform.credential_source !== 'missing' && (
+                <button
+                  type="button"
+                  onClick={() => setActivePlatform(platform.platform_code)}
+                  className="block w-full rounded-sm text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium">{platform.label}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {platform.credential_source === 'operator' ? 'Operator app configured' : 'OBAOL app configured'}
+                        {platform.platform_code === 'linkedin' && platform.connection_status === 'identity_required'
+                          ? 'Publishing paused · Reconnect required'
+                          : `${platform.can_publish ? 'API publishing' : 'Setup required'} · ${platform.can_schedule ? 'Scheduler ready' : 'Scheduler gated'}`}
                       </p>
-                    )}
+                      {platform.credential_source && platform.credential_source !== 'missing' && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {platform.credential_source === 'operator' ? 'Operator app configured' : 'OBAOL app configured'}
+                        </p>
+                      )}
+                    </div>
+                    <Badge className={`${statusBadgeClass(platform)} whitespace-nowrap`}>{platformStatusText(platform)}</Badge>
                   </div>
-                  <Badge className={`${statusBadgeClass(platform)} whitespace-nowrap`}>{platformStatusText(platform)}</Badge>
-                </div>
-                {platform.connection_reason && (
-                  <p className="mt-2 line-clamp-2 text-xs text-amber-700 dark:text-amber-300">{platform.connection_reason}</p>
+                  {platform.connection_reason && !(platform.platform_code === 'linkedin' && platform.connection_status === 'identity_required') && (
+                    <p className="mt-2 line-clamp-2 text-xs text-amber-700 dark:text-amber-300">{platform.connection_reason}</p>
+                  )}
+                  {platform.credential_missing_fields.length > 0 && (
+                    <p className="mt-2 text-xs text-muted-foreground">Missing: {platform.credential_missing_fields.join(', ')}</p>
+                  )}
+                </button>
+                {platform.platform_code === 'linkedin' && platform.connection_status === 'identity_required' && (
+                  <div className="mt-3 space-y-2 border-t border-border/60 pt-3 text-sm">
+                    <p className="text-amber-700 dark:text-amber-300">
+                      LinkedIn access was saved, but we couldn&apos;t identify the member account. Publishing is paused.
+                    </p>
+                    <p className="text-muted-foreground">1. Check the saved callback URL and scopes in LinkedIn Setup.</p>
+                    <p className="text-muted-foreground">2. Reconnect LinkedIn to let us identify your account.</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="mt-1 max-w-full"
+                      onClick={() => void startConnect('linkedin')}
+                      disabled={saving || !canUseOperator || !platform.credential_configured}
+                    >
+                      Reconnect LinkedIn
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      If reconnecting still fails, use the LinkedIn Member URN advanced fallback in Setup only when diagnostics asks for it.
+                    </p>
+                  </div>
                 )}
-                {platform.credential_missing_fields.length > 0 && (
-                  <p className="mt-2 text-xs text-muted-foreground">Missing: {platform.credential_missing_fields.join(', ')}</p>
-                )}
-              </button>
+              </div>
             ))}
           </CardContent>
         </Card>

@@ -1,5 +1,6 @@
 // lib/client-fetch.ts
 type ApiErrorShape = {
+  code?: string;
   error?: string;
   message?: string;
   detail?: string;
@@ -32,6 +33,7 @@ function isHtmlLikeResponse(raw: string): boolean {
 }
 
 function parseErrorText(raw: string): {
+  code?: string;
   message: string;
   detail?: string;
   statusText?: string;
@@ -42,10 +44,12 @@ function parseErrorText(raw: string): {
 
   try {
     const parsed = JSON.parse(trimmed) as ApiErrorShape;
+    const code = String(parsed.code ?? '').trim();
     const message = String(parsed.error ?? parsed.message ?? '').trim();
     const detail = String(parsed.detail ?? '').trim();
     if (message) {
       return {
+        code: code || undefined,
         message,
         detail: detail || undefined,
         isAuthLike: /unauthorized|invalid token|authentication required|user disabled/i.test(message),
@@ -71,8 +75,25 @@ function normalizeClientError(status: number, raw: string): string {
   }
 
   const parsed = parseErrorText(raw);
+  const code = String(parsed.code ?? '').toUpperCase();
   const msg = parsed.message.toLowerCase();
   const detail = String(parsed.detail ?? '').toLowerCase();
+
+  if (code === 'AUTH_SERVICE_MISCONFIGURED') {
+    return parsed.message || 'Backend Supabase auth is misconfigured. Verify Supabase URL and service role key.';
+  }
+
+  if (code === 'AUTH_SERVICE_UNAVAILABLE') {
+    return parsed.message || 'Supabase is unavailable from the backend right now.';
+  }
+
+  if (code === 'SOCIAL_OAUTH_SCHEMA_MISSING') {
+    return parsed.message || 'Social OAuth tables are missing. Apply the social OAuth schema migration.';
+  }
+
+  if (code === 'PROVIDER_CONFIG_MISSING' || code === 'PROVIDER_CONFIG_ERROR') {
+    return parsed.message || 'LinkedIn one-click connect needs the provider app credentials first.';
+  }
 
   const isBackendUnavailable =
     status === 503 ||
