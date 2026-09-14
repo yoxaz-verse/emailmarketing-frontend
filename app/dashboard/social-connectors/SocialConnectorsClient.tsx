@@ -31,7 +31,7 @@ type PlatformSetup = {
   credential_fields: Record<string, string>;
   connection_status: SocialConnectionStatus;
   connection_reason: string | null;
-  authorization_saved: boolean;
+  authorization_saved?: boolean;
   connected: boolean;
   can_schedule: boolean;
   can_publish: boolean;
@@ -181,6 +181,13 @@ function platformStatusText(platform: PlatformSetup): string {
   return ACTION_LABELS[platform.next_action] ?? toTitle(platform.connection_status);
 }
 
+function linkedInIdentityReason(reason: string | null): string {
+  if (reason && /Enter the LinkedIn Member URN fallback/i.test(reason)) {
+    return 'LinkedIn authorization was saved before detailed identity diagnostics were available. Recheck the saved authorization to identify the issue.';
+  }
+  return reason || 'LinkedIn access was saved, but the member identity could not be resolved.';
+}
+
 function emptyStatus(operatorId: string | null): SetupStatus {
   return {
     operator_id: operatorId,
@@ -298,7 +305,7 @@ export default function SocialConnectorsClient({
 
     setMessage(null);
     setError(platform.platform_code === 'linkedin' && platform.connection_status === 'identity_required'
-      ? platform.connection_reason || 'LinkedIn access was saved, but the member identity could not be resolved.'
+      ? linkedInIdentityReason(platform.connection_reason)
       : mapSocialConnectorError(platform.connection_reason || `${platform.label} did not finish connecting.`));
   }, [loading, searchParams, status.platforms]);
 
@@ -603,7 +610,7 @@ export default function SocialConnectorsClient({
                 {platform.platform_code === 'linkedin' && platform.connection_status === 'identity_required' && (
                   <div className="mt-3 space-y-2 border-t border-border/60 pt-3 text-sm">
                     <p className="text-amber-700 dark:text-amber-300">
-                      {platform.connection_reason || 'LinkedIn access was saved, but we couldn\'t identify the member account. Publishing is paused.'}
+                      {linkedInIdentityReason(platform.connection_reason)}
                     </p>
                     <p className="text-muted-foreground">Publishing is paused until LinkedIn returns a valid member ID. Resolve the issue above before retrying.</p>
                     <Button
@@ -614,6 +621,27 @@ export default function SocialConnectorsClient({
                       disabled={saving || !canUseOperator || !platform.credential_configured}
                     >
                       Retry LinkedIn authorization
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        setSaving(true);
+                        setError(null);
+                        setMessage(null);
+                        try {
+                          await clientFetch(`/social/linkedin/recheck-identity${operatorQuery}`, { method: 'POST' });
+                          await loadStatus();
+                        } catch (err: unknown) {
+                          setError(mapSocialConnectorError(err instanceof Error ? err.message : 'Failed to recheck LinkedIn identity'));
+                        } finally {
+                          setSaving(false);
+                        }
+                      }}
+                      disabled={saving || !canUseOperator}
+                    >
+                      Recheck saved authorization
                     </Button>
                     <p className="text-xs text-muted-foreground">
                       The Member URN field in Setup is an advanced fallback, not a normal connection step.
@@ -708,7 +736,7 @@ export default function SocialConnectorsClient({
                     setSaving(false);
                   }
                 }}
-                disabled={saving || !activeSetup?.authorization_saved}
+                disabled={saving || !(activeSetup?.authorization_saved || (activeSetup?.connection_status && activeSetup.connection_status !== 'disconnected'))}
               >
                 Disconnect
               </Button>
