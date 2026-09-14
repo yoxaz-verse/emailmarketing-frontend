@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { TemplatePicker } from '@/components/content-templates/TemplatePicker';
 import { clientFetch } from '@/lib/client-fetch';
+import { formatKolkata, kolkataDateTimeToUtc, kolkataFields, KOLKATA_TIMEZONE } from './kolkataTime';
 import {
   SOCIAL_POST_TEMPLATES,
   TEMPLATE_CATEGORY_LABELS,
@@ -123,7 +124,7 @@ type PlatformReadiness = {
   missingFields: string[];
 };
 
-const IST_TIMEZONE = 'Asia/Kolkata';
+const IST_TIMEZONE = KOLKATA_TIMEZONE;
 const PLATFORM_LABELS: Record<PlatformCode, string> = {
   meta: 'Meta',
   facebook: 'Facebook',
@@ -161,6 +162,16 @@ const STATUS_BADGES: Record<ScheduledSocialPost['status'], string> = {
   published: 'bg-green-600 text-white',
   failed: 'bg-red-600 text-white',
 };
+function isOverdue(post: ScheduledSocialPost): boolean {
+  return ['scheduled', 'draft_created', 'validated', 'approval_pending'].includes(post.status)
+    && new Date(post.scheduledAtUtc).getTime() < Date.now() - 120_000;
+}
+function statusLabel(post: ScheduledSocialPost): string {
+  return isOverdue(post) ? 'Overdue' : STATUS_LABELS[post.status];
+}
+function statusBadge(post: ScheduledSocialPost): string {
+  return isOverdue(post) ? 'bg-red-600 text-white' : STATUS_BADGES[post.status];
+}
 
 function addDays(date: Date, days: number): Date {
   const d = new Date(date);
@@ -181,22 +192,20 @@ function isSameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 function toDateInput(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return kolkataFields(date).date;
 }
 function toTimeInput(date: Date): string {
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  return kolkataFields(date).time;
 }
 function composeLocalDateTime(dateStr: string, timeStr: string): Date | null {
-  if (!dateStr || !timeStr) return null;
-  const local = new Date(`${dateStr}T${timeStr}:00`);
-  return Number.isNaN(local.getTime()) ? null : local;
+  return kolkataDateTimeToUtc(dateStr, timeStr);
 }
 function isStrictlyFutureDateTime(dateStr: string, timeStr: string): boolean {
   const scheduled = composeLocalDateTime(dateStr, timeStr);
   return Boolean(scheduled && scheduled.getTime() > Date.now());
 }
 function formatTime(date: Date): string {
-  return new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).format(date);
+  return formatKolkata(date, { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 function buildQuarterHourOptions(): string[] {
   const values: string[] = [];
@@ -481,6 +490,10 @@ export default function SocialSchedulingClient({
   useEffect(() => {
     void loadData();
   }, [loadData]);
+  useEffect(() => {
+    const timer = window.setInterval(() => { void loadData(); }, 30_000);
+    return () => window.clearInterval(timer);
+  }, [loadData]);
 
   const monthGridDays = useMemo(() => {
     const start = startOfWeek(monthStart);
@@ -498,7 +511,8 @@ export default function SocialSchedulingClient({
     const map = new Map<string, ScheduledSocialPost[]>();
     for (const post of posts) {
       const d = new Date(post.scheduledAtUtc);
-      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      const fields = kolkataFields(d);
+      const key = `${fields.year}-${fields.month - 1}-${fields.day}`;
       map.set(key, [...(map.get(key) ?? []), post]);
     }
     return map;
@@ -512,7 +526,7 @@ export default function SocialSchedulingClient({
   const schedulePreview = useMemo(() => {
     const local = composeLocalDateTime(draft.scheduledDate, draft.scheduledTime);
     if (!local) return 'Select date and time';
-    return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(local);
+    return formatKolkata(local, { dateStyle: 'medium', timeStyle: 'short' });
   }, [draft.scheduledDate, draft.scheduledTime]);
   const disabledTimeOptions = useMemo(() => {
     const values = new Set<string>();
@@ -754,7 +768,7 @@ export default function SocialSchedulingClient({
       >
         <div className="flex items-center justify-between gap-2">
           <span className="font-medium">{formatTime(date)}</span>
-          <Badge className={`text-[10px] px-1.5 py-0 ${STATUS_BADGES[post.status]}`}>{STATUS_LABELS[post.status]}</Badge>
+          <Badge className={`text-[10px] px-1.5 py-0 ${statusBadge(post)}`}>{statusLabel(post)}</Badge>
         </div>
         <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{post.content || '(No content)'}</p>
         {post.error && <p className="mt-1 line-clamp-1 text-[10px] text-red-600">{post.error}</p>}
@@ -899,7 +913,7 @@ export default function SocialSchedulingClient({
                   {weekDays.map((d) => {
                     const slot = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour, 0, 0);
                     const key = `${slot.getFullYear()}-${slot.getMonth()}-${slot.getDate()}`;
-                    const dayPosts = (postsByDay.get(key) ?? []).filter((p) => new Date(p.scheduledAtUtc).getHours() === hour);
+                    const dayPosts = (postsByDay.get(key) ?? []).filter((p) => kolkataFields(new Date(p.scheduledAtUtc)).hour === hour);
                     const disabled = slot.getTime() <= Date.now();
                     return (
                       <button
@@ -929,8 +943,8 @@ export default function SocialSchedulingClient({
           {upcoming.map((post) => (
             <div key={post.id} className="rounded border border-border/60 bg-muted/40 p-3 dark:bg-white/5">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium">{new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(post.scheduledAtUtc))}</p>
-                <Badge className={STATUS_BADGES[post.status]}>{STATUS_LABELS[post.status]}</Badge>
+                <p className="text-sm font-medium">{formatKolkata(new Date(post.scheduledAtUtc), { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                <Badge className={statusBadge(post)}>{statusLabel(post)}</Badge>
               </div>
               <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{post.content || '(No content)'}</p>
               <div className="mt-2 flex flex-wrap gap-1">
