@@ -31,6 +31,7 @@ type PlatformSetup = {
   credential_fields: Record<string, string>;
   connection_status: SocialConnectionStatus;
   connection_reason: string | null;
+  authorization_saved: boolean;
   connected: boolean;
   can_schedule: boolean;
   can_publish: boolean;
@@ -172,6 +173,7 @@ function statusBadgeClass(platform: PlatformSetup): string {
 
 function platformStatusText(platform: PlatformSetup): string {
   if (platform.setup_ready) return 'Ready';
+  if (platform.platform_code === 'linkedin' && platform.connection_status === 'identity_required') return 'Identity needed';
   if (platform.one_click_available && !platform.connected) return 'Ready to connect';
   if (!platform.credential_configured) return 'Credentials needed';
   if (!platform.connected) return 'Connect needed';
@@ -295,7 +297,9 @@ export default function SocialConnectorsClient({
     }
 
     setMessage(null);
-    setError(mapSocialConnectorError(platform.connection_reason || `${platform.label} did not finish connecting.`));
+    setError(platform.platform_code === 'linkedin' && platform.connection_status === 'identity_required'
+      ? platform.connection_reason || 'LinkedIn access was saved, but the member identity could not be resolved.'
+      : mapSocialConnectorError(platform.connection_reason || `${platform.label} did not finish connecting.`));
   }, [loading, searchParams, status.platforms]);
 
   useEffect(() => {
@@ -555,6 +559,7 @@ export default function SocialConnectorsClient({
               credential_fields: {},
               connection_status: 'disconnected' as SocialConnectionStatus,
               connection_reason: null,
+              authorization_saved: false,
               connected: false,
               can_schedule: false,
               can_publish: false,
@@ -598,10 +603,9 @@ export default function SocialConnectorsClient({
                 {platform.platform_code === 'linkedin' && platform.connection_status === 'identity_required' && (
                   <div className="mt-3 space-y-2 border-t border-border/60 pt-3 text-sm">
                     <p className="text-amber-700 dark:text-amber-300">
-                      LinkedIn access was saved, but we couldn&apos;t identify the member account. Publishing is paused.
+                      {platform.connection_reason || 'LinkedIn access was saved, but we couldn\'t identify the member account. Publishing is paused.'}
                     </p>
-                    <p className="text-muted-foreground">1. Check the saved callback URL and scopes in LinkedIn Setup.</p>
-                    <p className="text-muted-foreground">2. Reconnect LinkedIn to let us identify your account.</p>
+                    <p className="text-muted-foreground">Publishing is paused until LinkedIn returns a valid member ID. Resolve the issue above before retrying.</p>
                     <Button
                       type="button"
                       size="sm"
@@ -609,10 +613,10 @@ export default function SocialConnectorsClient({
                       onClick={() => void startConnect('linkedin')}
                       disabled={saving || !canUseOperator || !platform.credential_configured}
                     >
-                      Reconnect LinkedIn
+                      Retry LinkedIn authorization
                     </Button>
                     <p className="text-xs text-muted-foreground">
-                      If reconnecting still fails, use the LinkedIn Member URN advanced fallback in Setup only when diagnostics asks for it.
+                      The Member URN field in Setup is an advanced fallback, not a normal connection step.
                     </p>
                   </div>
                 )}
@@ -686,10 +690,25 @@ export default function SocialConnectorsClient({
               <Button
                 variant="outline"
                 onClick={async () => {
-                  await clientFetch(`/social/disconnect/${activePlatform}${operatorQuery}`, { method: 'POST' });
-                  await loadStatus();
+                  setSaving(true);
+                  setError(null);
+                  setMessage(null);
+                  try {
+                    await clientFetch(`/social/disconnect/${activePlatform}${operatorQuery}`, { method: 'POST' });
+                    await loadStatus();
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('social_connected');
+                    url.searchParams.delete('social_connect_error');
+                    url.searchParams.delete('social_connect_error_code');
+                    window.history.replaceState(window.history.state, '', url.toString());
+                    setMessage(`${PLATFORMS.find((item) => item.code === activePlatform)?.label ?? activePlatform} disconnected.`);
+                  } catch (err: unknown) {
+                    setError(mapSocialConnectorError(err instanceof Error ? err.message : 'Failed to disconnect social platform'));
+                  } finally {
+                    setSaving(false);
+                  }
                 }}
-                disabled={saving || !activeSetup?.connected}
+                disabled={saving || !activeSetup?.authorization_saved}
               >
                 Disconnect
               </Button>

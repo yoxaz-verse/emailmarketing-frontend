@@ -30,6 +30,9 @@ import {
 const mainItems = [
     { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
     { label: 'Communications', href: '/dashboard/communications', icon: Mail },
+];
+
+const developerItems = [
     { label: 'API Keys', href: '/dashboard/developers/api-keys', icon: KeyRound },
 ];
 
@@ -249,6 +252,14 @@ const renderNavItem = (item: NavItem, isActive: boolean) => (
                         </ul>
                     </div>
                 )}
+                <div>
+                    <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+                        Developers
+                    </h3>
+                    <ul className="space-y-1">
+                        {developerItems.map((item) => renderNavItem(item, pathname === item.href))}
+                    </ul>
+                </div>
             </nav>
 
             {/* <div className="p-4 border-t bg-muted/50">

@@ -399,10 +399,7 @@ export default function SocialAppsSettingsClient({
   const linkedinUnsupportedScopes = linkedinScopes.filter((scopeValue) => ['openid', 'profile'].includes(scopeValue));
   const linkedinSavedRedirectSupported = linkedinDiagnostics?.redirect_uri_supported ?? Boolean(savedRedirectUri && linkedinDiagnostics?.accepted_callback_urls?.includes(savedRedirectUri));
   const linkedinSavedRedirectRecommended = linkedinDiagnostics?.redirect_uri_exact ?? linkedinDiagnostics?.redirect_uri_recommended ?? Boolean(savedRedirectUri && linkedinCanonicalCallbackUrl && savedRedirectUri === linkedinCanonicalCallbackUrl);
-  const linkedinNeedsActorFallback = platform === 'linkedin' && (
-    linkedinDiagnostics?.connection_status === 'identity_required' ||
-    linkedinDiagnostics?.actor_resolution_status === 'advanced_fallback_required'
-  );
+  const linkedinNeedsActorFallback = platform === 'linkedin' && Boolean(fields.actor_urn?.trim());
   const connectDisabledReason = (() => {
     if (!isOauthPlatform) return null;
     if (!operatorId) return 'Select an operator before connecting this platform.';
@@ -735,7 +732,7 @@ export default function SocialAppsSettingsClient({
                       className="w-full rounded-md border border-border bg-background px-3 py-2"
                     />
                     <span className="block text-xs text-muted-foreground">
-                      Do not paste your LinkedIn profile URL. If diagnostics shows identity_required or advanced_fallback_required, enter this value, save, then reconnect. Accepted: urn:li:person:&lt;id&gt; or a raw member id.
+                      Do not paste your LinkedIn profile URL. Use this only if automatic identity lookup cannot be enabled for your LinkedIn app and you have verified the member ID. Accepted: urn:li:person:&lt;id&gt; or a raw member id.
                     </span>
                     {actorInputError && <span className="block text-xs text-red-700 dark:text-red-300">{actorInputError}</span>}
                   </label>

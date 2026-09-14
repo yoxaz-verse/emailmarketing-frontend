@@ -253,8 +253,8 @@ export default function EventsIntelligenceClient() {
   const plannedCount = useMemo(() => events.filter((event) => event.status === 'planned').length, [events]);
   const activeSources = useMemo(() => sources.filter((source) => source.active), [sources]);
   const chosenSourceIds = useMemo(
-    () => Object.entries(selectedSourceIds).filter(([, selected]) => selected).map(([id]) => id),
-    [selectedSourceIds]
+    () => activeSources.filter((source) => selectedSourceIds[source.id]).map((source) => source.id),
+    [activeSources, selectedSourceIds]
   );
   const latestSourceResults = useMemo(
     () => lastIngestion?.source_results ?? (runs.map((run) => run.metadata).filter(Boolean).slice(0, 8) as SourceResult[]),
@@ -287,30 +287,32 @@ export default function EventsIntelligenceClient() {
       ]);
       setEventsLoaded(eventResult.status === 'fulfilled');
       setSourcesLoaded(sourceResult.status === 'fulfilled');
-      if (eventResult.status === 'fulfilled') setEvents(eventResult.value.rows || []);
+      if (eventResult.status === 'fulfilled') {
+        const nextEvents = eventResult.value.rows || [];
+        setEvents(nextEvents);
+        setSelectedEventId((current) => nextEvents.some((event) => event.id === current) ? current : nextEvents[0]?.id ?? null);
+      } else { setEvents([]); setSelectedEventId(null); }
       if (runResult.status === 'fulfilled') setRuns(runResult.value || []);
+      else setRuns([]);
       if (sourceResult.status === 'fulfilled') {
         const sourceData = sourceResult.value;
         setSources(sourceData || []);
         setSelectedSourceIds((prev) => {
-          const next = { ...prev };
+          const next: Record<string, boolean> = {};
           for (const source of sourceData || []) {
-            if (source.active && next[source.id] === undefined) next[source.id] = true;
-            if (!source.active) delete next[source.id];
+            if (source.active) next[source.id] = prev[source.id] ?? true;
           }
           return next;
         });
-      }
-      if (eventResult.status === 'fulfilled' && eventResult.value.rows?.length && !selectedEventId) {
-        setSelectedEventId(eventResult.value.rows[0].id);
-      }
-
+      } else { setSources([]); setSelectedSourceIds({}); }
       const failures = [eventResult, sourceResult, runResult].flatMap((result, index) =>
         result.status === 'rejected'
           ? [`${requests[index].label} (GET /api/proxy${requests[index].path}): ${result.reason instanceof Error ? result.reason.message : 'Request failed'}`]
           : []
       );
-      if (failures.length) setError(failures.join(' • '));
+      if (failures.length) setError(failures.map((failure) => /schema is not ready|does not exist|schema cache/i.test(failure)
+        ? `${failure}. An administrator needs to apply the Events Intelligence migration before this feature can run.`
+        : failure).join(' • '));
     } finally {
       setLoading(false);
     }
@@ -396,13 +398,17 @@ export default function EventsIntelligenceClient() {
   };
 
   const runIngestion = async (sourceIds = chosenSourceIds) => {
+    if (sourceIds.length === 0) {
+      setError('Select at least one active source before scraping.');
+      return;
+    }
     try {
       setIngesting(true);
       setError(null);
       const summary = await clientFetch<IngestionSummary>('/events/ingest/run', {
         method: 'POST',
         body: JSON.stringify({
-          source_ids: sourceIds.length > 0 ? sourceIds : activeSources.map((source) => source.id),
+          source_ids: sourceIds,
         }),
       });
       setLastIngestion(summary);
@@ -491,7 +497,7 @@ export default function EventsIntelligenceClient() {
               <Settings2 className="mr-2 h-4 w-4" />
               Sources
             </Button>
-            <Button onClick={() => void runIngestion()} disabled={ingesting || activeSources.length === 0}>
+            <Button onClick={() => void runIngestion()} disabled={ingesting || loading || chosenSourceIds.length === 0}>
               <RefreshCw className={cn('mr-2 h-4 w-4', ingesting && 'animate-spin')} />
               Scrape Selected
             </Button>
@@ -536,9 +542,14 @@ export default function EventsIntelligenceClient() {
               <h2 className="text-sm font-semibold">Source Matrix</h2>
               <p className="text-xs text-muted-foreground">
                 {sourcesLoaded
-                  ? `Selected sources: ${chosenSourceIds.length} of ${activeSources.length} active`
+                  ? `Selected sources: ${chosenSourceIds.length} of ${activeSources.length} active · ${sources.length - activeSources.length} paused`
                   : 'Sources unavailable'}
               </p>
+              {sourcesLoaded && sources.length > activeSources.length && (
+                <button className="mt-1 text-xs text-primary underline" onClick={() => setShowSourceManager(true)}>
+                  Review paused sources and their errors
+                </button>
+              )}
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -554,7 +565,7 @@ export default function EventsIntelligenceClient() {
               </Button>
             </div>
           </div>
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
             {activeSources.map((source) => (
               <label key={source.id} className="flex min-h-[88px] items-start gap-3 rounded-md border p-3 text-sm">
                 <input
@@ -563,14 +574,17 @@ export default function EventsIntelligenceClient() {
                   checked={Boolean(selectedSourceIds[source.id])}
                   onChange={(event) => setSelectedSourceIds((prev) => ({ ...prev, [source.id]: event.target.checked }))}
                 />
-                <span className="min-w-0 space-y-1">
-                  <span className="block truncate font-medium">{source.source_name}</span>
+                <span className="min-w-0 space-y-1 break-words">
+                  <span className="block font-medium">{source.source_name}</span>
                   <span className="block text-xs text-muted-foreground">{source.provider_type} | {source.health_status ?? 'unknown'}</span>
-                  {source.last_error && <span className="block text-xs text-destructive">{describeSourceError(source.last_error)}</span>}
+                  {source.last_error && <span className="block text-xs leading-relaxed text-destructive">{describeSourceError(source.last_error)}</span>}
                 </span>
               </label>
             ))}
           </div>
+          {sourcesLoaded && activeSources.length === 0 && (
+            <p className="text-sm text-muted-foreground">No active sources. Review paused sources or add a source before scraping.</p>
+          )}
           {latestSourceResults.length > 0 && (
             <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
               {latestSourceResults.slice(0, 8).map((result, index) => (
