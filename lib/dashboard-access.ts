@@ -16,7 +16,7 @@ export const MODULE_ACCESS_LABELS: Record<ModuleAccessKey, string> = {
   marketing: 'Marketing',
   newsletter: 'Newsletter',
   social_media: 'Social Media',
-  openflow_ai: 'OpenFlow AI',
+  openflow_ai: 'OpenClaw AI',
   inquiry: 'Inquiry',
   industry_intelligence: 'Industry Intelligence',
 };

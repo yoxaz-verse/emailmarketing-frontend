@@ -272,6 +272,7 @@ export default function DynamicTable({
     startBulkTransition(async () => {
       try {
         const result = await bulkDeleteRows(table, Array.from(selectedIds));
+        if (!result.success) throw new Error(result.error);
         const filtered = Number(result.filteredCount ?? 0);
         if (filtered > 0) {
           toast.success(`Deleted ${result.deletedCount} record(s). ${filtered} were skipped due to scope or missing rows.`);

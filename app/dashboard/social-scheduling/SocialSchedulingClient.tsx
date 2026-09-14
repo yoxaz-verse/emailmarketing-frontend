@@ -16,7 +16,7 @@ import {
   SocialPostTemplate,
 } from './socialPostTemplates';
 
-type PlatformCode = 'meta' | 'linkedin' | 'reddit' | 'telegram' | 'whatsapp';
+type PlatformCode = 'meta' | 'facebook' | 'instagram' | 'linkedin' | 'reddit' | 'telegram' | 'whatsapp';
 type CalendarView = 'month' | 'week';
 type DialogMode = 'create' | 'edit';
 type DialogStep = 1 | 2 | 3;
@@ -126,6 +126,8 @@ type PlatformReadiness = {
 const IST_TIMEZONE = 'Asia/Kolkata';
 const PLATFORM_LABELS: Record<PlatformCode, string> = {
   meta: 'Meta',
+  facebook: 'Facebook',
+  instagram: 'Instagram',
   linkedin: 'LinkedIn',
   reddit: 'Reddit',
   telegram: 'Telegram',
@@ -133,11 +135,14 @@ const PLATFORM_LABELS: Record<PlatformCode, string> = {
 };
 const PLATFORM_COLORS: Record<PlatformCode, string> = {
   meta: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 dark:bg-blue-600/20 dark:text-blue-300 dark:border-blue-500/30',
+  facebook: 'bg-blue-500/15 text-blue-700 border-blue-500/30 dark:text-blue-300',
+  instagram: 'bg-pink-500/15 text-pink-700 border-pink-500/30 dark:text-pink-300',
   linkedin: 'bg-cyan-500/15 text-cyan-700 border-cyan-500/30 dark:bg-cyan-600/20 dark:text-cyan-300 dark:border-cyan-500/30',
   reddit: 'bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30 dark:bg-orange-600/20 dark:text-orange-300 dark:border-orange-500/30',
   telegram: 'bg-sky-500/15 text-sky-700 border-sky-500/30 dark:bg-sky-600/20 dark:text-sky-500 dark:border-sky-500/30',
   whatsapp: 'bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30 dark:bg-green-600/20 dark:text-green-300 dark:border-green-500/30',
 };
+const NEW_PLATFORM_CODES = (Object.keys(PLATFORM_LABELS) as PlatformCode[]).filter((platform) => platform !== 'meta');
 const STATUS_LABELS: Record<ScheduledSocialPost['status'], string> = {
   scheduled: 'Scheduled',
   draft_created: 'Queued',
@@ -204,7 +209,7 @@ function defaultDraftForDate(date: Date): ComposerDraft {
   return {
     scheduledDate: toDateInput(date),
     scheduledTime: toTimeInput(date),
-    platforms: { meta: false, linkedin: true, reddit: false, telegram: false, whatsapp: false },
+    platforms: { meta: false, facebook: false, instagram: false, linkedin: true, reddit: false, telegram: false, whatsapp: false },
     content: '',
     ctaUrl: '',
     hashtagsCsv: '',
@@ -213,7 +218,7 @@ function defaultDraftForDate(date: Date): ComposerDraft {
 }
 function createDraftFromPost(post: ScheduledSocialPost): ComposerDraft {
   const dt = new Date(post.scheduledAtUtc);
-  const selected: Record<PlatformCode, boolean> = { meta: false, linkedin: false, reddit: false, telegram: false, whatsapp: false };
+  const selected: Record<PlatformCode, boolean> = { meta: false, facebook: false, instagram: false, linkedin: false, reddit: false, telegram: false, whatsapp: false };
   for (const p of post.platforms) selected[p] = true;
   return {
     scheduledDate: toDateInput(dt),
@@ -435,7 +440,7 @@ export default function SocialSchedulingClient({
     }, {} as Record<PlatformCode, PlatformReadiness>);
   }, [connections, connectors, isAdmin, selectedOperatorId]);
   const readyPlatforms = useMemo(
-    () => (Object.keys(readinessByPlatform) as PlatformCode[]).filter((platform) => readinessByPlatform[platform].ready),
+    () => NEW_PLATFORM_CODES.filter((platform) => readinessByPlatform[platform].ready),
     [readinessByPlatform]
   );
   const selectedReadinessIssues = useMemo(
@@ -532,7 +537,7 @@ export default function SocialSchedulingClient({
     setOptimizationWarnings([]);
     const nextDraft = defaultDraftForDate(prefill);
     if (!readinessByPlatform.linkedin.ready) {
-      nextDraft.platforms = { meta: false, linkedin: false, reddit: false, telegram: false, whatsapp: false };
+      nextDraft.platforms = { meta: false, facebook: false, instagram: false, linkedin: false, reddit: false, telegram: false, whatsapp: false };
       const firstReady = readyPlatforms[0];
       if (firstReady) nextDraft.platforms[firstReady] = true;
     }
@@ -572,6 +577,10 @@ export default function SocialSchedulingClient({
     }
     if (selectedReadinessIssues.length > 0) {
       setError(selectedReadinessIssues.map((item) => item.message).join(' '));
+      return false;
+    }
+    if (draft.platforms.instagram && !draft.mediaCsv.split(',').some((value) => /^https:\/\//i.test(value.trim()))) {
+      setError('Instagram scheduling requires a public HTTPS image URL.');
       return false;
     }
     setError(null);
@@ -697,6 +706,8 @@ export default function SocialSchedulingClient({
   const applyTemplate = (template: SocialPostTemplate) => {
     const nextPlatforms: Record<PlatformCode, boolean> = {
       meta: false,
+      facebook: false,
+      instagram: false,
       linkedin: false,
       reddit: false,
       telegram: false,
@@ -756,7 +767,7 @@ export default function SocialSchedulingClient({
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Social Scheduling Calendar</h2>
-          <p className="text-sm text-muted-foreground">Persisted scheduling in IST with LinkedIn auto-publish when due.</p>
+          <p className="text-sm text-muted-foreground">Schedule approved posts in IST for each connected channel.</p>
         </div>
         <Button size="sm" variant="outline" onClick={() => void loadData()} disabled={loading}>
           <RefreshCw className="mr-2 h-4 w-4" />
@@ -791,7 +802,7 @@ export default function SocialSchedulingClient({
           )}
           {operatorLoadError && <div className="rounded border border-amber-500/30 bg-amber-500/10 p-2 text-sm text-amber-700 dark:text-amber-200">{operatorLoadError}</div>}
           <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
-            {(Object.keys(PLATFORM_LABELS) as PlatformCode[]).map((platform) => {
+            {NEW_PLATFORM_CODES.map((platform) => {
               const readiness = readinessByPlatform[platform];
               return (
                 <div
@@ -975,7 +986,7 @@ export default function SocialSchedulingClient({
                 <div>
                   <p className="mb-2 text-sm font-medium">Platforms</p>
                   <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-                    {(Object.keys(PLATFORM_LABELS) as PlatformCode[]).map((platform) => {
+                    {NEW_PLATFORM_CODES.map((platform) => {
                       const readiness = readinessByPlatform[platform];
                       return (
                         <label

@@ -12,7 +12,7 @@ import { Bot, Cable, CheckCircle2, CircleAlert, ExternalLink, RefreshCw, Setting
 type SocialConnectionStatus = 'connected' | 'expired' | 'missing_scope' | 'identity_required' | 'disconnected';
 type Operator = { id: string; name: string; region?: string | null };
 type OperatorLoadErrorKind = 'backend_unavailable' | 'unauthorized' | 'unknown';
-type Platform = 'linkedin' | 'meta' | 'reddit' | 'telegram' | 'whatsapp';
+type Platform = 'linkedin' | 'facebook' | 'instagram' | 'reddit' | 'telegram' | 'whatsapp';
 type NextAction = 'select_operator' | 'configure_credentials' | 'connect_account' | 'select_account' | 'enable_automation' | 'ready';
 
 type MetaPage = {
@@ -64,7 +64,8 @@ type SetupPreflight = {
 
 const PLATFORMS: { code: Platform; label: string; connectLabel: string }[] = [
   { code: 'linkedin', label: 'LinkedIn', connectLabel: 'Connect LinkedIn' },
-  { code: 'meta', label: 'Meta / Instagram', connectLabel: 'Connect Meta' },
+  { code: 'facebook', label: 'Facebook', connectLabel: 'Connect Facebook' },
+  { code: 'instagram', label: 'Instagram', connectLabel: 'Connect Instagram' },
   { code: 'reddit', label: 'Reddit', connectLabel: 'Connect Reddit' },
   { code: 'telegram', label: 'Telegram', connectLabel: 'Validate Telegram' },
   { code: 'whatsapp', label: 'WhatsApp', connectLabel: 'Validate WhatsApp' },
@@ -78,12 +79,15 @@ const PLATFORM_FIELDS: Record<Platform, { key: string; label: string; secret?: b
     { key: 'scopes', label: 'Scopes', placeholder: 'w_member_social' },
     { key: 'actor_urn', label: 'LinkedIn Member URN', placeholder: 'Optional advanced fallback' },
   ],
-  meta: [
+  facebook: [
+    { key: 'app_id', label: 'Meta App ID' },
+    { key: 'app_secret', label: 'Meta App Secret', secret: true },
+    { key: 'redirect_uri', label: 'Redirect URI', placeholder: 'https://your-backend.com/social/callback/meta' },
+  ],
+  instagram: [
     { key: 'app_id', label: 'App ID' },
     { key: 'app_secret', label: 'App Secret', secret: true },
     { key: 'redirect_uri', label: 'Redirect URI', placeholder: 'https://your-backend.com/social/callback/meta' },
-    { key: 'page_access_token', label: 'Page Access Token', secret: true },
-    { key: 'business_account_id', label: 'Business Account ID' },
   ],
   reddit: [
     { key: 'client_id', label: 'Client ID' },
@@ -174,6 +178,7 @@ function statusBadgeClass(platform: PlatformSetup): string {
 function platformStatusText(platform: PlatformSetup): string {
   if (platform.setup_ready) return 'Ready';
   if (platform.platform_code === 'linkedin' && platform.connection_status === 'identity_required') return 'Identity needed';
+  if ((platform.platform_code === 'facebook' || platform.platform_code === 'instagram') && platform.authorization_saved && platform.connection_status === 'identity_required') return 'Choose destination';
   if (platform.one_click_available && !platform.connected) return 'Ready to connect';
   if (!platform.credential_configured) return 'Credentials needed';
   if (!platform.connected) return 'Connect needed';
@@ -227,12 +232,16 @@ export default function SocialConnectorsClient({
   const readyCount = status.platforms.filter((platform) => platform.setup_ready).length;
   const configuredCount = status.platforms.filter((platform) => platform.credential_configured).length;
   const connectedCount = status.platforms.filter((platform) => platform.connected).length;
-  const activeOneClick = activePlatform === 'linkedin' && Boolean(activeSetup?.one_click_available);
-  const activeGlobalLinkedIn = activeOneClick && activeSetup?.credential_source !== 'operator';
+  const activeOneClick = Boolean(activeSetup?.one_click_available);
+  const activeGlobalLinkedIn = activePlatform === 'linkedin' && activeOneClick && activeSetup?.credential_source !== 'operator';
+  const activeMetaChannel = activePlatform === 'facebook' || activePlatform === 'instagram';
+  const activeGlobalMeta = activeMetaChannel && activeOneClick;
+  const activeMissingMeta = activeMetaChannel && !activeSetup?.credential_configured;
   const activeMissingLinkedIn = activePlatform === 'linkedin' && !activeSetup?.credential_configured;
 
   const nextPlatform = useMemo(() => {
-    return status.platforms.find((platform) => platform.one_click_available && !platform.connected)
+    return status.platforms.find((platform) => platform.next_action === 'select_account')
+      ?? status.platforms.find((platform) => platform.one_click_available && !platform.connected)
       ?? status.platforms.find((platform) => platform.next_action !== 'ready')
       ?? status.platforms[0]
       ?? null;
@@ -273,7 +282,7 @@ export default function SocialConnectorsClient({
   }, [loadStatus]);
 
   useEffect(() => {
-    const connectedPlatform = searchParams.get('social_connected');
+    const connectedPlatform = searchParams.get('social_connected') === 'meta' ? 'facebook' : searchParams.get('social_connected');
     const connectError = searchParams.get('social_connect_error');
     const connectErrorCode = searchParams.get('social_connect_error_code');
     if (connectedPlatform) {
@@ -286,7 +295,7 @@ export default function SocialConnectorsClient({
   }, [searchParams]);
 
   useEffect(() => {
-    const connectedPlatform = searchParams.get('social_connected') as Platform | null;
+    const connectedPlatform = (searchParams.get('social_connected') === 'meta' ? 'facebook' : searchParams.get('social_connected')) as Platform | null;
     if (!connectedPlatform || loading || status.platforms.length === 0) return;
 
     const platform = status.platforms.find((item) => item.platform_code === connectedPlatform);
@@ -312,8 +321,8 @@ export default function SocialConnectorsClient({
   useEffect(() => {
     const fields = activeSetup?.credential_fields ?? {};
     setFormValues(fields);
-    if (activeSetup?.platform_code === 'meta') {
-      setSelectedPageId(activeSetup.account_selection?.selected_page_id || activeSetup.account_selection?.pages?.[0]?.id || '');
+    if (activeSetup?.platform_code === 'facebook' || activeSetup?.platform_code === 'instagram') {
+      setSelectedPageId(activeSetup.account_selection?.selected_page_id || activeSetup.account_selection?.pages?.find((page) => activeSetup.platform_code === 'facebook' || page.instagram_business_account?.id)?.id || '');
     }
   }, [activePlatform, activeSetup]);
 
@@ -388,10 +397,11 @@ export default function SocialConnectorsClient({
         body: JSON.stringify({
           operator_id: selectedOperatorId || undefined,
           selected_page_id: selectedPageId,
-          selected_instagram_account_id: page?.instagram_business_account?.id || undefined,
+          channel: activePlatform,
+          selected_instagram_account_id: activePlatform === 'instagram' ? page?.instagram_business_account?.id || undefined : undefined,
         }),
       });
-      setMessage('Meta Page and Instagram account selection saved.');
+      setMessage(`${activePlatform === 'instagram' ? 'Instagram' : 'Facebook'} destination saved.`);
       await loadStatus();
     } catch (err: unknown) {
       setError(mapSocialConnectorError(err instanceof Error ? err.message : 'Failed to save account selection'));
@@ -451,7 +461,9 @@ export default function SocialConnectorsClient({
     ? 'Select operator'
     : status.next_action === 'ready'
       ? 'Social Engine ready'
-      : nextPlatform?.one_click_available && !nextPlatform.connected
+      : nextPlatform?.next_action === 'select_account'
+        ? `Choose ${nextPlatform.label} destination`
+        : nextPlatform?.one_click_available && !nextPlatform.connected
         ? `Connect ${nextPlatform.label}`
         : nextPlatform?.next_action === 'configure_credentials'
           ? nextPlatform.platform_code === 'linkedin'
@@ -459,9 +471,7 @@ export default function SocialConnectorsClient({
             : `Save ${nextPlatform.label} credentials`
         : nextPlatform?.next_action === 'connect_account'
           ? `Connect ${nextPlatform.label}`
-          : nextPlatform?.next_action === 'select_account'
-            ? 'Save Meta account selection'
-            : ACTION_LABELS[status.next_action] ?? 'Setup Social Engine';
+          : ACTION_LABELS[status.next_action] ?? 'Setup Social Engine';
 
   return (
     <div className="space-y-6">
@@ -679,6 +689,14 @@ export default function SocialConnectorsClient({
                   Configure the LinkedIn client ID, secret, callback, and scopes once in admin settings.
                 </p>
               </div>
+            ) : activeGlobalMeta ? (
+              <div className="rounded-md border border-green-500/30 bg-emerald-500/10 p-3 text-sm">
+                The OBAOL Meta app is configured. Authorize once, then choose this channel&apos;s destination below.
+              </div>
+            ) : activeMissingMeta ? (
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
+                Configure the shared OBAOL Meta app in Social App Settings before connecting Facebook or Instagram.
+              </div>
             ) : (
               <div className="grid gap-3">
                 {PLATFORM_FIELDS[activePlatform].map((field) => (
@@ -696,7 +714,7 @@ export default function SocialConnectorsClient({
             )}
 
             <div className="flex flex-wrap gap-2">
-              {!activeGlobalLinkedIn && !activeMissingLinkedIn && (
+              {!activeGlobalLinkedIn && !activeGlobalMeta && !activeMissingLinkedIn && !activeMissingMeta && (
                 <Button onClick={() => void saveCredentials()} disabled={saving || !canUseOperator}>
                   Save credentials
                 </Button>
@@ -713,6 +731,11 @@ export default function SocialConnectorsClient({
                 >
                   <ExternalLink className="h-4 w-4" />
                   Configure LinkedIn app
+                </Button>
+              )}
+              {activeMissingMeta && isAdmin && (
+                <Button variant="outline" onClick={() => { window.location.href = `/dashboard/admin/social-apps?operator_id=${encodeURIComponent(selectedOperatorId)}&platform=meta&scope=global`; }}>
+                  <ExternalLink className="h-4 w-4" /> Configure Meta app
                 </Button>
               )}
               <Button
@@ -736,16 +759,18 @@ export default function SocialConnectorsClient({
                     setSaving(false);
                   }
                 }}
-                disabled={saving || !(activeSetup?.authorization_saved || (activeSetup?.connection_status && activeSetup.connection_status !== 'disconnected'))}
+                disabled={saving || (activeMetaChannel
+                  ? !activeSetup?.account_selection?.selected_page_id
+                  : !(activeSetup?.authorization_saved || (activeSetup?.connection_status && activeSetup.connection_status !== 'disconnected')))}
               >
                 Disconnect
               </Button>
             </div>
 
-            {activePlatform === 'meta' && activeSetup?.connected && (
+            {activeMetaChannel && activeSetup?.authorization_saved && (
               <div className="rounded-md border border-border/60 bg-muted/30 p-3">
-                <p className="text-sm font-medium">Meta account selection</p>
-                <p className="mt-1 text-xs text-muted-foreground">Choose the Facebook Page that owns the Instagram professional account used for publishing.</p>
+                <p className="text-sm font-medium">{activePlatform === 'facebook' ? 'Facebook Page' : 'Instagram professional account'}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{activePlatform === 'facebook' ? 'Choose the Page used for Facebook publishing.' : 'Choose a Page linked to the Instagram professional account used for publishing.'}</p>
                 {activeSetup.account_selection?.discovery_error && (
                   <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">{activeSetup.account_selection.discovery_error}</p>
                 )}
@@ -754,7 +779,7 @@ export default function SocialConnectorsClient({
                   value={selectedPageId}
                   onChange={(event) => setSelectedPageId(event.target.value)}
                 >
-                  {(activeSetup.account_selection?.pages ?? []).map((page) => (
+                  {(activeSetup.account_selection?.pages ?? []).filter((page) => activePlatform === 'facebook' || Boolean(page.instagram_business_account?.id)).map((page) => (
                     <option key={page.id} value={page.id}>
                       {page.name || page.id}
                       {page.instagram_business_account?.username ? ` · @${page.instagram_business_account.username}` : ''}

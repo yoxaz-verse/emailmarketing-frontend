@@ -12,15 +12,7 @@ export type CampaignDeletePreview = {
   campaign: { id: string; name: string | null; status: string | null };
   canDelete: boolean;
   blocker?: string;
-  deletes: {
-    campaigns: 1;
-    campaign_leads: number;
-    campaign_inboxes: number;
-    campaign_voice_agents: number;
-    email_logs: number;
-    email_tracking_events: number;
-    system_events: number;
-  };
+  deletes: Record<string, number>;
   preserves: string[];
 };
 

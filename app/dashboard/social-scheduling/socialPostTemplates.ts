@@ -15,7 +15,7 @@ export type TemplateTone =
   | 'bold'
   | 'analytical';
 
-export type TemplatePlatform = 'meta' | 'linkedin' | 'reddit' | 'telegram' | 'whatsapp';
+export type TemplatePlatform = 'facebook' | 'instagram' | 'linkedin' | 'reddit' | 'telegram' | 'whatsapp';
 
 export type SocialPostTemplate = {
   id: string;
@@ -45,7 +45,7 @@ export const SOCIAL_POST_TEMPLATES: SocialPostTemplate[] = [
     name: 'Growth Milestone',
     category: 'announcement',
     tone: 'executive',
-    platforms: ['linkedin', 'meta', 'telegram'],
+    platforms: ['linkedin', 'facebook', 'telegram'],
     content:
       'We crossed an important milestone this week: {{milestone}}.\n\nFor us, this is not just a number. It is a signal that Indian SMBs are ready for outbound systems that are disciplined, measurable, and built around real conversations.\n\nThe next focus: turning more of that momentum into predictable pipeline.',
     hashtags: ['#B2BMarketing', '#SMBGrowth', '#Outbound'],
@@ -66,7 +66,7 @@ export const SOCIAL_POST_TEMPLATES: SocialPostTemplate[] = [
     name: 'Operator Feature Drop',
     category: 'product_update',
     tone: 'practical',
-    platforms: ['linkedin', 'meta', 'telegram', 'whatsapp'],
+    platforms: ['linkedin', 'facebook', 'telegram', 'whatsapp'],
     content:
       'New in Obaol: {{feature_name}}.\n\nBuilt for operators who need less guessing and more control, this update helps teams move from manual follow-up to a cleaner, more reliable workflow.\n\nUse it when you need to plan, execute, and review outreach without losing context between tools.',
     hashtags: ['#MarketingAutomation', '#SalesOps', '#ProductUpdate'],
@@ -97,7 +97,7 @@ export const SOCIAL_POST_TEMPLATES: SocialPostTemplate[] = [
     name: 'Consultation Offer',
     category: 'offer',
     tone: 'executive',
-    platforms: ['linkedin', 'meta', 'telegram', 'whatsapp'],
+    platforms: ['linkedin', 'facebook', 'telegram', 'whatsapp'],
     content:
       'We are opening a small batch of outbound workflow reviews for SMB teams this month.\n\nWe will look at list quality, sender health, campaign structure, reply handling, and where automation can remove manual drag.\n\nBest fit: teams already sending, but not getting predictable replies.',
     hashtags: ['#SMBMarketing', '#LeadGeneration', '#GrowthOps'],
@@ -108,7 +108,7 @@ export const SOCIAL_POST_TEMPLATES: SocialPostTemplate[] = [
     name: 'Live Session Invite',
     category: 'event',
     tone: 'practical',
-    platforms: ['linkedin', 'meta', 'telegram'],
+    platforms: ['linkedin', 'facebook', 'telegram'],
     content:
       'Join us for a practical session on building outbound workflows that do not fall apart after the first campaign.\n\nWe will cover sender setup, campaign timing, lead ownership, reply review, and the metrics that actually help operators improve.\n\nDate: {{date}}\nTime: {{time}}',
     hashtags: ['#Webinar', '#OutboundMarketing', '#SalesOps'],

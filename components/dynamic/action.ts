@@ -28,9 +28,13 @@ export async function deleteRow(
     table: string,
     id: string
   ) {
-    await crudServer.delete(table, id);
-    revalidatePath(`/dashboard/${table}`);
-    return { success: true };
+    try {
+      await crudServer.delete(table, id);
+      revalidatePath(`/dashboard/${table}`);
+      return { success: true as const };
+    } catch (error: any) {
+      return { success: false as const, error: error?.message || 'Delete failed' };
+    }
   }
 
 export async function getDeletePreview(
@@ -50,7 +54,11 @@ export async function bulkDeleteRows(
     throw new Error('No rows selected for bulk delete');
   }
 
-  const result = await crudServer.bulkDelete(table, uniqueIds);
-  revalidatePath(`/dashboard/${table}`);
-  return result;
+  try {
+    const result = await crudServer.bulkDelete(table, uniqueIds);
+    revalidatePath(`/dashboard/${table}`);
+    return { ...result, success: true as const };
+  } catch (error: any) {
+    return { success: false as const, error: error?.message || 'Bulk delete failed' };
+  }
 }

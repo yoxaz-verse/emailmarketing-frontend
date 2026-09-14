@@ -102,7 +102,7 @@ const moduleSections: Array<{
     { module: 'marketing', title: 'Marketing', items: marketingItems, match: 'exact' },
     { module: 'newsletter', title: 'Newsletter', items: newsletterItems, match: 'exact' },
     { module: 'social_media', title: 'Social Media', items: socialMediaItems, match: 'exact' },
-    { module: 'openflow_ai', title: 'OpenFlow AI', items: openFlowItems, match: 'prefix' },
+    { module: 'openflow_ai', title: 'OpenClaw AI', items: openFlowItems, match: 'prefix' },
     { module: 'inquiry', title: 'Inquiry', items: inquiryItems, match: 'prefix' },
     { module: 'industry_intelligence', title: 'Industry Intelligence', items: industryIntelligenceItems, match: 'prefix' },
 ];
@@ -121,30 +121,37 @@ export default function Sidebar({ role, accessFlags, mobileOpen = false, onClose
 
 const renderNavItem = (item: NavItem, isActive: boolean) => (
         <li key={item.href}>
-            <Link
-                href={item.href}
-                onClick={onClose}
-                className={cn(
-                    "flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group",
-                    isActive
-                        ? "bg-accent text-accent-foreground ring-1 ring-primary/20"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-            >
-                <div className="flex items-center gap-3">
-                    <item.icon className={cn(
-                        "h-4 w-4 transition-colors",
-                        isActive ? "text-accent-foreground" : "text-muted-foreground group-hover:text-foreground"
-                    )} />
-                    {item.label}
-                    {item.comingSoon && (
-                        <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+            {item.comingSoon ? (
+                <div aria-disabled="true" className="flex cursor-not-allowed items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground opacity-50">
+                    <div className="flex items-center gap-3">
+                        <item.icon className="h-4 w-4" />
+                        {item.label}
+                        <span className="rounded-full border border-muted-foreground/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
                             CS
                         </span>
-                    )}
+                    </div>
                 </div>
-                {isActive && <ChevronRight className="h-4 w-4" />}
-            </Link>
+            ) : (
+                <Link
+                    href={item.href}
+                    onClick={onClose}
+                    className={cn(
+                        "flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group",
+                        isActive
+                            ? "bg-accent text-accent-foreground ring-1 ring-primary/20"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                >
+                    <div className="flex items-center gap-3">
+                        <item.icon className={cn(
+                            "h-4 w-4 transition-colors",
+                            isActive ? "text-accent-foreground" : "text-muted-foreground group-hover:text-foreground"
+                        )} />
+                        {item.label}
+                    </div>
+                    {isActive && <ChevronRight className="h-4 w-4" />}
+                </Link>
+            )}
         </li>
     );
 
@@ -201,18 +208,7 @@ const renderNavItem = (item: NavItem, isActive: boolean) => (
                 {isAdmin && (
                     <div>
                         <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                            Voice AI (CS)
-                        </h3>
-                        <ul className="space-y-1">
-                            {voiceItems.map((item) => renderNavItem(item, pathname.startsWith(item.href)))}
-                        </ul>
-                    </div>
-                )}
-
-                {isAdmin && (
-                    <div>
-                        <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                            OpenFlow AI
+                            OpenClaw AI
                         </h3>
                         <ul className="space-y-1">
                             {openFlowItems.map((item) => renderNavItem(item, pathname.startsWith(item.href)))}
@@ -238,6 +234,17 @@ const renderNavItem = (item: NavItem, isActive: boolean) => (
                         </h3>
                         <ul className="space-y-1">
                             {industryIntelligenceItems.map((item) => renderNavItem(item, pathname.startsWith(item.href)))}
+                        </ul>
+                    </div>
+                )}
+
+                {isAdmin && (
+                    <div>
+                        <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+                            Voice AI (CS)
+                        </h3>
+                        <ul className="space-y-1">
+                            {voiceItems.map((item) => renderNavItem(item, pathname.startsWith(item.href)))}
                         </ul>
                     </div>
                 )}

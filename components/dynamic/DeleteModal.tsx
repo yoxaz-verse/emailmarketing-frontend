@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import type { CampaignDeletePreview } from '@/lib/crud-server';
 import { deleteRow, getDeletePreview } from "./action";
-import { executeAction } from "@/lib/action-executor";
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 
@@ -25,6 +24,7 @@ export default function DeleteModal({
   const [preview, setPreview] = useState<CampaignDeletePreview | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(table === 'campaigns');
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const isCampaignDelete = table === 'campaigns';
 
   useEffect(() => {
@@ -54,22 +54,17 @@ export default function DeleteModal({
   async function confirm() {
     if (isSubmitting || isPreviewLoading || previewError || (isCampaignDelete && preview?.canDelete === false)) return;
     setIsSubmitting(true);
+    setDeleteError(null);
     onSubmittingChange?.(true);
 
     const label = table.replace('_', ' ');
     try {
-      const res = await executeAction(
-        () => deleteRow(table, id),
-        {
-          success: `${label} deleted`,
-          error: `Failed to delete ${label}`
-        }
-      );
-
-      if (res !== undefined) {
-        onSuccess();
-        onClose();
-      }
+      const result = await deleteRow(table, id);
+      if (!result.success) throw new Error(result.error);
+      onSuccess();
+      onClose();
+    } catch (error: any) {
+      setDeleteError(error?.message || `Failed to delete ${label}`);
     } finally {
       setIsSubmitting(false);
       onSubmittingChange?.(false);
@@ -85,6 +80,12 @@ export default function DeleteModal({
         ['Send logs', preview.deletes.email_logs],
         ['Tracking events', preview.deletes.email_tracking_events],
         ['System events', preview.deletes.system_events],
+        ['Inbound reply records', preview.deletes.reply_ingest_events],
+        ['Voice calls', preview.deletes.voice_calls],
+        ['Conversations', preview.deletes.communication_conversations],
+        ['Conversation messages', preview.deletes.communication_messages],
+        ['Communication feed items', preview.deletes.communication_items],
+        ['Pending feed events', preview.deletes.communication_queue],
       ]
     : [];
 
@@ -96,7 +97,7 @@ export default function DeleteModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-card text-card-foreground border border-border p-6 rounded space-y-4 shadow-xl">
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-card text-card-foreground border border-border p-6 rounded space-y-4 shadow-xl">
         <h2 className="text-lg font-semibold">Confirm Delete</h2>
         <p className="text-sm text-muted-foreground">
           {isCampaignDelete
@@ -161,6 +162,7 @@ export default function DeleteModal({
         )}
 
         <div className="flex justify-end gap-2">
+          {deleteError && <p role="alert" className="mr-auto text-sm text-destructive">{deleteError}</p>}
           <Button
             type="button"
             variant="ghost"
