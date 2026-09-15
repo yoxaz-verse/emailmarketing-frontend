@@ -541,15 +541,20 @@ export default function SocialSchedulingClient({
       setError('Select an operator before scheduling.');
       return;
     }
-    const prefill = new Date(date);
-    if (prefill.getHours() === 0 && prefill.getMinutes() === 0) prefill.setHours(10, 0, 0, 0);
+    // Calendar cells represent Kolkata wall-clock fields, independent of browser timezone.
+    const calendarDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const calendarTime = date.getHours() === 0 && date.getMinutes() === 0
+      ? '10:00'
+      : `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
     setDialogMode('create');
     setDialogStep(1);
     setActivePostId(null);
     setSelectedTemplateId(null);
     setOptimizedOverrides({});
     setOptimizationWarnings([]);
-    const nextDraft = defaultDraftForDate(prefill);
+    const nextDraft = defaultDraftForDate(new Date());
+    nextDraft.scheduledDate = calendarDate;
+    nextDraft.scheduledTime = calendarTime;
     if (!readinessByPlatform.linkedin.ready) {
       nextDraft.platforms = { meta: false, facebook: false, instagram: false, linkedin: false, reddit: false, telegram: false, whatsapp: false };
       const firstReady = readyPlatforms[0];
