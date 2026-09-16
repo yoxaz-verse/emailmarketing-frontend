@@ -77,6 +77,7 @@ type ScheduledSocialPost = {
   id: string;
   requestId: string;
   jobIds: string[];
+  failedJobIds: string[];
   content: string;
   platforms: PlatformCode[];
   ctaUrl?: string;
@@ -381,6 +382,7 @@ function normalizeJobs(jobs: BackendJob[]): ScheduledSocialPost[] {
       id: requestId,
       requestId,
       jobIds: targetRows.map((row) => row.id),
+      failedJobIds: targetRows.filter((row) => row.status === 'failed').map((row) => row.id),
       content: String(postInput.content ?? ''),
       platforms,
       ctaUrl: postInput.cta_url || undefined,
@@ -423,6 +425,7 @@ export default function SocialSchedulingClient({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
+  const [retryingPostId, setRetryingPostId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [optimizedOverrides, setOptimizedOverrides] = useState<Partial<Record<PlatformCode, PlatformOverride>>>({});
@@ -751,6 +754,24 @@ export default function SocialSchedulingClient({
       ? `${unavailable.map((platform) => PLATFORM_LABELS[platform]).join(', ')} not selected because the platform is not ready.`
       : null);
   };
+  const retryPost = async (post: ScheduledSocialPost) => {
+    if (post.failedJobIds.length === 0 || retryingPostId) return;
+    setRetryingPostId(post.id);
+    setError(null);
+    setSuccess(null);
+    try {
+      for (const jobId of post.failedJobIds) {
+        await clientFetch(`/social/publish-jobs/${encodeURIComponent(jobId)}/retry`, { method: 'POST' });
+      }
+      setSuccess(post.failedJobIds.length === 1 ? 'Publish retry completed.' : 'Failed channel retries completed.');
+      await loadData();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Publish retry failed');
+      await loadData();
+    } finally {
+      setRetryingPostId(null);
+    }
+  };
   const renderPostChip = (post: ScheduledSocialPost) => {
     const date = new Date(post.scheduledAtUtc);
     return (
@@ -777,6 +798,21 @@ export default function SocialSchedulingClient({
         </div>
         <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{post.content || '(No content)'}</p>
         {post.error && <p className="mt-1 line-clamp-1 text-[10px] text-red-600">{post.error}</p>}
+        {post.failedJobIds.length > 0 && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="mt-2 h-7 text-[11px]"
+            disabled={retryingPostId !== null}
+            onClick={(event) => {
+              event.stopPropagation();
+              void retryPost(post);
+            }}
+          >
+            {retryingPostId === post.id ? 'Retrying...' : 'Retry publish'}
+          </Button>
+        )}
       </div>
     );
   };
@@ -956,6 +992,18 @@ export default function SocialSchedulingClient({
                 {post.platforms.map((platform) => <span key={`${post.id}-${platform}`} className={`rounded border px-1.5 py-0.5 text-[10px] ${PLATFORM_COLORS[platform]}`}>{PLATFORM_LABELS[platform]}</span>)}
               </div>
               {post.error && <p className="mt-2 text-xs text-red-600">{post.error}</p>}
+              {post.failedJobIds.length > 0 && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="mt-3"
+                  disabled={retryingPostId !== null}
+                  onClick={() => void retryPost(post)}
+                >
+                  {retryingPostId === post.id ? 'Retrying publish...' : 'Retry publish'}
+                </Button>
+              )}
             </div>
           ))}
         </CardContent>

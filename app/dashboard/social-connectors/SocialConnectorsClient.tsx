@@ -92,7 +92,7 @@ const PLATFORM_FIELDS: Record<Platform, { key: string; label: string; secret?: b
   reddit: [
     { key: 'client_id', label: 'Client ID' },
     { key: 'client_secret', label: 'Client Secret', secret: true },
-    { key: 'redirect_uri', label: 'Redirect URI', placeholder: 'https://your-backend.com/social/callback/reddit' },
+    { key: 'redirect_uri', label: 'Redirect URI', placeholder: 'https://emarketing-backend.infra.obaol.com/social/callback/reddit' },
     { key: 'user_agent', label: 'User Agent', placeholder: 'obaol-social-connector/1.0 by u_username' },
   ],
   telegram: [
@@ -246,8 +246,10 @@ export default function SocialConnectorsClient({
   const activeGlobalLinkedIn = activePlatform === 'linkedin' && activeOneClick && activeSetup?.credential_source !== 'operator';
   const activeMetaChannel = activePlatform === 'facebook' || activePlatform === 'instagram';
   const activeGlobalMeta = activeMetaChannel && activeOneClick;
+  const activeGlobalReddit = activePlatform === 'reddit' && activeOneClick && activeSetup?.credential_source !== 'operator';
   const activeMissingMeta = activeMetaChannel && !activeSetup?.credential_configured;
   const activeMissingLinkedIn = activePlatform === 'linkedin' && !activeSetup?.credential_configured;
+  const activeMissingReddit = activePlatform === 'reddit' && !activeSetup?.credential_configured;
 
   const nextPlatform = useMemo(() => {
     return status.platforms.find((platform) => platform.next_action === 'select_account')
@@ -464,6 +466,14 @@ export default function SocialConnectorsClient({
         setError('LinkedIn one-click connect is not configured yet. Ask an admin to configure the global OBAOL LinkedIn app.');
         return;
       }
+      if (target.platform_code === 'reddit') {
+        if (isAdmin) {
+          window.location.href = `/dashboard/admin/social-apps?operator_id=${encodeURIComponent(selectedOperatorId)}&platform=reddit&scope=global`;
+          return;
+        }
+        setError('Reddit one-click connect is not configured yet. Ask an admin to configure the global OBAOL Reddit app.');
+        return;
+      }
       return saveCredentials(target.platform_code);
     }
     if (target.next_action === 'connect_account') return startConnect(target.platform_code);
@@ -483,6 +493,8 @@ export default function SocialConnectorsClient({
         : nextPlatform?.next_action === 'configure_credentials'
           ? nextPlatform.platform_code === 'linkedin'
             ? 'Configure LinkedIn app'
+            : nextPlatform.platform_code === 'reddit'
+              ? 'Configure Reddit app'
             : `Save ${nextPlatform.label} credentials`
         : nextPlatform?.next_action === 'connect_account'
           ? `Connect ${nextPlatform.label}`
@@ -616,7 +628,11 @@ export default function SocialConnectorsClient({
               >
                 <button
                   type="button"
-                  onClick={() => setActivePlatform(platform.platform_code)}
+                  onClick={() => {
+                    setActivePlatform(platform.platform_code);
+                    setMessage(null);
+                    setError(null);
+                  }}
                   className="block w-full rounded-sm text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -722,6 +738,16 @@ export default function SocialConnectorsClient({
               <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
                 Configure the shared OBAOL Meta app in Social App Settings before connecting Facebook or Instagram.
               </div>
+            ) : activeGlobalReddit ? (
+              <div className="rounded-md border border-green-500/30 bg-emerald-500/10 p-3">
+                <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200">Reddit is ready for one-click connection.</p>
+                <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-300">OBAOL&apos;s Reddit app is configured. The operator only needs to approve identity and submit access.</p>
+              </div>
+            ) : activeMissingReddit ? (
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Reddit one-click connect needs the global OBAOL app first.</p>
+                <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">Configure the Reddit client ID, secret, callback, and user agent once in admin settings.</p>
+              </div>
             ) : (
               <div className="grid gap-3">
                 {PLATFORM_FIELDS[activePlatform].map((field) => (
@@ -739,7 +765,7 @@ export default function SocialConnectorsClient({
             )}
 
             <div className="flex flex-wrap gap-2">
-              {!activeGlobalLinkedIn && !activeGlobalMeta && !activeMissingLinkedIn && !activeMissingMeta && (
+              {!activeGlobalLinkedIn && !activeGlobalMeta && !activeGlobalReddit && !activeMissingLinkedIn && !activeMissingMeta && !activeMissingReddit && (
                 <Button onClick={() => void saveCredentials()} disabled={saving || !canUseOperator}>
                   Save credentials
                 </Button>
@@ -761,6 +787,11 @@ export default function SocialConnectorsClient({
               {activeMissingMeta && isAdmin && (
                 <Button variant="outline" onClick={() => { window.location.href = `/dashboard/admin/social-apps?operator_id=${encodeURIComponent(selectedOperatorId)}&platform=meta&scope=global`; }}>
                   <ExternalLink className="h-4 w-4" /> Configure Meta app
+                </Button>
+              )}
+              {activeMissingReddit && isAdmin && (
+                <Button variant="outline" onClick={() => { window.location.href = `/dashboard/admin/social-apps?operator_id=${encodeURIComponent(selectedOperatorId)}&platform=reddit&scope=global`; }}>
+                  <ExternalLink className="h-4 w-4" /> Configure Reddit app
                 </Button>
               )}
               <Button
