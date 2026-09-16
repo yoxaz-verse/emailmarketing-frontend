@@ -128,7 +128,7 @@ function mapSocialConnectorError(message: string, code?: string | null): string 
     return 'Supabase is unavailable from the backend right now. Check backend connectivity, then try LinkedIn again.';
   }
   if (normalizedCode === 'social_oauth_schema_missing') {
-    return 'Social OAuth tables are missing. Apply the social OAuth schema migration, restart backend, then try again.';
+    return 'Social connector setup is being updated. Apply the latest social OAuth database migration, then try connecting again.';
   }
   if (normalizedCode === 'provider_config_missing' || normalizedCode === 'provider_config_error') {
     return 'LinkedIn one-click connect needs the global OBAOL LinkedIn app credentials first.';
@@ -149,8 +149,15 @@ function mapSocialConnectorError(message: string, code?: string | null): string 
   ) {
     return 'Backend Supabase auth is misconfigured. Update the Supabase service role key/project config, restart backend, then try LinkedIn again.';
   }
-  if (lower.includes('social oauth schema') || lower.includes('social_oauth_schema_missing')) {
-    return 'Social OAuth tables are missing. Apply the social OAuth schema migration, restart backend, then try again.';
+  if (
+    lower.includes('social oauth schema') ||
+    lower.includes('social_oauth_schema_missing') ||
+    (lower.includes('social_oauth_states') && lower.includes('requested_platform'))
+  ) {
+    return 'Social connector setup is being updated. Apply the latest social OAuth database migration, then try connecting again.';
+  }
+  if (lower.includes('nonexistent_version') || lower.includes('rejected api version') || lower.includes('version') && lower.includes('not active')) {
+    return 'LinkedIn publishing used an expired API version. Update the backend LinkedIn API version and retry.';
   }
   if (lower.includes('backend unavailable') || lower.includes('failed to fetch') || lower.includes('timed out')) {
     return 'Backend is unavailable. Start or restart the backend service, then refresh this setup page.';

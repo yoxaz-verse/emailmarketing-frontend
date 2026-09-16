@@ -1,160 +1,91 @@
 import { cookies } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ShieldCheck, Mail, Network, BarChart3, Fingerprint, Zap } from "lucide-react";
+import { ArrowRight, BarChart3, Check, Fingerprint, Mail, Network, ShieldCheck, Zap } from "lucide-react";
 import { isTokenExpired } from "@/lib/auth-session";
+
+const capabilities = [
+  { icon: Fingerprint, title: "Lead validation", text: "Keep risky and low-quality contacts out of your sending pipeline." },
+  { icon: Zap, title: "Adaptive warm-up", text: "Ramp inbox volume safely as reputation and capacity improve." },
+  { icon: ShieldCheck, title: "Domain protection", text: "Enforce sending limits and protect the infrastructure behind every campaign." },
+  { icon: Mail, title: "Reply intelligence", text: "Detect replies and classify intent without manual inbox triage." },
+  { icon: Network, title: "Bounce control", text: "Suppress failures automatically before they damage future delivery." },
+  { icon: BarChart3, title: "Operator visibility", text: "See health, throughput, and risk across the entire outbound operation." },
+] as const;
+
+const principles = ["Validate before sending", "Protect every inbox and domain", "Turn replies into action"] as const;
 
 export default async function LandingPage() {
   const cookieStore = await cookies();
-  const token = cookieStore.get('auth_token')?.value;
+  const token = cookieStore.get("auth_token")?.value;
   const hasToken = Boolean(token) && !isTokenExpired(token);
-
-  const ctaHref = hasToken ? '/api/auth/enter-dashboard' : '/login';
-  const ctaLabel = hasToken ? 'Go to Dashboard' : 'Sign in';
-
-  const capabilities = [
-    { icon: Fingerprint, text: "Lead validation & hygiene enforcement" },
-    { icon: Zap, text: "Inbox warm-up with adaptive ramping" },
-    { icon: ShieldCheck, text: "Sending infrastructure & domain protection" },
-    { icon: Mail, text: "Reply detection & intent classification" },
-    { icon: Network, text: "Bounce intelligence & auto-suppression" },
-    { icon: BarChart3, text: "Operator-level monitoring & controls" },
-  ];
+  const ctaHref = hasToken ? "/api/auth/enter-dashboard" : "/login";
+  const ctaLabel = hasToken ? "Open dashboard" : "Sign in to OBAOL";
 
   return (
-    <div className="min-h-screen relative overflow-hidden flex flex-col justify-between">
-      
-      {/* Background Decorative Elements */}
-      <div className="absolute top-0 inset-x-0 h-full w-full pointer-events-none overflow-hidden -z-10">
-        <div className="absolute top-[-18%] left-[-10%] w-[48%] h-[48%] bg-primary/14 blur-[120px]" />
-        <div className="absolute bottom-[-12%] right-[-8%] w-[38%] h-[38%] bg-white/6 blur-[120px]" />
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
-      </div>
-
-      <main className="flex-grow">
-        {/* HERO SECTION */}
-        <section className="px-6 py-14 md:py-20 max-w-7xl mx-auto relative z-10 animate-fade-in-up">
-          <div className="max-w-4xl">
-            <Image
-              src="/logo.png"
-              alt="OBAOL"
-              width={220}
-              height={114}
-              priority
-              className="mb-6 h-auto w-36 md:w-48"
-            />
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass-card border-primary/20 text-xs font-medium text-primary mb-6">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-              </span>
-              OBAOL OVERVIEW
-            </div>
-
-            <h1 className="text-5xl md:text-6xl font-bold leading-tight tracking-tight">
-              Outbound Email
-              <br />
-              <span className="text-gradient">
-                Built as Infrastructure
-              </span>
-            </h1>
-
-            <p className="mt-5 text-lg md:text-xl text-muted-foreground max-w-2xl leading-relaxed">
-              OBAOL is not a campaign tool. It is an execution system designed for outbound teams that operate at scale — combining lead validation, warm-up, delivery control, monitoring, and compliance into a single operational layer.
-            </p>
-
-            {/* SMART CTA */}
-            <div className="mt-8 flex items-center gap-4">
-              <Link
-                href={ctaHref}
-                className="group relative inline-flex items-center justify-center rounded-xl bg-primary text-primary-foreground px-8 py-4 text-base font-semibold hover:bg-primary/90 transition-all hover:scale-105 active:scale-95 shadow-[0_0_36px_-12px_var(--color-primary)]"
-              >
-                {ctaLabel}
-                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-              <Link href="/developers/api" className="inline-flex items-center rounded-xl border border-border px-6 py-4 font-semibold hover:bg-muted">API guide</Link>
-            </div>
+    <div className="landing-page min-h-screen overflow-hidden bg-background">
+      <a href="#main-content" className="skip-link">Skip to content</a>
+      <header className="relative z-20 border-b border-border/60 bg-background/80 backdrop-blur-md">
+        <nav aria-label="Primary navigation" className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 sm:px-8">
+          <Link href="/" aria-label="OBAOL home" className="rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
+            <Image src="/logo.png" alt="OBAOL" width={138} height={72} priority className="h-auto w-24 sm:w-28" />
+          </Link>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <Link href="/developers/api" className="hidden rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">API guide</Link>
+            <Link href={ctaHref} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:px-5">{hasToken ? "Dashboard" : "Sign in"}</Link>
           </div>
-        </section>
+        </nav>
+      </header>
 
-        {/* VALUE GRID */}
-        <section className="px-6 py-24 relative z-10">
-          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
-            
-            <div className="glass-card rounded-2xl p-8 hover:-translate-y-2 transition-all duration-300 hover:border-primary/50 group">
-              <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                <ShieldCheck className="h-6 w-6" />
+      <main id="main-content">
+        <section className="hero-grid relative border-b border-border/50">
+          <div className="relative mx-auto grid max-w-7xl gap-12 px-5 py-20 sm:px-8 sm:py-28 lg:grid-cols-[1.15fr_.85fr] lg:items-center lg:py-36">
+            <div className="animate-fade-in-up">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/[0.07] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />Outbound operations platform
               </div>
-              <h3 className="text-2xl font-semibold">Execution, Not Automation</h3>
-              <p className="mt-4 text-muted-foreground leading-relaxed">
-                OBAOL does not blindly send emails. Every layer — from inbox health to lead authenticity — is designed to protect deliverability and reputation.
-              </p>
+              <h1 className="max-w-4xl text-5xl font-bold leading-[0.98] tracking-[-0.045em] sm:text-6xl lg:text-7xl">Reliable outbound starts <span className="text-gradient">before send.</span></h1>
+              <p className="mt-7 max-w-2xl text-lg leading-8 text-muted-foreground sm:text-xl">OBAOL unifies lead validation, inbox health, delivery controls, reply intelligence, and compliance in one operational layer.</p>
+              <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Link href={ctaHref} className="group inline-flex min-h-12 items-center justify-center rounded-xl bg-primary px-6 font-semibold text-primary-foreground shadow-[0_14px_40px_-18px_var(--color-primary)] transition hover:-translate-y-0.5 hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{ctaLabel}<ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" /></Link>
+                <Link href="#capabilities" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-border bg-card/60 px-6 font-semibold transition hover:border-primary/40 hover:bg-card">Explore capabilities</Link>
+              </div>
             </div>
 
-            <div className="glass-card rounded-2xl p-8 hover:-translate-y-2 transition-all duration-300 hover:border-primary/50 group">
-              <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                <Network className="h-6 w-6" />
-              </div>
-              <h3 className="text-2xl font-semibold">Built for Operators</h3>
-              <p className="mt-4 text-muted-foreground leading-relaxed">
-                Designed for founders, BD heads, SDR managers, and outbound operators who need predictable outcomes, not vanity metrics.
-              </p>
-            </div>
-
-            <div className="glass-card rounded-2xl p-8 hover:-translate-y-2 transition-all duration-300 hover:border-primary/50 group">
-              <div className="h-12 w-12 rounded-xl bg-white/5 text-primary flex items-center justify-center mb-6 ring-1 ring-primary/20 group-hover:scale-110 transition-transform">
-                <BarChart3 className="h-6 w-6" />
-              </div>
-              <h3 className="text-2xl font-semibold">System-Level Control</h3>
-              <p className="mt-4 text-muted-foreground leading-relaxed">
-                From warm-up pacing to sending limits, from reply classification to bounce intelligence — control exists at the system level.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* CAPABILITIES */}
-        <section className="px-6 py-24 relative z-10">
-          <div className="max-w-7xl mx-auto glass-panel rounded-3xl p-8 md:p-16 border-t border-primary/20 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
-            
-            <h2 className="text-3xl md:text-5xl font-bold mb-12">Core Capabilities</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10">
-              {capabilities.map((item, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-4 bg-background/50 hover:bg-background/80 transition-colors border border-border rounded-2xl p-6 group cursor-default"
-                >
-                  <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                    <item.icon className="h-5 w-5" />
-                  </div>
-                  <p className="font-medium text-foreground">{item.text}</p>
+            <aside aria-label="OBAOL operating principles" className="relative lg:pl-10">
+              <div className="status-card rounded-3xl border border-border/80 bg-card/80 p-6 shadow-2xl shadow-black/15 sm:p-8">
+                <div className="flex items-center justify-between gap-4 border-b border-border/70 pb-5">
+                  <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Operating layer</p><p className="mt-1 text-xl font-semibold">Built for control</p></div>
+                  <div className="flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-500"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />System ready</div>
                 </div>
-              ))}
+                <div className="space-y-3 py-6">
+                  {principles.map((item) => <div key={item} className="flex items-center gap-3 rounded-2xl border border-border/60 bg-background/50 p-4"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><Check className="h-4 w-4" aria-hidden="true" /></span><span className="font-medium">{item}</span></div>)}
+                </div>
+                <p className="border-t border-border/70 pt-5 text-sm leading-6 text-muted-foreground">One system of record for the decisions that protect deliverability and turn outbound activity into measurable outcomes.</p>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section className="border-b border-border/50 bg-card/30" aria-label="Platform benefits">
+          <div className="mx-auto grid max-w-7xl divide-y divide-border/60 px-5 sm:px-8 md:grid-cols-3 md:divide-x md:divide-y-0">
+            {[["One workflow", "Replace disconnected validation, sending, and monitoring tools."], ["Safer scale", "Build volume around infrastructure health instead of guesswork."], ["Clearer action", "Give operators the signals they need without vanity metrics."]].map(([title, text]) => <div key={title} className="py-8 md:px-8 md:first:pl-0 md:last:pr-0"><p className="font-semibold text-primary">{title}</p><p className="mt-2 max-w-sm leading-7 text-muted-foreground">{text}</p></div>)}
+          </div>
+        </section>
+
+        <section id="capabilities" className="scroll-mt-24 px-5 py-20 sm:px-8 sm:py-28">
+          <div className="mx-auto max-w-7xl">
+            <div className="max-w-2xl"><p className="text-sm font-semibold uppercase tracking-[0.16em] text-primary">Core capabilities</p><h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-5xl">Every critical control, in one place.</h2><p className="mt-5 text-lg leading-8 text-muted-foreground">A focused operating system for teams that care about reputation, consistency, and outcomes.</p></div>
+            <div className="mt-12 grid gap-px overflow-hidden rounded-3xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
+              {capabilities.map((item) => <article key={item.title} className="group bg-background p-7 transition-colors hover:bg-card sm:p-8"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-transform group-hover:-translate-y-0.5"><item.icon className="h-5 w-5" aria-hidden="true" /></div><h3 className="mt-6 text-xl font-semibold">{item.title}</h3><p className="mt-3 leading-7 text-muted-foreground">{item.text}</p></article>)}
             </div>
           </div>
         </section>
 
-        {/* POSITIONING BLOCK */}
-        <section className="px-6 py-32 relative z-10 text-center">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-4xl md:text-6xl font-bold leading-tight">
-              This is not mass email.
-              <br />
-              <span className="text-gradient">This is outbound execution.</span>
-            </h2>
-
-            <p className="mt-8 text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-              OBAOL exists to replace fragile stacks, disconnected tools, and guesswork — with a single, disciplined execution layer.
-            </p>
-          </div>
-        </section>
+        <section className="px-5 pb-20 sm:px-8 sm:pb-28"><div className="mx-auto max-w-7xl overflow-hidden rounded-3xl border border-primary/20 bg-primary/[0.07] px-6 py-12 text-center sm:px-12 sm:py-16"><h2 className="text-3xl font-bold tracking-tight sm:text-5xl">Run outbound like infrastructure.</h2><p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">Move from a fragile stack of tools to one disciplined execution layer.</p><Link href={ctaHref} className="group mt-8 inline-flex min-h-12 items-center justify-center rounded-xl bg-primary px-6 font-semibold text-primary-foreground transition hover:bg-primary/90">{ctaLabel}<ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" /></Link></div></section>
       </main>
 
-      <footer className="px-6 py-8 relative z-10 border-t border-border/50 text-center text-sm text-muted-foreground backdrop-blur-md bg-background/50">
-        © {new Date().getFullYear()} OBAOL · Cold Email Marketing Infrastructure
-      </footer>
+      <footer className="border-t border-border/60 px-5 py-8 text-sm text-muted-foreground sm:px-8"><div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p>© {new Date().getFullYear()} OBAOL. Outbound email infrastructure.</p><Link href="/developers/api" className="transition-colors hover:text-foreground">Developer API</Link></div></footer>
     </div>
   );
 }

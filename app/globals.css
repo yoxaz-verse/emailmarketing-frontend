@@ -151,7 +151,54 @@
       transparent 70%
     );
   }
+  html {
+    scroll-behavior: smooth;
+  }
 }
+
+.landing-page {
+  background-image:
+    radial-gradient(circle at 72% 8%, oklch(0.72 0.145 75 / 0.12), transparent 28rem),
+    linear-gradient(to bottom, transparent, oklch(0.72 0.145 75 / 0.025));
+}
+
+.hero-grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(to right, var(--border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom, black, transparent 85%);
+}
+
+.status-card { position: relative; }
+.status-card::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(135deg, oklch(0.72 0.145 75 / 0.32), transparent 45%);
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 100;
+  transform: translateY(-180%);
+  border-radius: 0.5rem;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 0.65rem 1rem;
+  font-weight: 700;
+  transition: transform 150ms ease;
+}
+.skip-link:focus { transform: translateY(0); }
 
 /* Glassmorphism Utilities */
 .glass {
@@ -194,6 +241,15 @@
   }
   50% {
     opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
