@@ -120,6 +120,10 @@ function toTitle(value: string): string {
 }
 
 function mapSocialConnectorError(message: string, code?: string | null): string {
+  const lower = String(message || '').toLowerCase();
+  if (lower.includes("can't load url") && (lower.includes("app's domains") || lower.includes('app domains'))) {
+    return 'Meta rejected the configured OAuth callback domain. Add the callback domain to App Domains and the exact callback URL to Valid OAuth Redirect URIs in the Meta app, then reconnect.';
+  }
   const normalizedCode = String(code ?? '').trim().toLowerCase();
   if (normalizedCode === 'auth_service_misconfigured') {
     return 'Backend Supabase auth is misconfigured. Update the Supabase service role key/project config, restart backend, then try LinkedIn again.';
@@ -140,7 +144,6 @@ function mapSocialConnectorError(message: string, code?: string | null): string 
     return 'LinkedIn rejected the connection because required permissions are missing or were denied. Confirm the app has w_member_social, then reconnect.';
   }
 
-  const lower = String(message || '').toLowerCase();
   if (
     lower.includes('supabase rejected') ||
     lower.includes('unregistered api key') ||
@@ -292,6 +295,11 @@ export default function SocialConnectorsClient({
     const connectedPlatform = searchParams.get('social_connected') === 'meta' ? 'facebook' : searchParams.get('social_connected');
     const connectError = searchParams.get('social_connect_error');
     const connectErrorCode = searchParams.get('social_connect_error_code');
+    if (!canUseOperator || (isAdmin && callbackOperatorId && callbackOperatorId !== selectedOperatorId)) {
+      setMessage(null);
+      setError(null);
+      return;
+    }
     if (connectedPlatform) {
       setMessage(`${toTitle(connectedPlatform)} authorization returned. Checking connection status...`);
       setActivePlatform(connectedPlatform as Platform);
@@ -299,7 +307,7 @@ export default function SocialConnectorsClient({
     if (connectError) {
       setError(mapSocialConnectorError(connectError, connectErrorCode));
     }
-  }, [searchParams]);
+  }, [callbackOperatorId, canUseOperator, isAdmin, searchParams, selectedOperatorId]);
 
   useEffect(() => {
     const connectedPlatform = (searchParams.get('social_connected') === 'meta' ? 'facebook' : searchParams.get('social_connected')) as Platform | null;
@@ -518,9 +526,18 @@ export default function SocialConnectorsClient({
                 className="w-full rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-sm outline-none focus:border-ring/60 dark:bg-black/20"
                 value={selectedOperatorId}
                 onChange={(event) => {
-                  setSelectedOperatorId(event.target.value);
+                  const nextOperatorId = event.target.value;
+                  setSelectedOperatorId(nextOperatorId);
                   setMessage(null);
                   setError(null);
+                  if (!nextOperatorId) {
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('social_connected');
+                    url.searchParams.delete('social_connect_error');
+                    url.searchParams.delete('social_connect_error_code');
+                    url.searchParams.delete('operator_id');
+                    window.history.replaceState(window.history.state, '', url.toString());
+                  }
                 }}
               >
                 <option value="">Select operator</option>
@@ -540,10 +557,10 @@ export default function SocialConnectorsClient({
             </div>
           )}
 
-          {message && <div className="rounded border border-green-500/30 bg-emerald-500/10 p-2 text-sm text-emerald-700 dark:text-emerald-300">{message}</div>}
-          {error && <div className="rounded border border-red-500/30 bg-rose-500/10 p-2 text-sm text-rose-700 dark:text-rose-300">{error}</div>}
+          {canUseOperator && message && <div className="rounded border border-green-500/30 bg-emerald-500/10 p-2 text-sm text-emerald-700 dark:text-emerald-300">{message}</div>}
+          {canUseOperator && error && <div className="rounded border border-red-500/30 bg-rose-500/10 p-2 text-sm text-rose-700 dark:text-rose-300">{error}</div>}
 
-          <div className="grid gap-3 md:grid-cols-4">
+          {canUseOperator && <div className="grid gap-3 md:grid-cols-4">
             <div className="rounded-md border border-border/60 bg-muted/30 p-3">
               <p className="text-xs text-muted-foreground">Credentials</p>
               <p className="mt-1 text-xl font-semibold">{configuredCount}/{status.platforms.length || PLATFORMS.length}</p>
@@ -560,10 +577,11 @@ export default function SocialConnectorsClient({
               <p className="text-xs text-muted-foreground">Automation</p>
               <p className="mt-1 text-xl font-semibold">{status.automation.enabled ? 'On' : 'Off'}</p>
             </div>
-          </div>
+          </div>}
         </CardContent>
       </Card>
 
+      {canUseOperator && <>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.8fr)]">
         <Card>
           <CardHeader>
@@ -832,6 +850,7 @@ export default function SocialConnectorsClient({
           </div>
         </CardContent>
       </Card>
+      </>}
     </div>
   );
 }
