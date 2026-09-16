@@ -19,7 +19,7 @@ import {
 
 type PlatformCode = 'meta' | 'facebook' | 'instagram' | 'linkedin' | 'reddit' | 'telegram' | 'whatsapp';
 type CalendarView = 'month' | 'week';
-type DialogMode = 'create' | 'edit';
+type DialogMode = 'create' | 'edit' | 'reschedule' | 'view';
 type DialogStep = 1 | 2 | 3;
 
 type Operator = { id: string; name: string; region?: string | null };
@@ -66,6 +66,8 @@ type BackendJob = {
   updated_at?: string | null;
   error_message?: string | null;
   provider_error_message?: string | null;
+  external_post_id?: string | null;
+  external_post_url?: string | null;
   social_publish_requests?: {
     id: string;
     operator_id?: string | null;
@@ -78,6 +80,15 @@ type ScheduledSocialPost = {
   requestId: string;
   jobIds: string[];
   failedJobIds: string[];
+  channelOutcomes: Array<{
+    jobId: string;
+    platform: PlatformCode;
+    status: BackendJob['status'];
+    externalPostId?: string | null;
+    externalPostUrl?: string | null;
+  }>;
+  publishedPlatforms: PlatformCode[];
+  reschedulablePlatforms: PlatformCode[];
   content: string;
   platforms: PlatformCode[];
   ctaUrl?: string;
@@ -225,6 +236,12 @@ function defaultDraftForDate(date: Date): ComposerDraft {
     hashtagsCsv: '',
     mediaCsv: '',
   };
+}
+
+function nextScheduleSlot(): Date {
+  const next = new Date(Date.now() + 15 * 60_000);
+  next.setMinutes(Math.ceil(next.getMinutes() / 15) * 15, 0, 0);
+  return next;
 }
 function createDraftFromPost(post: ScheduledSocialPost): ComposerDraft {
   const dt = new Date(post.scheduledAtUtc);
@@ -383,6 +400,15 @@ function normalizeJobs(jobs: BackendJob[]): ScheduledSocialPost[] {
       requestId,
       jobIds: targetRows.map((row) => row.id),
       failedJobIds: targetRows.filter((row) => row.status === 'failed').map((row) => row.id),
+      channelOutcomes: targetRows.map((row) => ({
+        jobId: row.id,
+        platform: row.platform_code,
+        status: row.status,
+        externalPostId: row.external_post_id,
+        externalPostUrl: row.external_post_url,
+      })),
+      publishedPlatforms: targetRows.filter((row) => row.status === 'published').map((row) => row.platform_code),
+      reschedulablePlatforms: targetRows.filter((row) => row.status !== 'published').map((row) => row.platform_code),
       content: String(postInput.content ?? ''),
       platforms,
       ctaUrl: postInput.cta_url || undefined,
@@ -462,6 +488,10 @@ export default function SocialSchedulingClient({
     [readinessByPlatform, selectedPlatforms]
   );
   const hasAnyReadyPlatform = readyPlatforms.length > 0;
+  const activePost = useMemo(
+    () => posts.find((post) => post.requestId === activePostId) ?? null,
+    [activePostId, posts],
+  );
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -569,13 +599,26 @@ export default function SocialSchedulingClient({
     setSuccess(null);
   };
   const openComposerForEdit = (post: ScheduledSocialPost) => {
-    setDialogMode('edit');
-    setDialogStep(2);
+    const fullyPublished = post.channelOutcomes.length > 0 && post.channelOutcomes.every((outcome) => outcome.status === 'published');
+    const past = new Date(post.scheduledAtUtc).getTime() <= Date.now();
+    const mustReschedule = !fullyPublished && (past || post.publishedPlatforms.length > 0 || ['failed', 'manual_action_required'].includes(post.status));
+    const mode: DialogMode = fullyPublished ? 'view' : mustReschedule ? 'reschedule' : 'edit';
+    setDialogMode(mode);
+    setDialogStep(mode === 'view' ? 3 : mode === 'reschedule' ? 1 : 2);
     setActivePostId(post.requestId);
     setSelectedTemplateId(null);
     setOptimizedOverrides(post.platformOverrides ?? {});
     setOptimizationWarnings([]);
-    setDraft(createDraftFromPost(post));
+    const nextDraft = createDraftFromPost(post);
+    if (mode === 'reschedule') {
+      const next = nextScheduleSlot();
+      nextDraft.scheduledDate = toDateInput(next);
+      nextDraft.scheduledTime = toTimeInput(next);
+      for (const platform of NEW_PLATFORM_CODES) {
+        nextDraft.platforms[platform] = post.reschedulablePlatforms.includes(platform);
+      }
+    }
+    setDraft(nextDraft);
     setComposerOpen(true);
     setError(null);
     setSuccess(null);
@@ -646,6 +689,14 @@ export default function SocialSchedulingClient({
           method: 'PATCH',
           body: JSON.stringify(payload),
         });
+      } else if (dialogMode === 'reschedule' && activePostId) {
+        await clientFetch(`/social/publish-requests/${encodeURIComponent(activePostId)}/reschedule`, {
+          method: 'POST',
+          body: JSON.stringify({
+            ...payload,
+            idempotency_key: `social-reschedule-${activePostId}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          }),
+        });
       } else {
         await clientFetch('/social/publish-jobs', {
           method: 'POST',
@@ -659,7 +710,10 @@ export default function SocialSchedulingClient({
       setActivePostId(null);
       setOptimizedOverrides({});
       setOptimizationWarnings([]);
-      setSuccess(Object.keys(overrides).length > 0 ? 'Optimized schedule saved.' : 'Schedule saved.');
+      setSuccess(dialogMode === 'reschedule'
+        ? 'A new future schedule was created. The original post remains unchanged.'
+        : Object.keys(overrides).length > 0 ? 'Optimized schedule saved.' : 'Schedule saved.');
+      if (dialogMode === 'reschedule') setAnchorDate(new Date(payload.post_input.scheduled_at));
       await loadData();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save schedule');
@@ -1014,17 +1068,36 @@ export default function SocialSchedulingClient({
           <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-xl border border-border/60 bg-background p-5 shadow-2xl">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-lg font-semibold">{dialogMode === 'edit' ? 'Edit Scheduled Post' : 'Create Scheduled Post'}</h3>
+                <h3 className="text-lg font-semibold">
+                  {dialogMode === 'view' ? 'Published Post' : dialogMode === 'reschedule' ? 'Reschedule Post' : dialogMode === 'edit' ? 'Edit Scheduled Post' : 'Create Scheduled Post'}
+                </h3>
                 <p className="mt-1 text-xs text-muted-foreground">{schedulePreview} | {selectedPlatformHint} | {IST_TIMEZONE}</p>
               </div>
               <Button variant="ghost" onClick={() => setComposerOpen(false)}>Close</Button>
             </div>
             <div className="mb-4 inline-flex rounded-md border border-border/60 p-1">
-              <Button size="sm" variant={dialogStep === 1 ? 'default' : 'ghost'} onClick={() => setDialogStep(1)}>1. Schedule</Button>
-              <Button size="sm" variant={dialogStep === 2 ? 'default' : 'ghost'} onClick={() => setDialogStep(2)}>2. Templates</Button>
+              <Button size="sm" disabled={dialogMode === 'view'} variant={dialogStep === 1 ? 'default' : 'ghost'} onClick={() => setDialogStep(1)}>1. Schedule</Button>
+              <Button size="sm" disabled={dialogMode === 'view'} variant={dialogStep === 2 ? 'default' : 'ghost'} onClick={() => setDialogStep(2)}>2. Templates</Button>
               <Button size="sm" variant={dialogStep === 3 ? 'default' : 'ghost'} onClick={() => setDialogStep(3)}>3. Content</Button>
             </div>
             {error && <div className="mb-3 rounded border border-red-500/30 bg-red-500/10 p-2 text-sm text-red-700 dark:text-red-300">{error}</div>}
+            {dialogMode === 'reschedule' && activePost && (
+              <div className="mb-3 rounded border border-blue-500/30 bg-blue-500/10 p-3 text-sm text-blue-800 dark:text-blue-200">
+                A new future schedule will be created for {activePost.reschedulablePlatforms.map((platform) => PLATFORM_LABELS[platform]).join(', ')}. The original entry and published channels remain unchanged.
+              </div>
+            )}
+            {dialogMode === 'view' && activePost && (
+              <div className="mb-3 rounded border border-green-500/30 bg-green-500/10 p-3 text-sm text-green-800 dark:text-green-200">
+                <p className="font-medium">This post is already published and is read-only.</p>
+                <div className="mt-2 flex flex-wrap gap-3">
+                  {activePost.channelOutcomes.map((outcome) => (
+                    <span key={outcome.jobId}>
+                      {PLATFORM_LABELS[outcome.platform]}: {outcome.externalPostUrl ? <a className="underline" href={outcome.externalPostUrl} target="_blank" rel="noreferrer">View post</a> : 'Published'}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
             {optimizationWarnings.length > 0 && (
               <div className="mb-3 rounded border border-amber-500/30 bg-amber-500/10 p-2 text-sm text-amber-700 dark:text-amber-200">
                 {Array.from(new Set(optimizationWarnings)).join(' ')}
@@ -1055,6 +1128,7 @@ export default function SocialSchedulingClient({
                   <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
                     {NEW_PLATFORM_CODES.map((platform) => {
                       const readiness = readinessByPlatform[platform];
+                      const alreadyPublished = dialogMode === 'reschedule' && Boolean(activePost?.publishedPlatforms.includes(platform));
                       return (
                         <label
                           key={platform}
@@ -1065,7 +1139,7 @@ export default function SocialSchedulingClient({
                             <input
                               type="checkbox"
                               checked={draft.platforms[platform]}
-                              disabled={!readiness.ready && !draft.platforms[platform]}
+                              disabled={alreadyPublished || (!readiness.ready && !draft.platforms[platform])}
                               onChange={(e) => {
                                 if (!readiness.ready && e.target.checked) return;
                                 setDraft((prev) => ({ ...prev, platforms: { ...prev.platforms, [platform]: e.target.checked } }));
@@ -1073,7 +1147,7 @@ export default function SocialSchedulingClient({
                             />
                             <span className="font-medium">{PLATFORM_LABELS[platform]}</span>
                           </span>
-                          <span className="mt-1 block text-[11px] text-muted-foreground">{readiness.ready ? 'Ready' : readiness.message}</span>
+                          <span className="mt-1 block text-[11px] text-muted-foreground">{alreadyPublished ? 'Already published — locked' : readiness.ready ? 'Ready' : readiness.message}</span>
                         </label>
                       );
                     })}
@@ -1119,15 +1193,15 @@ export default function SocialSchedulingClient({
                       <p className="text-sm font-semibold">Content</p>
                       <p className="text-xs text-muted-foreground">{contentCharacterCount} characters | {selectedPlatformHint}</p>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => setDialogStep(2)}>
+                    <Button size="sm" variant="outline" disabled={dialogMode === 'view'} onClick={() => setDialogStep(2)}>
                       Browse Templates
                     </Button>
                   </div>
                 </div>
-                <Textarea className="min-h-[220px] md:col-span-2" value={draft.content} onChange={(e) => setDraft((prev) => ({ ...prev, content: e.target.value }))} placeholder="Post content" />
-                <Input value={draft.ctaUrl} onChange={(e) => setDraft((prev) => ({ ...prev, ctaUrl: e.target.value }))} placeholder="CTA URL (optional)" />
-                <Input value={draft.hashtagsCsv} onChange={(e) => setDraft((prev) => ({ ...prev, hashtagsCsv: e.target.value }))} placeholder="Hashtags comma-separated" />
-                <Input className="md:col-span-2" value={draft.mediaCsv} onChange={(e) => setDraft((prev) => ({ ...prev, mediaCsv: e.target.value }))} placeholder="Media URLs comma-separated" />
+                <Textarea disabled={dialogMode === 'view'} className="min-h-[220px] md:col-span-2" value={draft.content} onChange={(e) => setDraft((prev) => ({ ...prev, content: e.target.value }))} placeholder="Post content" />
+                <Input disabled={dialogMode === 'view'} value={draft.ctaUrl} onChange={(e) => setDraft((prev) => ({ ...prev, ctaUrl: e.target.value }))} placeholder="CTA URL (optional)" />
+                <Input disabled={dialogMode === 'view'} value={draft.hashtagsCsv} onChange={(e) => setDraft((prev) => ({ ...prev, hashtagsCsv: e.target.value }))} placeholder="Hashtags comma-separated" />
+                <Input disabled={dialogMode === 'view'} className="md:col-span-2" value={draft.mediaCsv} onChange={(e) => setDraft((prev) => ({ ...prev, mediaCsv: e.target.value }))} placeholder="Media URLs comma-separated" />
                 {Object.keys(optimizedOverrides).length > 0 && (
                   <div className="md:col-span-2 rounded-lg border border-green-500/30 bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-300">
                     Optimized platform drafts are attached to this schedule.
@@ -1136,20 +1210,20 @@ export default function SocialSchedulingClient({
               </div>
             )}
             <div className="mt-5 flex justify-between">
-              <div>{dialogStep !== 1 && <Button variant="outline" onClick={() => setDialogStep(dialogStep === 3 ? 2 : 1)}>Back</Button>}</div>
+              <div>{dialogMode !== 'view' && dialogStep !== 1 && <Button variant="outline" onClick={() => setDialogStep(dialogStep === 3 ? 2 : 1)}>Back</Button>}</div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setComposerOpen(false)}>Cancel</Button>
-                {dialogStep === 1 ? (
+                <Button variant="outline" onClick={() => setComposerOpen(false)}>{dialogMode === 'view' ? 'Close' : 'Cancel'}</Button>
+                {dialogMode === 'view' ? null : dialogStep === 1 ? (
                   <Button onClick={() => { if (validateStepOne()) setDialogStep(2); }}>Next</Button>
                 ) : dialogStep === 2 ? (
                   <Button onClick={() => setDialogStep(3)}>Continue</Button>
                 ) : (
                   <>
                     <Button variant="outline" onClick={() => void savePost({})} disabled={saving || optimizing}>
-                      {saving ? 'Saving...' : dialogMode === 'edit' ? 'Save Changes' : 'Save Schedule'}
+                      {saving ? 'Saving...' : dialogMode === 'edit' ? 'Save Changes' : dialogMode === 'reschedule' ? 'Create New Schedule' : 'Save Schedule'}
                     </Button>
                     <Button onClick={() => void optimizeAndSchedule()} disabled={saving || optimizing}>
-                      {optimizing || saving ? 'Working...' : 'Optimize + Schedule'}
+                      {optimizing || saving ? 'Working...' : dialogMode === 'reschedule' ? 'Optimize + Reschedule' : 'Optimize + Schedule'}
                     </Button>
                   </>
                 )}
