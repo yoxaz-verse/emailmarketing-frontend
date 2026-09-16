@@ -12,7 +12,7 @@ const dt = (value?: string | null) => value ? new Date(value).toLocaleString() :
 const keyError = (error: unknown) => {
   const message = error instanceof Error ? error.message : 'Could not load API keys.';
   return /api_keys|column .* does not exist|schema cache|migration/i.test(message)
-    ? 'API Keys is not ready: the database is missing the public API migration. Ask an administrator to apply 20260913_public_api_v1.sql, then refresh.'
+    ? 'API Keys is not ready: the database is missing the public API migration. Ask an administrator to follow Backend/sql/README.md, then refresh.'
     : message;
 };
 const operations = (spec: any): Operation[] => Object.entries(spec?.paths ?? {}).flatMap(([path, methods]) => Object.entries((methods ?? {}) as Record<string, any>).map(([method, operation]) => ({ method: method.toUpperCase(), path, summary: operation.summary ?? '', scope: operation['x-required-scope'], request: operation.requestBody, idempotent: (operation.parameters ?? []).some((parameter: any) => parameter.name === 'Idempotency-Key') })));
