@@ -316,7 +316,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
       </section>
 
       {/* Lead Folders & Management */}
-      <section className="rounded-3xl border border-border/40 bg-card/20 backdrop-blur-xl p-6 shadow-2xl space-y-6 relative overflow-hidden group">
+      <section className="rounded-3xl border border-border/40 bg-card/20 backdrop-blur-xl p-6 dark:shadow-2xl space-y-6 relative overflow-hidden group">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500/50 via-primary/50 to-teal-500/50 opacity-50" />
         
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-8">
@@ -333,13 +333,13 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
                 placeholder="New Folder Identifier"
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
-                className="h-12 bg-background/40 border-border/60 focus:border-teal-500/50 rounded-xl px-4 text-sm font-medium shadow-inner"
+                className="h-12 bg-background/40 border-border/60 focus:border-teal-500/50 rounded-xl px-4 text-sm font-medium dark:shadow-inner"
               />
             </div>
             <Button 
               onClick={() => void handleCreateFolder()} 
               disabled={folderBusy || !newFolderName.trim()} 
-              className="h-12 px-6 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs uppercase tracking-widest shadow-lg shadow-teal-500/20 transition-all hover:scale-[1.02]"
+              className="h-12 px-6 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs uppercase tracking-widest dark:shadow-lg dark:shadow-teal-500/20 transition-all hover:scale-[1.02]"
             >
               Initialize Folder
             </Button>
@@ -419,7 +419,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
             </div>
             <div className="flex gap-3">
               <select
-                className="flex-1 h-12 rounded-xl border border-border/60 bg-background/40 px-4 text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-inner"
+                className="flex-1 h-12 rounded-xl border border-border/60 bg-background/40 px-4 text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all dark:shadow-inner"
                 value={folderSelection}
                 onChange={(e) => setFolderSelection(e.target.value)}
               >
@@ -454,7 +454,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
               variant="destructive"
               onClick={() => void handleDeleteSelectedLeads()}
               disabled={folderBusy || selectedLeadIds.length === 0}
-              className="flex-1 h-12 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-destructive/10 transition-all hover:scale-[1.02]"
+              className="flex-1 h-12 rounded-xl font-bold text-[10px] uppercase tracking-widest dark:shadow-lg dark:shadow-destructive/10 transition-all hover:scale-[1.02]"
             >
               Purge Selected
             </Button>
@@ -464,7 +464,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
 
       {/* Main Controls */}
       <div className="space-y-4">
-        <section className="rounded-2xl border border-border/40 bg-card/30 backdrop-blur-md p-5 shadow-xl relative overflow-hidden">
+        <section className="rounded-2xl border border-border/40 bg-card/30 backdrop-blur-md p-5 dark:shadow-xl relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/30 via-primary/80 to-primary/30" />
           <div className="space-y-4">
             <h3 className="text-xl font-bold tracking-tight flex items-center gap-2 text-foreground">
@@ -488,7 +488,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
         </section>
 
         <div className="grid grid-cols-1 gap-4 items-start">
-          <section className="rounded-2xl border border-border/40 bg-card/30 backdrop-blur-md p-5 shadow-xl">
+          <section className="rounded-2xl border border-border/40 bg-card/30 backdrop-blur-md p-5 dark:shadow-xl">
             <div className="mb-4 flex flex-col">
               <h3 className="text-lg font-bold tracking-tight flex items-center gap-2 text-foreground">
                 <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" /> Validation
@@ -643,7 +643,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
         </div>
       </div>
 
-      <section className="rounded-2xl border border-border/40 bg-card/20 backdrop-blur-sm p-4 shadow-xl space-y-4">
+      <section className="rounded-2xl border border-border/40 bg-card/20 backdrop-blur-sm p-4 dark:shadow-xl space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-black uppercase tracking-wider text-foreground flex items-center gap-2">
@@ -736,7 +736,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
         )}
       </section>
 
-      <div className="rounded-2xl border border-border/40 bg-card/20 backdrop-blur-sm p-1 shadow-2xl overflow-hidden">
+      <div className="rounded-2xl border border-border/40 bg-card/20 backdrop-blur-sm p-1 dark:shadow-2xl overflow-hidden">
         <DynamicTable
           table="leads"
           data={filteredLeads}
@@ -768,7 +768,7 @@ function KpiCard({ label, value, icon, color }: { label: string; value: number; 
 
   return (
     <div className={cn(
-      "group relative rounded-2xl border bg-card/40 backdrop-blur-md p-4 transition-all duration-500 hover:scale-[1.03] hover:shadow-2xl overflow-hidden",
+      "group relative rounded-2xl border bg-card/40 backdrop-blur-md p-4 transition-all duration-500 hover:scale-[1.03] dark:hover:shadow-2xl overflow-hidden",
       colorMap[color] || "border-border/40"
     )}>
       <div className={cn("absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-500", colorMap[color])} />
@@ -789,7 +789,7 @@ function ToggleItem({ value, label }: { value: string; label: string }) {
   return (
     <ToggleGroup.Item
       value={value}
-      className="flex items-center justify-center px-2 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-border/40 bg-background/20 text-muted-foreground transition-all hover:bg-accent hover:text-foreground data-[state=on]:bg-primary/20 data-[state=on]:border-primary/50 data-[state=on]:text-primary data-[state=on]:shadow-lg data-[state=on]:shadow-primary/10"
+      className="flex items-center justify-center px-2 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-border/40 bg-background/20 text-muted-foreground transition-all hover:bg-accent hover:text-foreground data-[state=on]:bg-primary/20 data-[state=on]:border-primary/50 data-[state=on]:text-primary data-[state=on]:dark:shadow-lg data-[state=on]:dark:shadow-primary/10"
     >
       {label}
     </ToggleGroup.Item>
