@@ -4,8 +4,11 @@ import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "@/components/theme-provider";
 
 export const viewport: Viewport = {
-  themeColor: "#040404",
-  colorScheme: "dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#faf9f6" },
+    { media: "(prefers-color-scheme: dark)", color: "#040404" },
+  ],
+  colorScheme: "dark light",
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -16,7 +19,7 @@ export const metadata: Metadata = {
     default: "OBAOL | Cold Email Infrastructure",
     template: "%s | OBAOL"
   },
-  description: "OBAOL is a system-level outbound execution engine designed for scale. Features lead validation, warmup, delivery control, and bounce intelligence.",
+  description: "Validate leads, protect inbox reputation, control delivery, and turn replies into action with OBAOL's outbound operations platform.",
   keywords: ["cold email", "outbound", "email infrastructure", "B2B sales", "lead generation", "inbox warm-up", "domain protection", "auto-suppression"],
   metadataBase: new URL("https://emarketing.obaol.com"),
   alternates: {
@@ -29,7 +32,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "OBAOL | Cold Email Infrastructure",
-    description: "Built for operators. System-level control for outbound email marketing.",
+    description: "Validate leads, protect inbox reputation, control delivery, and turn replies into action from one outbound operations platform.",
     url: "https://emarketing.obaol.com",
     siteName: "OBAOL",
     locale: "en_US",
@@ -46,7 +49,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "OBAOL | Cold Email Infrastructure",
-    description: "Built for operators. System-level control for outbound email marketing.",
+    description: "Validate leads, protect inbox reputation, control delivery, and turn replies into action from one outbound operations platform.",
     images: ["/og-image.png"],
   },
   icons: {

@@ -150,6 +150,7 @@
       oklch(0.72 0.145 75 / 0.08) 0%,
       transparent 70%
     );
+    text-rendering: optimizeLegibility;
   }
   html {
     scroll-behavior: smooth;
@@ -173,6 +174,13 @@
     linear-gradient(to bottom, var(--border) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: linear-gradient(to bottom, black, transparent 85%);
+}
+
+@media (max-width: 639px) {
+  .hero-grid::before {
+    background-size: 32px 32px;
+    opacity: 0.2;
+  }
 }
 
 .status-card { position: relative; }

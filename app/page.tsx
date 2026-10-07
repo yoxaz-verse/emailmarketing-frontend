@@ -15,6 +15,12 @@ const capabilities = [
 
 const principles = ["Validate before sending", "Protect every inbox and domain", "Turn replies into action"] as const;
 
+const workflow = [
+  { number: "01", title: "Qualify", text: "Validate contacts and suppress risky addresses before they enter a campaign." },
+  { number: "02", title: "Control", text: "Match sending volume to real inbox, domain, and reputation capacity." },
+  { number: "03", title: "Act", text: "Classify replies and surface the next action while intent is still fresh." },
+] as const;
+
 export default async function LandingPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get("auth_token")?.value;
@@ -25,12 +31,14 @@ export default async function LandingPage() {
   return (
     <div className="landing-page min-h-screen overflow-hidden bg-background">
       <a href="#main-content" className="skip-link">Skip to content</a>
-      <header className="relative z-20 border-b border-border/60 bg-background/80 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-border/60 bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
         <nav aria-label="Primary navigation" className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 sm:px-8">
           <Link href="/" aria-label="OBAOL home" className="rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
             <Image src="/logo.png" alt="OBAOL" width={138} height={72} priority className="h-auto w-24 sm:w-28" />
           </Link>
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Link href="#workflow" className="hidden rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground md:inline-flex">How it works</Link>
+            <Link href="#capabilities" className="hidden rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground md:inline-flex">Capabilities</Link>
             <Link href="/developers/api" className="hidden rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">API guide</Link>
             <Link href={ctaHref} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:px-5">{hasToken ? "Dashboard" : "Sign in"}</Link>
           </div>
@@ -45,11 +53,12 @@ export default async function LandingPage() {
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />Outbound operations platform
               </div>
               <h1 className="max-w-4xl text-5xl font-bold leading-[0.98] tracking-[-0.045em] sm:text-6xl lg:text-7xl">Reliable outbound starts <span className="text-gradient">before send.</span></h1>
-              <p className="mt-7 max-w-2xl text-lg leading-8 text-muted-foreground sm:text-xl">OBAOL unifies lead validation, inbox health, delivery controls, reply intelligence, and compliance in one operational layer.</p>
+              <p className="mt-7 max-w-2xl text-lg leading-8 text-muted-foreground sm:text-xl">Validate every lead, protect every inbox, and turn replies into action—from one outbound control plane.</p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Link href={ctaHref} className="group inline-flex min-h-12 items-center justify-center rounded-xl bg-primary px-6 font-semibold text-primary-foreground shadow-[0_14px_40px_-18px_var(--color-primary)] transition hover:-translate-y-0.5 hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{ctaLabel}<ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" /></Link>
                 <Link href="#capabilities" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-border bg-card/60 px-6 font-semibold transition hover:border-primary/40 hover:bg-card">Explore capabilities</Link>
               </div>
+              <p className="mt-4 text-sm text-muted-foreground">Built for teams that treat deliverability as infrastructure.</p>
             </div>
 
             <aside aria-label="OBAOL operating principles" className="relative lg:pl-10">
@@ -70,6 +79,27 @@ export default async function LandingPage() {
         <section className="border-b border-border/50 bg-card/30" aria-label="Platform benefits">
           <div className="mx-auto grid max-w-7xl divide-y divide-border/60 px-5 sm:px-8 md:grid-cols-3 md:divide-x md:divide-y-0">
             {[["One workflow", "Replace disconnected validation, sending, and monitoring tools."], ["Safer scale", "Build volume around infrastructure health instead of guesswork."], ["Clearer action", "Give operators the signals they need without vanity metrics."]].map(([title, text]) => <div key={title} className="py-8 md:px-8 md:first:pl-0 md:last:pr-0"><p className="font-semibold text-primary">{title}</p><p className="mt-2 max-w-sm leading-7 text-muted-foreground">{text}</p></div>)}
+          </div>
+        </section>
+
+        <section id="workflow" className="scroll-mt-24 border-b border-border/50 px-5 py-20 sm:px-8 sm:py-28">
+          <div className="mx-auto max-w-7xl">
+            <div className="grid gap-8 lg:grid-cols-[.8fr_1.2fr] lg:gap-16">
+              <div className="max-w-xl">
+                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-primary">One connected workflow</p>
+                <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-5xl">From raw lead to qualified reply.</h2>
+                <p className="mt-5 text-lg leading-8 text-muted-foreground">Replace fragile handoffs with controls that follow every contact through the outbound lifecycle.</p>
+              </div>
+              <ol className="divide-y divide-border/70 border-y border-border/70">
+                {workflow.map((step) => (
+                  <li key={step.number} className="grid gap-3 py-6 sm:grid-cols-[3.5rem_10rem_1fr] sm:items-start sm:gap-5 sm:py-7">
+                    <span className="font-mono text-sm font-semibold text-primary">{step.number}</span>
+                    <h3 className="text-lg font-semibold">{step.title}</h3>
+                    <p className="leading-7 text-muted-foreground">{step.text}</p>
+                  </li>
+                ))}
+              </ol>
+            </div>
           </div>
         </section>
 

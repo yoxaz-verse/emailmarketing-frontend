@@ -5,21 +5,16 @@ import { useSearchParams } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { clientFetch } from '@/lib/client-fetch';
-import { Bot, Cable, CheckCircle2, CircleAlert, ExternalLink, RefreshCw, Settings2, Zap } from 'lucide-react';
+import { Bot, Cable, Check, CheckCircle2, CircleAlert, ExternalLink, Facebook, Instagram, Linkedin, MessageCircle, RefreshCw, Send, Settings2, Share2, X } from 'lucide-react';
 
 type SocialConnectionStatus = 'connected' | 'expired' | 'missing_scope' | 'identity_required' | 'disconnected';
 type Operator = { id: string; name: string; region?: string | null };
 type OperatorLoadErrorKind = 'backend_unavailable' | 'unauthorized' | 'unknown';
 type Platform = 'linkedin' | 'facebook' | 'instagram' | 'reddit' | 'telegram' | 'whatsapp';
 type NextAction = 'select_operator' | 'configure_credentials' | 'connect_account' | 'select_account' | 'enable_automation' | 'ready';
-
-type MetaPage = {
-  id: string;
-  name: string;
-  instagram_business_account?: { id?: string; username?: string; name?: string } | null;
-};
+type UiState = 'connected' | 'action_required' | 'reconnect' | 'connect' | 'unavailable';
+type MetaPage = { id: string; name: string; instagram_business_account?: { id?: string; username?: string; name?: string } | null };
 
 type PlatformSetup = {
   platform_code: Platform;
@@ -28,15 +23,18 @@ type PlatformSetup = {
   credential_missing_fields: string[];
   credential_source?: 'operator' | 'global' | 'env' | 'missing';
   one_click_available?: boolean;
-  credential_fields: Record<string, string>;
   connection_status: SocialConnectionStatus;
   connection_reason: string | null;
+  reconnect_reason?: string | null;
   authorization_saved?: boolean;
   connected: boolean;
   can_schedule: boolean;
   can_publish: boolean;
   setup_ready: boolean;
   next_action: NextAction;
+  ui_state?: UiState;
+  selection_required?: boolean;
+  connected_identity?: { id?: string | null; display_name: string; username?: string | null; kind: string } | null;
   account_selection?: {
     pages: MetaPage[];
     selected_page_id: string;
@@ -54,171 +52,77 @@ type SetupStatus = {
   automation: { enabled: boolean; agent_id: string | null; mission_id: string | null };
   platforms: PlatformSetup[];
 };
+type SetupPreflight = { ok: boolean; code?: string; message?: string; error?: string };
 
-type SetupPreflight = {
-  ok: boolean;
-  code?: string;
-  message?: string;
-  error?: string;
-};
-
-const PLATFORMS: { code: Platform; label: string; connectLabel: string }[] = [
-  { code: 'linkedin', label: 'LinkedIn', connectLabel: 'Connect LinkedIn' },
-  { code: 'facebook', label: 'Facebook', connectLabel: 'Connect Facebook' },
-  { code: 'instagram', label: 'Instagram', connectLabel: 'Connect Instagram' },
-  { code: 'reddit', label: 'Reddit', connectLabel: 'Connect Reddit' },
-  { code: 'telegram', label: 'Telegram', connectLabel: 'Validate Telegram' },
-  { code: 'whatsapp', label: 'WhatsApp', connectLabel: 'Validate WhatsApp' },
+const PLATFORMS: { code: Platform; label: string; helper: string }[] = [
+  { code: 'instagram', label: 'Instagram', helper: 'Professional accounts' },
+  { code: 'facebook', label: 'Facebook', helper: 'Pages' },
+  { code: 'linkedin', label: 'LinkedIn', helper: 'Member publishing' },
+  { code: 'reddit', label: 'Reddit', helper: 'Profile publishing' },
+  { code: 'telegram', label: 'Telegram', helper: 'Bot and channel' },
+  { code: 'whatsapp', label: 'WhatsApp', helper: 'Business account' },
 ];
-
-const PLATFORM_FIELDS: Record<Platform, { key: string; label: string; secret?: boolean; placeholder?: string }[]> = {
-  linkedin: [
-    { key: 'client_id', label: 'Client ID' },
-    { key: 'client_secret', label: 'Client Secret', secret: true },
-    { key: 'redirect_uri', label: 'Redirect URI', placeholder: 'https://your-backend.com/social/oauth2-credential/callback' },
-    { key: 'scopes', label: 'Scopes', placeholder: 'w_member_social' },
-    { key: 'actor_urn', label: 'LinkedIn Member URN', placeholder: 'Optional advanced fallback' },
-  ],
-  facebook: [
-    { key: 'app_id', label: 'Meta App ID' },
-    { key: 'app_secret', label: 'Meta App Secret', secret: true },
-    { key: 'redirect_uri', label: 'Redirect URI', placeholder: 'https://your-backend.com/social/callback/meta' },
-  ],
-  instagram: [
-    { key: 'app_id', label: 'App ID' },
-    { key: 'app_secret', label: 'App Secret', secret: true },
-    { key: 'redirect_uri', label: 'Redirect URI', placeholder: 'https://your-backend.com/social/callback/meta' },
-  ],
-  reddit: [
-    { key: 'client_id', label: 'Client ID' },
-    { key: 'client_secret', label: 'Client Secret', secret: true },
-    { key: 'redirect_uri', label: 'Redirect URI', placeholder: 'https://emarketing-backend.infra.obaol.com/social/callback/reddit' },
-    { key: 'user_agent', label: 'User Agent', placeholder: 'obaol-social-connector/1.0 by u_username' },
-  ],
-  telegram: [
-    { key: 'bot_token', label: 'Bot Token', secret: true },
-    { key: 'chat_id', label: 'Chat ID' },
-  ],
-  whatsapp: [
-    { key: 'phone_number_id', label: 'Phone Number ID' },
-    { key: 'business_account_id', label: 'Business Account ID' },
-    { key: 'access_token', label: 'Access Token', secret: true },
-  ],
+const PLATFORM_STYLES: Record<Platform, string> = {
+  instagram: 'bg-gradient-to-br from-fuchsia-500 via-rose-500 to-amber-400 text-white',
+  facebook: 'bg-blue-600 text-white',
+  linkedin: 'bg-sky-700 text-white',
+  reddit: 'bg-orange-600 text-white',
+  telegram: 'bg-cyan-500 text-white',
+  whatsapp: 'bg-emerald-600 text-white',
 };
 
-const ACTION_LABELS: Record<NextAction, string> = {
-  select_operator: 'Select operator',
-  configure_credentials: 'Save operator credentials',
-  connect_account: 'Connect account',
-  select_account: 'Save account selection',
-  enable_automation: 'Enable social automation',
-  ready: 'Social Engine ready',
-};
+function PlatformIcon({ platform, className = 'h-5 w-5' }: { platform: Platform; className?: string }) {
+  if (platform === 'instagram') return <Instagram className={className} />;
+  if (platform === 'facebook') return <Facebook className={className} />;
+  if (platform === 'linkedin') return <Linkedin className={className} />;
+  if (platform === 'telegram') return <Send className={className} />;
+  if (platform === 'whatsapp') return <MessageCircle className={className} />;
+  return <Share2 className={className} />;
+}
 
-function toTitle(value: string): string {
-  return value.split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+function emptyStatus(operatorId: string | null): SetupStatus {
+  return { operator_id: operatorId, ready: false, next_action: operatorId ? 'configure_credentials' : 'select_operator', automation: { enabled: false, agent_id: null, mission_id: null }, platforms: [] };
 }
 
 function mapSocialConnectorError(message: string, code?: string | null): string {
   const lower = String(message || '').toLowerCase();
-  if (lower.includes("can't load url") && (lower.includes("app's domains") || lower.includes('app domains'))) {
-    return 'Meta rejected the configured OAuth callback domain. Add the callback domain to App Domains and the exact callback URL to Valid OAuth Redirect URIs in the Meta app, then reconnect.';
-  }
   const normalizedCode = String(code ?? '').trim().toLowerCase();
-  if (normalizedCode === 'auth_service_misconfigured') {
-    return 'Backend Supabase auth is misconfigured. Update the Supabase service role key/project config, restart backend, then try LinkedIn again.';
-  }
-  if (normalizedCode === 'auth_service_unavailable') {
-    return 'Supabase is unavailable from the backend right now. Check backend connectivity, then try LinkedIn again.';
-  }
-  if (normalizedCode === 'social_oauth_schema_missing') {
-    return 'Social connector setup is being updated. Apply the latest social OAuth database migration, then try connecting again.';
-  }
-  if (normalizedCode === 'provider_config_missing' || normalizedCode === 'provider_config_error') {
-    return 'LinkedIn one-click connect needs the global OBAOL LinkedIn app credentials first.';
-  }
-  if (normalizedCode === 'oauth_state_error') {
-    return 'LinkedIn returned, but the OAuth state was missing, expired, or invalid. Start Connect LinkedIn again from this page.';
-  }
-  if (normalizedCode === 'provider_permission_denied') {
-    return 'LinkedIn rejected the connection because required permissions are missing or were denied. Confirm the app has w_member_social, then reconnect.';
-  }
-
-  if (
-    lower.includes('supabase rejected') ||
-    lower.includes('unregistered api key') ||
-    lower.includes('invalid api key') ||
-    lower.includes('auth_service_misconfigured')
-  ) {
-    return 'Backend Supabase auth is misconfigured. Update the Supabase service role key/project config, restart backend, then try LinkedIn again.';
-  }
-  if (
-    lower.includes('social oauth schema') ||
-    lower.includes('social_oauth_schema_missing') ||
-    (lower.includes('social_oauth_states') && lower.includes('requested_platform'))
-  ) {
-    return 'Social connector setup is being updated. Apply the latest social OAuth database migration, then try connecting again.';
-  }
-  if (lower.includes('nonexistent_version') || lower.includes('rejected api version') || lower.includes('version') && lower.includes('not active')) {
-    return 'LinkedIn publishing used an expired API version. Update the backend LinkedIn API version and retry.';
-  }
-  if (lower.includes('backend unavailable') || lower.includes('failed to fetch') || lower.includes('timed out')) {
-    return 'Backend is unavailable. Start or restart the backend service, then refresh this setup page.';
-  }
-  if (lower.includes('one-click') || lower.includes('global obaol linkedin app')) {
-    return message;
-  }
-  if (lower.includes('operator-owned') || lower.includes('missing required fields')) {
-    return message;
-  }
-  if (lower.includes('permission') || lower.includes('scope')) {
-    return 'The provider rejected the connection because required permissions are missing. Update the operator app credentials/scopes, then reconnect.';
-  }
-  return message || 'Social setup failed.';
+  if (normalizedCode === 'provider_permission_denied' || lower.includes('permission') || lower.includes('scope')) return 'Access was not granted for every required permission. Reconnect and approve Page and Instagram publishing access.';
+  if (normalizedCode === 'oauth_state_error') return 'This connection request expired or was already used. Start the connection again.';
+  if (normalizedCode === 'provider_config_missing' || normalizedCode === 'provider_config_error') return 'This connection is not available yet. An administrator must finish the provider setup.';
+  if (normalizedCode === 'social_oauth_schema_missing') return 'Social connections are being updated. Ask an administrator to apply the latest database migration.';
+  if (normalizedCode === 'auth_service_misconfigured' || normalizedCode === 'auth_service_unavailable') return 'The connection service is temporarily unavailable. Ask an administrator to check the backend configuration.';
+  if (lower.includes("can't load url") || lower.includes('redirect uri')) return 'Meta rejected the callback URL. An administrator must verify the configured OAuth redirect URI.';
+  if (lower.includes('failed to fetch') || lower.includes('backend unavailable') || lower.includes('timed out')) return 'The backend is unavailable. Please try again after the service is restored.';
+  return message || 'The social account could not be connected.';
 }
 
-function statusBadgeClass(platform: PlatformSetup): string {
-  if (platform.setup_ready) return 'bg-green-600 text-white';
-  if (!platform.credential_configured) return 'bg-amber-600 text-white';
-  if (platform.connected) return 'bg-blue-600 text-white';
-  if (platform.connection_status === 'expired' || platform.connection_status === 'missing_scope') return 'bg-orange-600 text-white';
-  return 'bg-muted text-foreground dark:bg-slate-600 dark:text-white';
+function uiState(platform: PlatformSetup): UiState {
+  if (platform.ui_state) return platform.ui_state;
+  if (platform.connected) return 'connected';
+  if (platform.selection_required) return 'action_required';
+  if (platform.connection_status === 'expired' || platform.connection_status === 'missing_scope') return 'reconnect';
+  return platform.credential_configured ? 'connect' : 'unavailable';
 }
 
-function platformStatusText(platform: PlatformSetup): string {
-  if (platform.setup_ready) return 'Ready';
-  if (platform.platform_code === 'linkedin' && platform.connection_status === 'identity_required') return 'Identity needed';
-  if ((platform.platform_code === 'facebook' || platform.platform_code === 'instagram') && platform.authorization_saved && platform.connection_status === 'identity_required') return 'Choose destination';
-  if (platform.one_click_available && !platform.connected) return 'Ready to connect';
-  if (!platform.credential_configured) return 'Credentials needed';
-  if (!platform.connected) return 'Connect needed';
-  if (platform.next_action === 'select_account') return 'Account selection';
-  return ACTION_LABELS[platform.next_action] ?? toTitle(platform.connection_status);
+function stateLabel(platform: PlatformSetup): string {
+  const state = uiState(platform);
+  if (state === 'connected') return 'Connected';
+  if (state === 'action_required') return 'Action required';
+  if (state === 'reconnect') return 'Reconnect';
+  if (state === 'unavailable') return 'Needs admin setup';
+  return 'Connect';
 }
 
-function linkedInIdentityReason(reason: string | null): string {
-  if (reason && /Enter the LinkedIn Member URN fallback/i.test(reason)) {
-    return 'LinkedIn authorization was saved before detailed identity diagnostics were available. Recheck the saved authorization to identify the issue.';
-  }
-  return reason || 'LinkedIn access was saved, but the member identity could not be resolved.';
+function badgeClass(platform: PlatformSetup): string {
+  const state = uiState(platform);
+  if (state === 'connected') return 'bg-emerald-600 text-white';
+  if (state === 'action_required' || state === 'reconnect') return 'bg-amber-500 text-white';
+  if (state === 'unavailable') return 'bg-slate-500 text-white';
+  return 'bg-primary text-primary-foreground';
 }
 
-function emptyStatus(operatorId: string | null): SetupStatus {
-  return {
-    operator_id: operatorId,
-    ready: false,
-    next_action: operatorId ? 'configure_credentials' : 'select_operator',
-    automation: { enabled: false, agent_id: null, mission_id: null },
-    platforms: [],
-  };
-}
-
-export default function SocialConnectorsClient({
-  role,
-  operators = [],
-  operatorLoadError,
-  operatorLoadErrorKind,
-}: {
+export default function SocialConnectorsClient({ role, operators = [], operatorLoadError, operatorLoadErrorKind }: {
   role?: string;
   operators?: Operator[];
   operatorLoadError?: string;
@@ -226,662 +130,179 @@ export default function SocialConnectorsClient({
 }) {
   const searchParams = useSearchParams();
   const callbackOperatorId = String(searchParams.get('operator_id') ?? '').trim();
+  const callbackPlatformRaw = searchParams.get('social_connected') ?? searchParams.get('social_connect_platform');
+  const callbackPlatform = (callbackPlatformRaw === 'meta' ? 'facebook' : callbackPlatformRaw) as Platform | null;
+  const callbackError = searchParams.get('social_connect_error');
+  const callbackErrorCode = searchParams.get('social_connect_error_code');
+  const isAdmin = role === 'admin' || role === 'superadmin';
   const [selectedOperatorId, setSelectedOperatorId] = useState(callbackOperatorId);
-  const [activePlatform, setActivePlatform] = useState<Platform>('linkedin');
   const [status, setStatus] = useState<SetupStatus>(() => emptyStatus(callbackOperatorId || null));
-  const [formValues, setFormValues] = useState<Record<string, string>>({});
+  const [activePlatform, setActivePlatform] = useState<Platform>(callbackPlatform ?? 'instagram');
+  const [modalOpen, setModalOpen] = useState(Boolean(callbackPlatform || callbackError));
+  const [callbackPending, setCallbackPending] = useState(Boolean(callbackPlatform || callbackError));
   const [selectedPageId, setSelectedPageId] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const isAdmin = role === 'admin' || role === 'superadmin';
+  const [message, setMessage] = useState<string | null>(callbackPlatform ? 'Authorization returned. Checking your account…' : null);
+  const [error, setError] = useState<string | null>(callbackError ? mapSocialConnectorError(callbackError, callbackErrorCode) : null);
   const canUseOperator = !isAdmin || Boolean(selectedOperatorId);
-  const activeSetup = status.platforms.find((platform) => platform.platform_code === activePlatform);
+  const activeSetup = status.platforms.find((platform) => platform.platform_code === activePlatform) ?? null;
   const readyCount = status.platforms.filter((platform) => platform.setup_ready).length;
-  const configuredCount = status.platforms.filter((platform) => platform.credential_configured).length;
   const connectedCount = status.platforms.filter((platform) => platform.connected).length;
-  const activeOneClick = Boolean(activeSetup?.one_click_available);
-  const activeGlobalLinkedIn = activePlatform === 'linkedin' && activeOneClick && activeSetup?.credential_source !== 'operator';
-  const activeMetaChannel = activePlatform === 'facebook' || activePlatform === 'instagram';
-  const activeGlobalMeta = activeMetaChannel && activeOneClick;
-  const activeGlobalReddit = activePlatform === 'reddit' && activeOneClick && activeSetup?.credential_source !== 'operator';
-  const activeMissingMeta = activeMetaChannel && !activeSetup?.credential_configured;
-  const activeMissingLinkedIn = activePlatform === 'linkedin' && !activeSetup?.credential_configured;
-  const activeMissingReddit = activePlatform === 'reddit' && !activeSetup?.credential_configured;
-
-  const nextPlatform = useMemo(() => {
-    return status.platforms.find((platform) => platform.next_action === 'select_account')
-      ?? status.platforms.find((platform) => platform.one_click_available && !platform.connected)
-      ?? status.platforms.find((platform) => platform.next_action !== 'ready')
-      ?? status.platforms[0]
-      ?? null;
-  }, [status.platforms]);
+  const eligiblePages = useMemo(() => {
+    const pages = activeSetup?.account_selection?.pages ?? [];
+    return activePlatform === 'instagram' ? pages.filter((page) => Boolean(page.instagram_business_account?.id)) : pages;
+  }, [activePlatform, activeSetup]);
+  const operatorQuery = isAdmin && selectedOperatorId ? `?operator_id=${encodeURIComponent(selectedOperatorId)}` : '';
 
   const loadStatus = useCallback(async () => {
-    if (!canUseOperator) {
-      setStatus(emptyStatus(null));
-      return;
-    }
+    if (!canUseOperator) { setStatus(emptyStatus(null)); return; }
     setLoading(true);
-    setError(null);
     try {
       const query = isAdmin && selectedOperatorId ? `?operator_id=${encodeURIComponent(selectedOperatorId)}` : '';
       const data = await clientFetch<SetupStatus>(`/social/setup/status${query}`);
       setStatus(data ?? emptyStatus(selectedOperatorId || null));
     } catch (err: unknown) {
-      setError(mapSocialConnectorError(err instanceof Error ? err.message : 'Failed to load social setup status'));
-    } finally {
-      setLoading(false);
-    }
+      setError(mapSocialConnectorError(err instanceof Error ? err.message : 'Failed to load social connections'));
+    } finally { setLoading(false); }
   }, [canUseOperator, isAdmin, selectedOperatorId]);
 
+  useEffect(() => { if (isAdmin && !selectedOperatorId && operators.length === 1) setSelectedOperatorId(String(operators[0]?.id ?? '')); }, [isAdmin, operators, selectedOperatorId]);
+  useEffect(() => { if (isAdmin && callbackOperatorId && callbackOperatorId !== selectedOperatorId) setSelectedOperatorId(callbackOperatorId); }, [callbackOperatorId, isAdmin, selectedOperatorId]);
+  useEffect(() => { void loadStatus(); }, [loadStatus]);
   useEffect(() => {
-    if (isAdmin && !selectedOperatorId && operators.length === 1) {
-      setSelectedOperatorId(String(operators[0]?.id ?? ''));
-    }
-  }, [isAdmin, operators, selectedOperatorId]);
-
-  useEffect(() => {
-    if (isAdmin && callbackOperatorId && callbackOperatorId !== selectedOperatorId) {
-      setSelectedOperatorId(callbackOperatorId);
-    }
-  }, [callbackOperatorId, isAdmin, selectedOperatorId]);
-
-  useEffect(() => {
-    void loadStatus();
-  }, [loadStatus]);
-
-  useEffect(() => {
-    const connectedPlatform = searchParams.get('social_connected') === 'meta' ? 'facebook' : searchParams.get('social_connected');
-    const connectError = searchParams.get('social_connect_error');
-    const connectErrorCode = searchParams.get('social_connect_error_code');
-    if (!canUseOperator || (isAdmin && callbackOperatorId && callbackOperatorId !== selectedOperatorId)) {
-      setMessage(null);
-      setError(null);
-      return;
-    }
-    if (connectedPlatform) {
-      setMessage(`${toTitle(connectedPlatform)} authorization returned. Checking connection status...`);
-      setActivePlatform(connectedPlatform as Platform);
-    }
-    if (connectError) {
-      setError(mapSocialConnectorError(connectError, connectErrorCode));
-    }
-  }, [callbackOperatorId, canUseOperator, isAdmin, searchParams, selectedOperatorId]);
-
-  useEffect(() => {
-    const connectedPlatform = (searchParams.get('social_connected') === 'meta' ? 'facebook' : searchParams.get('social_connected')) as Platform | null;
-    if (!connectedPlatform || loading || status.platforms.length === 0) return;
-
-    const platform = status.platforms.find((item) => item.platform_code === connectedPlatform);
-    if (!platform) return;
-
-    if (platform.setup_ready) {
-      setError(null);
-      setMessage(`${platform.label} connected and ready.`);
-      return;
-    }
-
-    if (platform.connected) {
-      setMessage(`${platform.label} connected. ${platformStatusText(platform)} is still required.`);
-      return;
-    }
-
-    setMessage(null);
-    setError(platform.platform_code === 'linkedin' && platform.connection_status === 'identity_required'
-      ? linkedInIdentityReason(platform.connection_reason)
-      : mapSocialConnectorError(platform.connection_reason || `${platform.label} did not finish connecting.`));
-  }, [loading, searchParams, status.platforms]);
-
-  useEffect(() => {
-    const fields = activeSetup?.credential_fields ?? {};
-    setFormValues(fields);
-    if (activeSetup?.platform_code === 'facebook' || activeSetup?.platform_code === 'instagram') {
-      setSelectedPageId(activeSetup.account_selection?.selected_page_id || activeSetup.account_selection?.pages?.find((page) => activeSetup.platform_code === 'facebook' || page.instagram_business_account?.id)?.id || '');
-    }
+    if (!activeSetup || (activePlatform !== 'facebook' && activePlatform !== 'instagram')) return;
+    setSelectedPageId(activeSetup.account_selection?.selected_page_id || '');
   }, [activePlatform, activeSetup]);
-
-  const operatorQuery = isAdmin && selectedOperatorId ? `?operator_id=${encodeURIComponent(selectedOperatorId)}` : '';
-
-  async function saveCredentials(platform: Platform = activePlatform) {
-    if (!canUseOperator) {
-      setError('Select an operator before saving social credentials.');
-      return;
+  useEffect(() => {
+    if (!callbackPending || loading || status.platforms.length === 0) return;
+    const platform = callbackPlatform ? status.platforms.find((item) => item.platform_code === callbackPlatform) : null;
+    if (!callbackError && platform) {
+      if (platform.setup_ready) { setError(null); setMessage(`${platform.label} is connected and ready.`); }
+      else if (platform.selection_required) setMessage(`Choose the ${platform.label} account you want OBAOL to use.`);
+      else { setMessage(null); setError(mapSocialConnectorError(platform.connection_reason || `${platform.label} did not finish connecting.`)); }
     }
-    setSaving(true);
-    setError(null);
-    setMessage(null);
+    const url = new URL(window.location.href);
+    ['social_connected', 'social_connect_platform', 'social_connect_error', 'social_connect_error_code'].forEach((key) => url.searchParams.delete(key));
+    window.history.replaceState(window.history.state, '', url.toString());
+    setCallbackPending(false);
+  }, [callbackError, callbackPending, callbackPlatform, loading, status.platforms]);
+
+  function openConnections(platform: Platform = 'instagram') { setActivePlatform(platform); setModalOpen(true); setMessage(null); setError(null); }
+
+  async function startConnect(platform: Platform) {
+    if (!canUseOperator) { setError('Select an operator before connecting an account.'); return; }
+    setSaving(true); setError(null); setMessage(null);
     try {
-      await clientFetch('/social/setup/credentials', {
-        method: 'POST',
-        body: JSON.stringify({
-          operator_id: selectedOperatorId || undefined,
-          platform,
-          fields: formValues,
-        }),
-      });
-      setMessage(`${PLATFORMS.find((item) => item.code === platform)?.label ?? platform} credentials saved.`);
-      await loadStatus();
+      const preflight = await clientFetch<SetupPreflight>('/social/setup/preflight', { method: 'POST', body: JSON.stringify({ operator_id: selectedOperatorId || undefined, platform }) });
+      if (!preflight?.ok) throw new Error(preflight?.message || preflight?.error || 'Connection preflight failed');
+      const data = await clientFetch<{ redirect_url: string }>('/social/setup/start', { method: 'POST', body: JSON.stringify({ operator_id: selectedOperatorId || undefined, platform }) });
+      if (!data?.redirect_url) throw new Error('The provider did not return an authorization URL.');
+      window.sessionStorage.setItem('obaol_social_connect_platform', platform);
+      window.location.href = data.redirect_url;
     } catch (err: unknown) {
-      setError(mapSocialConnectorError(err instanceof Error ? err.message : 'Failed to save social credentials'));
-    } finally {
+      setError(mapSocialConnectorError(err instanceof Error ? err.message : 'Failed to start connection'));
       setSaving(false);
     }
   }
 
-  async function startConnect(platform: Platform = activePlatform) {
-    if (!canUseOperator) {
-      setError('Select an operator before connecting a social platform.');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    setMessage(null);
+  async function saveAccountSelection(pageId: string) {
+    const page = eligiblePages.find((item) => item.id === pageId);
+    if (!page) return;
+    setSelectedPageId(pageId); setSaving(true); setError(null);
     try {
-      const preflight = await clientFetch<SetupPreflight>('/social/setup/preflight', {
-        method: 'POST',
-        body: JSON.stringify({ operator_id: selectedOperatorId || undefined, platform }),
-      });
-      if (!preflight?.ok) {
-        throw new Error(preflight?.message || preflight?.error || 'Social setup preflight failed');
-      }
-      const data = await clientFetch<{ redirect_url: string }>('/social/setup/start', {
-        method: 'POST',
-        body: JSON.stringify({ operator_id: selectedOperatorId || undefined, platform }),
-      });
-      if (data?.redirect_url) window.location.href = data.redirect_url;
-    } catch (err: unknown) {
-      setError(mapSocialConnectorError(err instanceof Error ? err.message : 'Failed to start social connect'));
-    } finally {
-      setSaving(false);
-    }
+      await clientFetch('/social/setup/account-selection', { method: 'POST', body: JSON.stringify({ operator_id: selectedOperatorId || undefined, selected_page_id: pageId, channel: activePlatform, selected_instagram_account_id: activePlatform === 'instagram' ? page.instagram_business_account?.id : undefined }) });
+      await loadStatus();
+      setMessage(`${activePlatform === 'instagram' ? 'Instagram' : 'Facebook'} is connected and ready.`);
+    } catch (err: unknown) { setError(mapSocialConnectorError(err instanceof Error ? err.message : 'Failed to save account selection')); }
+    finally { setSaving(false); }
   }
 
-  async function saveAccountSelection() {
-    if (!selectedPageId) {
-      setError('Select a Meta Page before saving account selection.');
-      return;
-    }
-    const page = activeSetup?.account_selection?.pages?.find((item) => item.id === selectedPageId);
-    setSaving(true);
-    setError(null);
-    setMessage(null);
+  async function disconnect(platform: Platform) {
+    setSaving(true); setError(null);
     try {
-      await clientFetch('/social/setup/account-selection', {
-        method: 'POST',
-        body: JSON.stringify({
-          operator_id: selectedOperatorId || undefined,
-          selected_page_id: selectedPageId,
-          channel: activePlatform,
-          selected_instagram_account_id: activePlatform === 'instagram' ? page?.instagram_business_account?.id || undefined : undefined,
-        }),
-      });
-      setMessage(`${activePlatform === 'instagram' ? 'Instagram' : 'Facebook'} destination saved.`);
+      await clientFetch(`/social/disconnect/${platform}${operatorQuery}`, { method: 'POST' });
       await loadStatus();
-    } catch (err: unknown) {
-      setError(mapSocialConnectorError(err instanceof Error ? err.message : 'Failed to save account selection'));
-    } finally {
-      setSaving(false);
-    }
+      setMessage(`${PLATFORMS.find((item) => item.code === platform)?.label ?? platform} disconnected.`);
+    } catch (err: unknown) { setError(mapSocialConnectorError(err instanceof Error ? err.message : 'Failed to disconnect account')); }
+    finally { setSaving(false); }
   }
 
   async function enableAutomation() {
-    setSaving(true);
-    setError(null);
-    setMessage(null);
+    setSaving(true); setError(null);
     try {
-      await clientFetch('/social/setup/automation', {
-        method: 'POST',
-        body: JSON.stringify({ operator_id: selectedOperatorId || undefined, timezone: 'Asia/Kolkata' }),
-      });
-      setMessage('Social automation is enabled. Agent drafts will require approval before scheduling.');
-      await loadStatus();
-    } catch (err: unknown) {
-      setError(mapSocialConnectorError(err instanceof Error ? err.message : 'Failed to enable social automation'));
-    } finally {
-      setSaving(false);
-    }
+      await clientFetch('/social/setup/automation', { method: 'POST', body: JSON.stringify({ operator_id: selectedOperatorId || undefined, timezone: 'Asia/Kolkata' }) });
+      await loadStatus(); setMessage('Social publishing automation is enabled.');
+    } catch (err: unknown) { setError(mapSocialConnectorError(err instanceof Error ? err.message : 'Failed to enable automation')); }
+    finally { setSaving(false); }
   }
 
-  async function runPrimaryAction() {
-    if (!canUseOperator) return;
-    if (status.next_action === 'enable_automation') return enableAutomation();
-    if (status.next_action === 'ready') return loadStatus();
-    const target = nextPlatform ?? activeSetup;
-    if (!target) return;
-    if (target.platform_code !== activePlatform) {
-      setActivePlatform(target.platform_code);
-      setMessage(target.one_click_available ? `${target.label} is ready. Click Connect to continue.` : `Review ${target.label} setup, then continue.`);
-      return;
-    }
-    setActivePlatform(target.platform_code);
-    if (target.next_action === 'configure_credentials') {
-      if (target.platform_code === 'linkedin') {
-        if (isAdmin) {
-          window.location.href = `/dashboard/admin/social-apps?operator_id=${encodeURIComponent(selectedOperatorId)}&platform=linkedin&scope=global`;
-          return;
-        }
-        setError('LinkedIn one-click connect is not configured yet. Ask an admin to configure the global OBAOL LinkedIn app.');
-        return;
-      }
-      if (target.platform_code === 'reddit') {
-        if (isAdmin) {
-          window.location.href = `/dashboard/admin/social-apps?operator_id=${encodeURIComponent(selectedOperatorId)}&platform=reddit&scope=global`;
-          return;
-        }
-        setError('Reddit one-click connect is not configured yet. Ask an admin to configure the global OBAOL Reddit app.');
-        return;
-      }
-      return saveCredentials(target.platform_code);
-    }
-    if (target.next_action === 'connect_account') return startConnect(target.platform_code);
-    if (target.next_action === 'select_account') return saveAccountSelection();
-    return loadStatus();
+  function configurePlatform(platform: Platform) {
+    const configPlatform = platform === 'facebook' || platform === 'instagram' ? 'meta' : platform;
+    window.location.href = `/dashboard/admin/social-apps?operator_id=${encodeURIComponent(selectedOperatorId)}&platform=${configPlatform}&scope=global`;
   }
-
-  const primaryDisabled = loading || saving || !canUseOperator || status.next_action === 'ready';
-  const primaryLabel = !canUseOperator
-    ? 'Select operator'
-    : status.next_action === 'ready'
-      ? 'Social Engine ready'
-      : nextPlatform?.next_action === 'select_account'
-        ? `Choose ${nextPlatform.label} destination`
-        : nextPlatform?.one_click_available && !nextPlatform.connected
-        ? `Connect ${nextPlatform.label}`
-        : nextPlatform?.next_action === 'configure_credentials'
-          ? nextPlatform.platform_code === 'linkedin'
-            ? 'Configure LinkedIn app'
-            : nextPlatform.platform_code === 'reddit'
-              ? 'Configure Reddit app'
-            : `Save ${nextPlatform.label} credentials`
-        : nextPlatform?.next_action === 'connect_account'
-          ? `Connect ${nextPlatform.label}`
-          : ACTION_LABELS[status.next_action] ?? 'Setup Social Engine';
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Social Engine</h2>
-          <p className="text-sm text-muted-foreground">
-            Connect operator channels with OBAOL-managed app credentials, then schedule and approve agent-prepared posts.
-          </p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div><h2 className="text-2xl font-bold tracking-tight">Social connections</h2><p className="mt-1 text-sm text-muted-foreground">Connect your accounts once, then publish and schedule from OBAOL.</p></div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => void loadStatus()} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh</Button>
+          <Button onClick={() => openConnections()} disabled={!canUseOperator}><Cable className="mr-2 h-4 w-4" /> Connect social networks</Button>
         </div>
-        <Button variant="outline" size="sm" onClick={() => void loadStatus()} disabled={loading}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          {loading ? 'Refreshing' : 'Refresh'}
-        </Button>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Zap className="h-5 w-5" />
-              Setup Social Engine
-            </CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Choose an operator, connect at least one channel, then let the optimizer and agents prepare posts for approval.
-            </p>
-          </div>
-          <Button onClick={() => void runPrimaryAction()} disabled={primaryDisabled} className="min-w-[14rem]">
-            {saving ? 'Working...' : primaryLabel}
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {isAdmin && (
-            <div className="grid gap-2 md:max-w-xl">
-              <label className="text-xs font-medium text-muted-foreground">Operator</label>
-              <select
-                className="w-full rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-sm outline-none focus:border-ring/60 dark:bg-black/20"
-                value={selectedOperatorId}
-                onChange={(event) => {
-                  const nextOperatorId = event.target.value;
-                  setSelectedOperatorId(nextOperatorId);
-                  setMessage(null);
-                  setError(null);
-                  if (!nextOperatorId) {
-                    const url = new URL(window.location.href);
-                    url.searchParams.delete('social_connected');
-                    url.searchParams.delete('social_connect_error');
-                    url.searchParams.delete('social_connect_error_code');
-                    url.searchParams.delete('operator_id');
-                    window.history.replaceState(window.history.state, '', url.toString());
-                  }
-                }}
-              >
-                <option value="">Select operator</option>
-                {operators.map((operator) => (
-                  <option key={operator.id} value={operator.id}>
-                    {operator.name}{operator.region ? ` (${operator.region})` : ''}
-                  </option>
-                ))}
-              </select>
-              {!selectedOperatorId && (
-                <p className="text-xs text-amber-700 dark:text-amber-300">Select an operator to connect channels.</p>
-              )}
-              {operatorLoadError && <p className="text-xs text-rose-700 dark:text-rose-300">{operatorLoadError}</p>}
-              {operatorLoadErrorKind === 'backend_unavailable' && (
-                <p className="text-xs text-muted-foreground">Backend health must be restored before setup can continue.</p>
-              )}
-            </div>
-          )}
+      {isAdmin && <Card><CardContent className="flex flex-col gap-3 py-4 md:flex-row md:items-end md:justify-between">
+        <div className="grid w-full gap-1.5 md:max-w-xl"><label className="text-xs font-medium text-muted-foreground">Operator</label><select className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" value={selectedOperatorId} onChange={(event) => { setSelectedOperatorId(event.target.value); setMessage(null); setError(null); }}><option value="">Select operator</option>{operators.map((operator) => <option key={operator.id} value={operator.id}>{operator.name}{operator.region ? ` (${operator.region})` : ''}</option>)}</select>{operatorLoadError && <p className="text-xs text-rose-600">{operatorLoadError}</p>}{operatorLoadErrorKind === 'backend_unavailable' && <p className="text-xs text-muted-foreground">Restore backend health before continuing.</p>}</div>
+        <Button variant="outline" disabled={!selectedOperatorId} onClick={() => configurePlatform('instagram')}><Settings2 className="mr-2 h-4 w-4" /> Provider settings</Button>
+      </CardContent></Card>}
 
-          {canUseOperator && message && <div className="rounded border border-green-500/30 bg-emerald-500/10 p-2 text-sm text-emerald-700 dark:text-emerald-300">{message}</div>}
-          {canUseOperator && error && <div className="rounded border border-red-500/30 bg-rose-500/10 p-2 text-sm text-rose-700 dark:text-rose-300">{error}</div>}
-
-          {canUseOperator && <div className="grid gap-3 md:grid-cols-4">
-            <div className="rounded-md border border-border/60 bg-muted/30 p-3">
-              <p className="text-xs text-muted-foreground">Credentials</p>
-              <p className="mt-1 text-xl font-semibold">{configuredCount}/{status.platforms.length || PLATFORMS.length}</p>
-            </div>
-            <div className="rounded-md border border-border/60 bg-muted/30 p-3">
-              <p className="text-xs text-muted-foreground">Connected</p>
-              <p className="mt-1 text-xl font-semibold">{connectedCount}/{status.platforms.length || PLATFORMS.length}</p>
-            </div>
-            <div className="rounded-md border border-border/60 bg-muted/30 p-3">
-              <p className="text-xs text-muted-foreground">Ready Channels</p>
-              <p className="mt-1 text-xl font-semibold">{readyCount}</p>
-            </div>
-            <div className="rounded-md border border-border/60 bg-muted/30 p-3">
-              <p className="text-xs text-muted-foreground">Automation</p>
-              <p className="mt-1 text-xl font-semibold">{status.automation.enabled ? 'On' : 'Off'}</p>
-            </div>
-          </div>}
-        </CardContent>
-      </Card>
-
-      {canUseOperator && <>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.8fr)]">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Cable className="h-5 w-5" />
-              Channels
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2">
-            {(status.platforms.length > 0 ? status.platforms : PLATFORMS.map((item) => ({
-              platform_code: item.code,
-              label: item.label,
-              credential_configured: false,
-              credential_missing_fields: [],
-              credential_source: 'missing' as const,
-              one_click_available: false,
-              credential_fields: {},
-              connection_status: 'disconnected' as SocialConnectionStatus,
-              connection_reason: null,
-              authorization_saved: false,
-              connected: false,
-              can_schedule: false,
-              can_publish: false,
-              setup_ready: false,
-              next_action: 'configure_credentials' as NextAction,
-            }))).map((platform) => (
-              <div
-                key={platform.platform_code}
-                className={`min-w-0 rounded-md border p-3 transition hover:border-primary/60 ${
-                  activePlatform === platform.platform_code ? 'border-primary bg-primary/5' : 'border-border/60 bg-muted/20'
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActivePlatform(platform.platform_code);
-                    setMessage(null);
-                    setError(null);
-                  }}
-                  className="block w-full rounded-sm text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-medium">{platform.label}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {platform.platform_code === 'linkedin' && platform.connection_status === 'identity_required'
-                          ? 'Publishing paused · Reconnect required'
-                          : `${platform.can_publish ? 'API publishing' : 'Setup required'} · ${platform.can_schedule ? 'Scheduler ready' : 'Scheduler gated'}`}
-                      </p>
-                      {platform.credential_source && platform.credential_source !== 'missing' && (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {platform.credential_source === 'operator' ? 'Operator app configured' : 'OBAOL app configured'}
-                        </p>
-                      )}
-                    </div>
-                    <Badge className={`${statusBadgeClass(platform)} whitespace-nowrap`}>{platformStatusText(platform)}</Badge>
-                  </div>
-                  {platform.connection_reason && !(platform.platform_code === 'linkedin' && platform.connection_status === 'identity_required') && (
-                    <p className="mt-2 line-clamp-2 text-xs text-amber-700 dark:text-amber-300">{platform.connection_reason}</p>
-                  )}
-                  {platform.credential_missing_fields.length > 0 && (
-                    <p className="mt-2 text-xs text-muted-foreground">Missing: {platform.credential_missing_fields.join(', ')}</p>
-                  )}
-                </button>
-                {platform.platform_code === 'linkedin' && platform.connection_status === 'identity_required' && (
-                  <div className="mt-3 space-y-2 border-t border-border/60 pt-3 text-sm">
-                    <p className="text-amber-700 dark:text-amber-300">
-                      {linkedInIdentityReason(platform.connection_reason)}
-                    </p>
-                    <p className="text-muted-foreground">Publishing is paused until LinkedIn returns a valid member ID. Resolve the issue above before retrying.</p>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="mt-1 max-w-full"
-                      onClick={() => void startConnect('linkedin')}
-                      disabled={saving || !canUseOperator || !platform.credential_configured}
-                    >
-                      Retry LinkedIn authorization
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={async () => {
-                        setSaving(true);
-                        setError(null);
-                        setMessage(null);
-                        try {
-                          await clientFetch(`/social/linkedin/recheck-identity${operatorQuery}`, { method: 'POST' });
-                          await loadStatus();
-                        } catch (err: unknown) {
-                          setError(mapSocialConnectorError(err instanceof Error ? err.message : 'Failed to recheck LinkedIn identity'));
-                        } finally {
-                          setSaving(false);
-                        }
-                      }}
-                      disabled={saving || !canUseOperator}
-                    >
-                      Recheck saved authorization
-                    </Button>
-                    <p className="text-xs text-muted-foreground">
-                      The Member URN field in Setup is an advanced fallback, not a normal connection step.
-                    </p>
-                  </div>
-                )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings2 className="h-5 w-5" />
-              {PLATFORMS.find((item) => item.code === activePlatform)?.label ?? activePlatform} Setup
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {activeGlobalLinkedIn ? (
-              <div className="rounded-md border border-green-500/30 bg-emerald-500/10 p-3">
-                <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
-                  LinkedIn is ready for one-click connection.
-                </p>
-                <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-300">
-                  OBAOL&apos;s LinkedIn app is already configured. The operator only needs to approve access.
-                </p>
-              </div>
-            ) : activeMissingLinkedIn ? (
-              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
-                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                  LinkedIn one-click connect needs the global OBAOL app first.
-                </p>
-                <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
-                  Configure the LinkedIn client ID, secret, callback, and scopes once in admin settings.
-                </p>
-              </div>
-            ) : activeGlobalMeta ? (
-              <div className="rounded-md border border-green-500/30 bg-emerald-500/10 p-3 text-sm">
-                The OBAOL Meta app is configured. Authorize once, then choose this channel&apos;s destination below.
-              </div>
-            ) : activeMissingMeta ? (
-              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
-                Configure the shared OBAOL Meta app in Social App Settings before connecting Facebook or Instagram.
-              </div>
-            ) : activeGlobalReddit ? (
-              <div className="rounded-md border border-green-500/30 bg-emerald-500/10 p-3">
-                <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200">Reddit is ready for one-click connection.</p>
-                <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-300">OBAOL&apos;s Reddit app is configured. The operator only needs to approve identity and submit access.</p>
-              </div>
-            ) : activeMissingReddit ? (
-              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
-                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Reddit one-click connect needs the global OBAOL app first.</p>
-                <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">Configure the Reddit client ID, secret, callback, and user agent once in admin settings.</p>
-              </div>
-            ) : (
-              <div className="grid gap-3">
-                {PLATFORM_FIELDS[activePlatform].map((field) => (
-                  <div key={field.key} className="grid gap-1.5">
-                    <label className="text-xs font-medium text-muted-foreground">{field.label}</label>
-                    <Input
-                      type={field.secret ? 'password' : 'text'}
-                      value={formValues[field.key] ?? ''}
-                      placeholder={field.placeholder}
-                      onChange={(event) => setFormValues((prev) => ({ ...prev, [field.key]: event.target.value }))}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-2">
-              {!activeGlobalLinkedIn && !activeGlobalMeta && !activeGlobalReddit && !activeMissingLinkedIn && !activeMissingMeta && !activeMissingReddit && (
-                <Button onClick={() => void saveCredentials()} disabled={saving || !canUseOperator}>
-                  Save credentials
-                </Button>
-              )}
-              <Button variant={activeOneClick ? 'default' : 'outline'} onClick={() => void startConnect()} disabled={saving || !canUseOperator || !activeSetup?.credential_configured}>
-                {PLATFORMS.find((item) => item.code === activePlatform)?.connectLabel ?? 'Connect'}
-              </Button>
-              {activeMissingLinkedIn && isAdmin && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    window.location.href = `/dashboard/admin/social-apps?operator_id=${encodeURIComponent(selectedOperatorId)}&platform=linkedin&scope=global`;
-                  }}
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Configure LinkedIn app
-                </Button>
-              )}
-              {activeMissingMeta && isAdmin && (
-                <Button variant="outline" onClick={() => { window.location.href = `/dashboard/admin/social-apps?operator_id=${encodeURIComponent(selectedOperatorId)}&platform=meta&scope=global`; }}>
-                  <ExternalLink className="h-4 w-4" /> Configure Meta app
-                </Button>
-              )}
-              {activeMissingReddit && isAdmin && (
-                <Button variant="outline" onClick={() => { window.location.href = `/dashboard/admin/social-apps?operator_id=${encodeURIComponent(selectedOperatorId)}&platform=reddit&scope=global`; }}>
-                  <ExternalLink className="h-4 w-4" /> Configure Reddit app
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  setSaving(true);
-                  setError(null);
-                  setMessage(null);
-                  try {
-                    await clientFetch(`/social/disconnect/${activePlatform}${operatorQuery}`, { method: 'POST' });
-                    await loadStatus();
-                    const url = new URL(window.location.href);
-                    url.searchParams.delete('social_connected');
-                    url.searchParams.delete('social_connect_error');
-                    url.searchParams.delete('social_connect_error_code');
-                    window.history.replaceState(window.history.state, '', url.toString());
-                    setMessage(`${PLATFORMS.find((item) => item.code === activePlatform)?.label ?? activePlatform} disconnected.`);
-                  } catch (err: unknown) {
-                    setError(mapSocialConnectorError(err instanceof Error ? err.message : 'Failed to disconnect social platform'));
-                  } finally {
-                    setSaving(false);
-                  }
-                }}
-                disabled={saving || (activeMetaChannel
-                  ? !activeSetup?.account_selection?.selected_page_id
-                  : !(activeSetup?.authorization_saved || (activeSetup?.connection_status && activeSetup.connection_status !== 'disconnected')))}
-              >
-                Disconnect
-              </Button>
-            </div>
-
-            {activeMetaChannel && activeSetup?.authorization_saved && (
-              <div className="rounded-md border border-border/60 bg-muted/30 p-3">
-                <p className="text-sm font-medium">{activePlatform === 'facebook' ? 'Facebook Page' : 'Instagram professional account'}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{activePlatform === 'facebook' ? 'Choose the Page used for Facebook publishing.' : 'Choose a Page linked to the Instagram professional account used for publishing.'}</p>
-                {activeSetup.account_selection?.discovery_error && (
-                  <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">{activeSetup.account_selection.discovery_error}</p>
-                )}
-                <select
-                  className="mt-3 w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:border-ring/60"
-                  value={selectedPageId}
-                  onChange={(event) => setSelectedPageId(event.target.value)}
-                >
-                  {(activeSetup.account_selection?.pages ?? []).filter((page) => activePlatform === 'facebook' || Boolean(page.instagram_business_account?.id)).map((page) => (
-                    <option key={page.id} value={page.id}>
-                      {page.name || page.id}
-                      {page.instagram_business_account?.username ? ` · @${page.instagram_business_account.username}` : ''}
-                    </option>
-                  ))}
-                </select>
-                <Button className="mt-3" size="sm" onClick={() => void saveAccountSelection()} disabled={saving || !selectedPageId}>
-                  Save account selection
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card><CardContent className="py-5"><p className="text-sm text-muted-foreground">Connected accounts</p><p className="mt-1 text-3xl font-semibold">{connectedCount}</p></CardContent></Card>
+        <Card><CardContent className="py-5"><p className="text-sm text-muted-foreground">Ready to publish</p><p className="mt-1 text-3xl font-semibold">{readyCount}</p></CardContent></Card>
+        <Card><CardContent className="py-5"><p className="text-sm text-muted-foreground">Automation</p><p className="mt-1 text-3xl font-semibold">{status.automation.enabled ? 'On' : 'Off'}</p></CardContent></Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bot className="h-5 w-5" />
-            Automation
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-medium">
-              {status.automation.enabled ? 'Social publishing agent is enabled' : 'Social publishing agent is not enabled'}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Agent drafts stay approval-first and flow into social optimization and scheduling.
-            </p>
+      <Card><CardHeader><CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5" /> Publishing automation</CardTitle></CardHeader><CardContent className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><p className="text-sm text-muted-foreground">Agent-prepared posts remain approval-first and use only connected, ready accounts.</p><Button onClick={() => void enableAutomation()} disabled={saving || readyCount === 0 || !canUseOperator}><CheckCircle2 className="mr-2 h-4 w-4" /> {status.automation.enabled ? 'Recheck automation' : 'Enable automation'}</Button></CardContent></Card>
+
+      {modalOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="social-connect-title">
+        <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">
+          <div className="flex items-start justify-between border-b border-border px-5 py-4 sm:px-7"><div><h3 id="social-connect-title" className="text-xl font-semibold">Connect your social networks</h3><p className="mt-1 text-sm text-muted-foreground">Authorize an account and OBAOL will securely finish the setup.</p></div><Button variant="outline" size="sm" aria-label="Close" onClick={() => setModalOpen(false)}><X className="h-4 w-4" /></Button></div>
+          <div className="overflow-y-auto p-5 sm:p-7">
+            {message && <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-300">{message}</div>}
+            {error && <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-700 dark:text-rose-300">{error}</div>}
+            <div className="grid gap-3 md:grid-cols-2">
+              {PLATFORMS.map((definition) => {
+                const item = status.platforms.find((candidate) => candidate.platform_code === definition.code) ?? { platform_code: definition.code, label: definition.label, credential_configured: false, credential_missing_fields: [], connection_status: 'disconnected', connection_reason: null, connected: false, can_schedule: false, can_publish: false, setup_ready: false, next_action: 'configure_credentials', ui_state: 'unavailable' } as PlatformSetup;
+                const state = uiState(item);
+                const isActive = activePlatform === definition.code;
+                return <div key={definition.code} className={`rounded-xl border p-4 transition ${isActive ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border hover:border-primary/40'}`}>
+                  <button type="button" className="w-full text-left" onClick={() => { setActivePlatform(definition.code); setMessage(null); setError(null); }}><span className="flex items-start gap-3"><span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${PLATFORM_STYLES[definition.code]}`}><PlatformIcon platform={definition.code} /></span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="font-medium">{definition.label}</span><Badge className={badgeClass(item)}>{stateLabel(item)}</Badge></span><span className="mt-1 block truncate text-xs text-muted-foreground">{item.connected_identity?.display_name || definition.helper}</span></span></span></button>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/70 pt-3">
+                    {state === 'connected' ? <><span className="mr-auto inline-flex items-center gap-1 text-xs text-emerald-600"><Check className="h-3.5 w-3.5" /> Ready to publish</span><Button size="sm" variant="outline" onClick={() => void startConnect(definition.code)} disabled={saving}>Reconnect</Button><Button size="sm" variant="outline" onClick={() => void disconnect(definition.code)} disabled={saving}>Disconnect</Button></>
+                    : state === 'unavailable' ? isAdmin ? <Button size="sm" variant="outline" onClick={() => configurePlatform(definition.code)}><ExternalLink className="mr-1 h-3.5 w-3.5" /> Configure</Button> : <span className="text-xs text-muted-foreground">Ask an administrator to configure this connection.</span>
+                    : state === 'action_required' && (definition.code === 'instagram' || definition.code === 'facebook') ? <span className="inline-flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300"><CircleAlert className="h-3.5 w-3.5" /> Select an account below</span>
+                    : <Button size="sm" onClick={() => void startConnect(definition.code)} disabled={saving}>{state === 'reconnect' ? 'Reconnect' : `Connect ${definition.label}`}</Button>}
+                  </div>
+                </div>;
+              })}
+            </div>
+
+            {(activePlatform === 'instagram' || activePlatform === 'facebook') && activeSetup?.authorization_saved && activeSetup.selection_required && <div className="mt-5 rounded-xl border border-border bg-muted/30 p-4">
+              <h4 className="font-medium">{activePlatform === 'instagram' ? 'Choose an Instagram professional account' : 'Choose a Facebook Page'}</h4>
+              <p className="mt-1 text-sm text-muted-foreground">{activePlatform === 'instagram' ? 'Only Business or Creator accounts linked to an authorized Facebook Page are shown.' : 'Select the Page OBAOL should publish to.'}</p>
+              {activeSetup.account_selection?.discovery_error && <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">Meta could not list the available accounts. Reconnect and approve Page access.</p>}
+              {eligiblePages.length === 0 ? <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm">{activePlatform === 'instagram' ? 'No eligible Instagram professional account was found. Convert the account to Business or Creator, link it to a Facebook Page, then reconnect.' : 'No publishable Facebook Page was returned. Confirm Page access and reconnect.'}</div>
+              : <div className="mt-4 grid gap-2 sm:grid-cols-2">{eligiblePages.map((page) => {
+                const selected = selectedPageId === page.id;
+                const identity = activePlatform === 'instagram' ? page.instagram_business_account : null;
+                return <button key={page.id} type="button" disabled={saving} onClick={() => void saveAccountSelection(page.id)} className={`flex items-center gap-3 rounded-lg border p-3 text-left transition ${selected ? 'border-primary bg-primary/10' : 'border-border bg-background hover:border-primary/50'}`}><span className={`flex h-9 w-9 items-center justify-center rounded-lg ${PLATFORM_STYLES[activePlatform]}`}><PlatformIcon platform={activePlatform} className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{identity?.username ? `@${identity.username}` : identity?.name || page.name || page.id}</span><span className="block truncate text-xs text-muted-foreground">{page.name || 'Facebook Page'}</span></span>{selected && <CheckCircle2 className="h-5 w-5 text-primary" />}</button>;
+              })}</div>}
+            </div>}
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => void enableAutomation()} disabled={saving || !canUseOperator || readyCount === 0}>
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              {status.automation.enabled ? 'Recheck automation' : 'Enable automation'}
-            </Button>
-            {readyCount === 0 && (
-              <span className="inline-flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300">
-                <CircleAlert className="h-3.5 w-3.5" />
-                Connect at least one ready channel first.
-              </span>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-      </>}
+          <div className="flex items-center justify-between border-t border-border px-5 py-4 sm:px-7"><span className="text-xs text-muted-foreground">OAuth credentials and tokens are stored server-side.</span><Button onClick={() => setModalOpen(false)}>Finish</Button></div>
+        </div>
+      </div>}
     </div>
   );
 }
