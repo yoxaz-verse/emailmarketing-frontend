@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import type { ModuleAccessFlags } from '@/lib/dashboard-access';
+import AuthGuardClient from './AuthGuardClient';
 
 export default function DashboardShell({ role, accessFlags, email, children }: { role?: string; accessFlags?: ModuleAccessFlags; email: string; children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -21,6 +22,7 @@ export default function DashboardShell({ role, accessFlags, email, children }: {
 
   return (
     <div className="dashboard-shell flex h-dvh overflow-hidden bg-background">
+      <AuthGuardClient />
       <Sidebar role={role} accessFlags={accessFlags} mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
       {mobileNavOpen && (
         <button type="button" aria-label="Close navigation" className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden" onClick={() => setMobileNavOpen(false)} />

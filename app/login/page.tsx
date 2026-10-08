@@ -13,7 +13,7 @@ function LoginPageContent() {
   const [isSuccess, setIsSuccess] = useState(false);
   const sessionMessage =
     searchParams.get('reason') === 'session-ended'
-      ? 'Your session expired or the authentication service became unavailable. Please sign in again.'
+      ? 'Your session expired or is no longer valid. Please sign in again.'
       : null;
   const urlError = searchParams.get('error');
   const visibleError = error || urlError;
@@ -43,10 +43,7 @@ function LoginPageContent() {
       setIsSuccess(true);
       setIsLoading(false);
 
-      // Delay to let the user see the success state ("Authenticated")
-      setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 1500);
+      window.location.href = '/dashboard';
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed');
       setIsLoading(false);

@@ -4,7 +4,7 @@ import { clearAuthCookies } from '@/lib/auth-session';
 import { getApiBaseUrl } from '@/lib/server/api-config';
 
 function isAuthLikeError(message: string): boolean {
-  return /unauthorized|invalid token|token expired|jwt expired|invalid signature|authentication required|session expired|sign(?:ed)? in again|user disabled|forbidden/i.test(message);
+  return /unauthorized|invalid token|token expired|jwt expired|invalid signature|authentication required|session expired|sign(?:ed)? in again|user disabled/i.test(message);
 }
 
 function pickSafeResponseHeaders(upstream: Response): Headers {

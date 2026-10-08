@@ -41,11 +41,11 @@ export async function GET(req: Request) {
       return redirectTo(req, SESSION_ENDED_PATH);
     }
 
-    return redirectTo(req, SESSION_ENDED_PATH);
+    return redirectTo(req, '/dashboard');
   } catch (error) {
     console.error('[ENTER_DASHBOARD_AUTH_CHECK_FAILED]', {
       message: error instanceof Error ? error.message : 'unknown',
     });
-    return redirectTo(req, SESSION_ENDED_PATH);
+    return redirectTo(req, '/dashboard');
   }
 }

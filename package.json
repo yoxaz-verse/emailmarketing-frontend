@@ -6,6 +6,7 @@
     "dev": "next dev",
     "dev:full": "node scripts/dev-full.mjs",
     "build": "next build --webpack",
+    "test": "node --test --experimental-strip-types lib/*.test.ts",
     "start": "next start",
     "lint": "eslint",
     "benchmark": "node scripts/benchmark-dashboard.mjs"

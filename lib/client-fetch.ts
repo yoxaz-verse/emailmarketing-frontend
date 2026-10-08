@@ -1,4 +1,6 @@
 // lib/client-fetch.ts
+import { classifyTransportFailure, isAuthInvalidationError } from './auth-failure-policy';
+
 type ApiErrorShape = {
   code?: string;
   error?: string;
@@ -8,6 +10,19 @@ type ApiErrorShape = {
 };
 
 let hasTriggeredAuthRedirect = false;
+
+export type ClientFetchErrorKind = 'unauthorized' | 'forbidden' | 'backend_unavailable' | 'timeout' | 'request';
+
+export class ClientFetchError extends Error {
+  constructor(
+    message: string,
+    readonly kind: ClientFetchErrorKind,
+    readonly status?: number,
+  ) {
+    super(message);
+    this.name = 'ClientFetchError';
+  }
+}
 
 function triggerAuthLogout(): void {
   if (typeof window === 'undefined' || hasTriggeredAuthRedirect) return;
@@ -22,15 +37,6 @@ function parseErrorShape(raw: string): ApiErrorShape | null {
   } catch {
     return null;
   }
-}
-
-function isAuthInvalidationError(status: number, raw: string): boolean {
-  if (status === 401) return true;
-  if (status !== 403) return false;
-
-  const parsed = parseErrorShape(raw);
-  const message = String(parsed?.error ?? parsed?.message ?? raw).trim();
-  return /unauthorized|invalid token|token expired|jwt expired|invalid signature|authentication required|session expired|sign(?:ed)? in again|user disabled/i.test(message);
 }
 
 function isHtmlLikeResponse(raw: string): boolean {
@@ -147,9 +153,14 @@ export async function clientFetch<T>(
       signal: controller.signal,
     });
   } catch (error) {
-    triggerAuthLogout();
-    if (controller.signal.aborted) throw new Error(`Request timed out after ${timeoutMs}ms.`);
-    throw error;
+    const failureKind = classifyTransportFailure(controller.signal.aborted);
+    if (failureKind === 'timeout') {
+      throw new ClientFetchError(`Request timed out after ${timeoutMs}ms.`, 'timeout');
+    }
+    throw new ClientFetchError(
+      error instanceof Error ? error.message : 'Backend unavailable',
+      'backend_unavailable',
+    );
   } finally {
     window.clearTimeout(timeout);
     callerSignal?.removeEventListener('abort', abortFromCaller);
@@ -160,19 +171,18 @@ export async function clientFetch<T>(
 
     if (isAuthInvalidationError(res.status, raw) && typeof window !== 'undefined') {
       triggerAuthLogout();
-      throw new Error('UNAUTHORIZED');
+      throw new ClientFetchError('UNAUTHORIZED', 'unauthorized', res.status);
     }
 
-    throw new Error(normalizeClientError(res.status, raw));
+    throw new ClientFetchError(normalizeClientError(res.status, raw), 'forbidden', res.status);
   }
 
   if (!res.ok) {
     const raw = await res.text();
     if (res.status >= 500) {
-      triggerAuthLogout();
-      throw new Error('AUTH_SERVICE_UNAVAILABLE');
+      throw new ClientFetchError(normalizeClientError(res.status, raw), 'backend_unavailable', res.status);
     }
-    throw new Error(normalizeClientError(res.status, raw));
+    throw new ClientFetchError(normalizeClientError(res.status, raw), 'request', res.status);
   }
 
   const raw = await res.text();
@@ -180,5 +190,9 @@ export async function clientFetch<T>(
   if (durationMs >= 750) {
     console.warn('[clientFetch:slow]', { path: normalizedPath, status: res.status, durationMs, payloadBytes: new Blob([raw]).size });
   }
-  return (raw ? JSON.parse(raw) : null) as T;
+  try {
+    return (raw ? JSON.parse(raw) : null) as T;
+  } catch {
+    throw new ClientFetchError('Backend returned an invalid response.', 'backend_unavailable', res.status);
+  }
 }

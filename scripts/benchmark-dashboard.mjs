@@ -14,6 +14,7 @@ function percentile(values, fraction) {
 for (const path of paths) {
   const timings = [];
   const sizes = [];
+  const outcomes = { success: 0, redirect: 0, backend_failure: 0, error: 0 };
   for (let index = 0; index < samples; index += 1) {
     const startedAt = performance.now();
     const response = await fetch(`${baseUrl}${path}`, {
@@ -21,15 +22,21 @@ for (const path of paths) {
       redirect: 'manual',
     });
     const body = await response.arrayBuffer();
-    if (response.status >= 400) throw new Error(`${path} returned ${response.status}`);
-    timings.push(performance.now() - startedAt);
+    const duration = performance.now() - startedAt;
+    if (response.status >= 300 && response.status < 400) outcomes.redirect += 1;
+    else if ([502, 503, 504].includes(response.status)) outcomes.backend_failure += 1;
+    else if (response.ok) outcomes.success += 1;
+    else outcomes.error += 1;
+    if (response.ok) timings.push(duration);
     sizes.push(body.byteLength);
   }
   process.stdout.write(`${JSON.stringify({
     path,
     samples,
-    p50_ms: Math.round(percentile(timings, 0.5)),
-    p95_ms: Math.round(percentile(timings, 0.95)),
+    authenticated: Boolean(cookie),
+    outcomes,
+    p50_ms: timings.length ? Math.round(percentile(timings, 0.5)) : null,
+    p95_ms: timings.length ? Math.round(percentile(timings, 0.95)) : null,
     average_bytes: Math.round(sizes.reduce((sum, value) => sum + value, 0) / sizes.length),
   })}\n`);
 }

@@ -8,6 +8,7 @@ type LoginBackendResponse = {
     role?: string;
     operator_id?: string | null;
     access_flags?: Record<string, boolean>;
+    email?: string | null;
   };
   error?: string;
   message?: string;
@@ -19,6 +20,7 @@ type LoginBackendSuccess = {
     role: string;
     operator_id?: string | null;
     access_flags?: Record<string, boolean>;
+    email?: string | null;
   };
 };
 
@@ -168,6 +170,8 @@ export async function POST(req: Request) {
   response.cookies.set('user_role', data.user.role, cookieOptions);
 
   response.cookies.set('user_access_flags', encodeURIComponent(JSON.stringify(data.user.access_flags ?? {})), cookieOptions);
+
+  response.cookies.set('user_email', String(data.user.email ?? email).trim().toLowerCase(), cookieOptions);
 
   if (data.user.operator_id) {
     response.cookies.set('operator_id', data.user.operator_id, cookieOptions);
