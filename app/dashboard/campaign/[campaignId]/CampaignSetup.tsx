@@ -7,6 +7,8 @@ import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { updateCampaignInboxes, updateCampaignSenderSettings } from './actions';
+import DynamicFieldsPanel from './DynamicFieldsPanel';
+import type { CampaignPersonalizationState } from '@/lib/server/campaign-workspace';
 
 type CampaignSetupProps = {
   campaign: { id: string; status: string; operator_id?: string | null };
@@ -27,6 +29,7 @@ type CampaignSetupProps = {
     blocking_campaign_name: string;
     blocking_status: string;
   }>;
+  personalization: CampaignPersonalizationState;
 };
 
 const campaignSectionClass = 'rounded-xl border border-border bg-card/50 p-5 dark:border-white/[0.14] dark:bg-white/[0.055] dark:shadow-[0_12px_36px_rgb(0,0,0,0.28)]';
@@ -42,6 +45,7 @@ export default function CampaignSetup({
   inboxes,
   campaignInboxes,
   lockedInboxes = [],
+  personalization,
 }: CampaignSetupProps) {
   const router = useRouter();
   const attachedInboxIds = useMemo(
@@ -162,6 +166,12 @@ export default function CampaignSetup({
           </div>
         </div>
       </section>
+
+      <DynamicFieldsPanel
+        campaignId={campaign.id}
+        campaignStatus={campaign.status}
+        personalization={personalization}
+      />
 
       <section className={campaignSectionClass}>
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">

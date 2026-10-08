@@ -58,6 +58,7 @@ export default async function CampaignPage({
             inboxes={workspace.inboxes}
             campaignInboxes={workspace.campaign_inboxes}
             lockedInboxes={workspace.locked_inboxes}
+            personalization={workspace.personalization}
           />
           <CampaignLeadsPaginated
             campaignId={campaignId}

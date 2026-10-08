@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { clientFetch } from '@/lib/client-fetch';
 import { pauseCampaignAction, startCampaignAction } from './actions';
 import { toast } from 'react-hot-toast';
+import type { CampaignPersonalizationState } from '@/lib/server/campaign-workspace';
 
 type CampaignHeaderProps = {
   campaign: {
@@ -15,6 +16,7 @@ type CampaignHeaderProps = {
     name: string;
     status: string;
   };
+  personalization: CampaignPersonalizationState;
 };
 
 type BackendHealth = 'checking' | 'online' | 'offline';
@@ -24,7 +26,7 @@ type CampaignStatusResponse = {
   started_at?: string | null;
 };
 
-export default function CampaignHeader({ campaign }: CampaignHeaderProps) {
+export default function CampaignHeader({ campaign, personalization }: CampaignHeaderProps) {
   const router = useRouter();
   const [status, setStatus] = useState(campaign.status);
   const [backendHealth, setBackendHealth] = useState<BackendHealth>('checking');
@@ -32,6 +34,7 @@ export default function CampaignHeader({ campaign }: CampaignHeaderProps) {
 
   const canStart = status === 'draft' || status === 'paused';
   const canPause = status === 'running';
+  const dynamicFieldsReady = personalization.placeholders.length === 0 || personalization.reviewed;
 
   useEffect(() => setStatus(campaign.status), [campaign.status]);
 
@@ -129,7 +132,8 @@ export default function CampaignHeader({ campaign }: CampaignHeaderProps) {
             <Button
               type="button"
               variant={canPause ? 'destructive' : 'default'}
-              disabled={submitting || backendHealth !== 'online'}
+              disabled={submitting || backendHealth !== 'online' || (canStart && !dynamicFieldsReady)}
+              title={canStart && !dynamicFieldsReady ? 'Review and save the campaign dynamic fields before starting.' : undefined}
               onClick={() => void handleStartPause()}
             >
               {submitting ? (canStart ? 'Starting…' : 'Pausing…') : (canStart ? 'Start Campaign' : 'Pause Campaign')}
@@ -137,6 +141,11 @@ export default function CampaignHeader({ campaign }: CampaignHeaderProps) {
           ) : null}
         </div>
       </div>
+      {canStart && !dynamicFieldsReady ? (
+        <p className="mt-3 text-right text-xs text-amber-700 dark:text-amber-300">
+          Campaign start is blocked until the sequence dynamic fields are reviewed and saved.
+        </p>
+      ) : null}
     </header>
   );
 }

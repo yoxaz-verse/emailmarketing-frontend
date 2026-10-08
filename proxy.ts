@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAllowedDashboardPathForRole, parseModuleAccessCookie } from '@/lib/dashboard-access';
-import { clearAuthCookies, isTokenExpired } from '@/lib/auth-session';
+import { isTokenExpired } from '@/lib/auth-session';
+
+function logoutRedirect(req: NextRequest) {
+  return NextResponse.redirect(new URL('/api/auth/logout?reason=session-ended', req.url));
+}
 
 export default function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -17,18 +21,16 @@ export default function proxy(req: NextRequest) {
 
   if (!token && pathname.startsWith('/dashboard')) {
     console.log(`[Middleware] No token found for ${pathname}, redirecting to /login`);
-    return NextResponse.redirect(new URL('/login', req.url));
+    return logoutRedirect(req);
   }
 
   if (hasInvalidToken && pathname.startsWith('/dashboard')) {
     console.log(`[Middleware] Expired or invalid token found for ${pathname}, redirecting to /login`);
-    const response = NextResponse.redirect(new URL('/login?reason=session-expired', req.url));
-    return clearAuthCookies(response);
+    return logoutRedirect(req);
   }
 
   if (hasInvalidToken && (pathname === '/' || pathname === '/login')) {
-    const response = NextResponse.next();
-    return clearAuthCookies(response);
+    return logoutRedirect(req);
   }
 
   if (token && !hasInvalidToken && pathname.startsWith('/dashboard') && !isAllowedDashboardPathForRole(role, pathname, accessFlags)) {

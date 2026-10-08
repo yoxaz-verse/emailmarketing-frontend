@@ -9,6 +9,12 @@ type ApiErrorShape = {
 
 let hasTriggeredAuthRedirect = false;
 
+function triggerAuthLogout(): void {
+  if (typeof window === 'undefined' || hasTriggeredAuthRedirect) return;
+  hasTriggeredAuthRedirect = true;
+  window.location.href = '/api/auth/logout?reason=session-ended';
+}
+
 function parseErrorShape(raw: string): ApiErrorShape | null {
   try {
     const parsed = JSON.parse(raw) as ApiErrorShape;
@@ -141,6 +147,7 @@ export async function clientFetch<T>(
       signal: controller.signal,
     });
   } catch (error) {
+    triggerAuthLogout();
     if (controller.signal.aborted) throw new Error(`Request timed out after ${timeoutMs}ms.`);
     throw error;
   } finally {
@@ -152,10 +159,7 @@ export async function clientFetch<T>(
     const raw = await res.text();
 
     if (isAuthInvalidationError(res.status, raw) && typeof window !== 'undefined') {
-      if (!hasTriggeredAuthRedirect) {
-        hasTriggeredAuthRedirect = true;
-        window.location.href = '/api/auth/logout?reason=session-expired';
-      }
+      triggerAuthLogout();
       throw new Error('UNAUTHORIZED');
     }
 
@@ -164,6 +168,10 @@ export async function clientFetch<T>(
 
   if (!res.ok) {
     const raw = await res.text();
+    if (res.status >= 500) {
+      triggerAuthLogout();
+      throw new Error('AUTH_SERVICE_UNAVAILABLE');
+    }
     throw new Error(normalizeClientError(res.status, raw));
   }
 

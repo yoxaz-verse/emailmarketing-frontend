@@ -1,10 +1,9 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { clearAuthCookies, isTokenExpired } from '@/lib/auth-session';
+import { isTokenExpired } from '@/lib/auth-session';
 import { getApiBaseUrl } from '@/lib/server/api-config';
 
-const SESSION_EXPIRED_PATH = '/login?reason=session-expired';
-const BACKEND_UNAVAILABLE_PATH = '/login?error=Backend unavailable. Please try again.';
+const SESSION_ENDED_PATH = '/api/auth/logout?reason=session-ended';
 
 function redirectTo(req: Request, path: string) {
   return NextResponse.redirect(new URL(path, req.url));
@@ -15,14 +14,14 @@ export async function GET(req: Request) {
   const token = cookieStore.get('auth_token')?.value;
 
   if (!token || isTokenExpired(token)) {
-    return clearAuthCookies(redirectTo(req, SESSION_EXPIRED_PATH));
+    return redirectTo(req, SESSION_ENDED_PATH);
   }
 
   let apiBase: string;
   try {
     apiBase = getApiBaseUrl();
   } catch {
-    return redirectTo(req, BACKEND_UNAVAILABLE_PATH);
+    return redirectTo(req, SESSION_ENDED_PATH);
   }
 
   try {
@@ -39,14 +38,14 @@ export async function GET(req: Request) {
     }
 
     if (res.status === 401 || res.status === 403) {
-      return clearAuthCookies(redirectTo(req, SESSION_EXPIRED_PATH));
+      return redirectTo(req, SESSION_ENDED_PATH);
     }
 
-    return redirectTo(req, BACKEND_UNAVAILABLE_PATH);
+    return redirectTo(req, SESSION_ENDED_PATH);
   } catch (error) {
     console.error('[ENTER_DASHBOARD_AUTH_CHECK_FAILED]', {
       message: error instanceof Error ? error.message : 'unknown',
     });
-    return redirectTo(req, BACKEND_UNAVAILABLE_PATH);
+    return redirectTo(req, SESSION_ENDED_PATH);
   }
 }

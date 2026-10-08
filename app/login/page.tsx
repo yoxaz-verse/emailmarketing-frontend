@@ -12,8 +12,8 @@ function LoginPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const sessionMessage =
-    searchParams.get('reason') === 'session-expired'
-      ? 'Your session expired. Please sign in again.'
+    searchParams.get('reason') === 'session-ended'
+      ? 'Your session expired or the authentication service became unavailable. Please sign in again.'
       : null;
   const urlError = searchParams.get('error');
   const visibleError = error || urlError;

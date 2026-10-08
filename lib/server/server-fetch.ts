@@ -27,7 +27,7 @@ export async function serverFetch<T>(
       kind: 'configuration',
       backendHost: 'unconfigured',
     });
-    throw error;
+    redirect('/api/auth/logout?reason=session-ended');
   }
   const cookieStore = await cookies();
   const token = cookieStore.get('auth_token')?.value;
@@ -68,12 +68,7 @@ export async function serverFetch<T>(
         kind,
         backendHost: getApiBaseHostname(),
       });
-      throw new BackendUnavailableError(
-        isTimeout
-          ? `Backend request timed out after ${timeoutMs}ms.`
-          : 'Backend unavailable. Please ensure backend is running and retry.',
-        { kind, cause: err }
-      );
+      redirect('/api/auth/logout?reason=session-ended');
     }
     throw err;
   } finally {
@@ -82,7 +77,7 @@ export async function serverFetch<T>(
   }
 
   if (res.status === 401 || res.status === 403) {
-    redirect('/api/auth/logout?reason=session-expired');
+    redirect('/api/auth/logout?reason=session-ended');
   }
 
   if (!res.ok) {
@@ -111,10 +106,7 @@ export async function serverFetch<T>(
         status: res.status,
         backendHost: getApiBaseHostname(),
       });
-      throw new BackendUnavailableError(
-        `Backend request failed with status ${res.status}.`,
-        { kind: 'upstream', statusCode: res.status, raw }
-      );
+      redirect('/api/auth/logout?reason=session-ended');
     }
 
     const error = new Error(message) as Error & {

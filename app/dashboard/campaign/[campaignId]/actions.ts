@@ -4,6 +4,7 @@ import { serverFetch } from '@/lib/server/server-fetch';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { getApiBaseUrl } from '@/lib/server/api-config';
+import type { CampaignMergeMapping, CampaignPersonalizationState } from '@/lib/server/campaign-workspace';
 
 export type CampaignAttachSummary = {
   requested: number;
@@ -301,5 +302,28 @@ export async function updateCampaignSenderSettings(
       error: String(err?.message ?? 'Failed to update sender settings'),
       statusCode: Number.isFinite(Number(err?.statusCode)) ? Number(err.statusCode) : undefined,
     } as CampaignSenderSettingsUpdateResult;
+  }
+}
+
+export async function updateCampaignDynamicFields(
+  campaignId: string,
+  mappings: CampaignMergeMapping[]
+) {
+  try {
+    const result = await serverFetch<CampaignPersonalizationState & { success: true }>(
+      `/campaigns/${campaignId}/dynamic-fields`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ mappings }),
+      }
+    );
+    revalidatePath(`/dashboard/campaign/${campaignId}`);
+    return result;
+  } catch (err: any) {
+    return {
+      success: false as const,
+      error: String(err?.message ?? 'Failed to save dynamic field mappings'),
+      statusCode: Number.isFinite(Number(err?.statusCode)) ? Number(err.statusCode) : undefined,
+    };
   }
 }

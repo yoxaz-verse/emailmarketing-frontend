@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { authCookieMaxAge } from '@/lib/auth-session';
+import { appendParentDomainAuthCookieClears, authCookieMaxAge } from '@/lib/auth-session';
 import { getApiBaseUrl } from '@/lib/server/api-config';
 
 type LoginBackendResponse = {
@@ -146,59 +145,45 @@ export async function POST(req: Request) {
     return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(errorMessage)}`, req.url));
   }
 
-  const cookieStore = await cookies();
   const isSecureRequest = new URL(req.url).protocol === 'https:';
   const shouldUseSecureCookies = process.env.NODE_ENV === 'production' || isSecureRequest;
   const requestHost = req.headers.get('host') || 'unknown-host';
+  const forwardedHost = req.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
+  const hostname = (forwardedHost || requestHost).replace(/:\d+$/, '');
+  const cookieOptions = {
+    httpOnly: true,
+    path: '/',
+    sameSite: 'lax' as const,
+    secure: shouldUseSecureCookies,
+    maxAge,
+  };
+
+  const response = contentType.includes('application/json')
+    ? NextResponse.json({ success: true, user: data.user })
+    : NextResponse.redirect(new URL('/dashboard', req.url), { status: 303 });
 
   // ✅ MODERN COOKIE SETTING (Next.js 15 compatible)
-  cookieStore.set('auth_token', data.token, {
-    httpOnly: true,
-    path: '/',
-    sameSite: 'lax',
-    secure: shouldUseSecureCookies,
-    maxAge,
-  });
+  response.cookies.set('auth_token', data.token, cookieOptions);
 
-  cookieStore.set('user_role', data.user.role, {
-    httpOnly: true,
-    path: '/',
-    sameSite: 'lax',
-    secure: shouldUseSecureCookies,
-    maxAge,
-  });
+  response.cookies.set('user_role', data.user.role, cookieOptions);
 
-  cookieStore.set('user_access_flags', encodeURIComponent(JSON.stringify(data.user.access_flags ?? {})), {
-    httpOnly: true,
-    path: '/',
-    sameSite: 'lax',
-    secure: shouldUseSecureCookies,
-    maxAge,
-  });
+  response.cookies.set('user_access_flags', encodeURIComponent(JSON.stringify(data.user.access_flags ?? {})), cookieOptions);
 
   if (data.user.operator_id) {
-    cookieStore.set('operator_id', data.user.operator_id, {
-      httpOnly: true,
-      path: '/',
-      sameSite: 'lax',
-      secure: shouldUseSecureCookies,
-      maxAge,
-    });
+    response.cookies.set('operator_id', data.user.operator_id, cookieOptions);
   } else {
-    cookieStore.delete('operator_id');
+    response.cookies.set('operator_id', '', {
+      ...cookieOptions,
+      maxAge: 0,
+      expires: new Date(0),
+    });
   }
 
-  if (contentType.includes('application/json')) {
-    console.info('[AUTH_LOGIN_COOKIE_SET]', {
-      host: requestHost,
-      isSecureRequest,
-      shouldUseSecureCookies,
-      sameSite: 'lax',
-      hasOperatorId: Boolean(data.user.operator_id),
-      maxAge,
-    });
-    return NextResponse.json({ success: true, user: data.user });
-  }
+  // Remove legacy parent-domain cookies after issuing the canonical host-only session.
+  appendParentDomainAuthCookieClears(response, {
+    hostname,
+    secure: shouldUseSecureCookies,
+  });
 
   console.info('[AUTH_LOGIN_COOKIE_SET]', {
     host: requestHost,
@@ -208,5 +193,5 @@ export async function POST(req: Request) {
     hasOperatorId: Boolean(data.user.operator_id),
     maxAge,
   });
-  return NextResponse.redirect(new URL('/dashboard', req.url), { status: 303 });
+  return response;
 }

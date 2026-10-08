@@ -25,6 +25,7 @@ export default async function CampaignDetailLayout({
       <div className="px-8 pt-8">
         <CampaignHeader
           campaign={workspace.campaign}
+          personalization={workspace.personalization}
         />
       </div>
       <Suspense fallback={<SectionFallback />}>{children}</Suspense>
