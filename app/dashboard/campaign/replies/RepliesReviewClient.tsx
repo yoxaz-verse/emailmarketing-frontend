@@ -81,6 +81,10 @@ export default function RepliesReviewClient({
       connect_ok: boolean;
       auth_ok: boolean;
       mailbox_open_ok: boolean;
+      phase?: string;
+      last_error_code?: string | null;
+      last_success_at?: string | null;
+      uid_validity?: string | null;
       last_error?: string | null;
       last_error_at?: string | null;
     }>;
@@ -282,7 +286,9 @@ export default function RepliesReviewClient({
                       .slice(0, 5)
                       .map((inbox) => (
                         <li key={inbox.inbox_email} className="flex items-center gap-2 text-xs opacity-80">
-                          <Inbox className="h-3 w-3" /> {inbox.inbox_email}: {inbox.last_error}
+                          <Inbox className="h-3 w-3" />
+                          {inbox.inbox_email}: {inbox.phase ? `[${inbox.phase}] ` : ''}
+                          {inbox.last_error_code ? `${inbox.last_error_code}: ` : ''}{inbox.last_error}
                         </li>
                       ))}
                   </ul>

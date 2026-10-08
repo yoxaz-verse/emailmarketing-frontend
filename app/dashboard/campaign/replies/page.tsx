@@ -70,6 +70,10 @@ type ReplyCaptureHealth = {
     connect_ok: boolean;
     auth_ok: boolean;
     mailbox_open_ok: boolean;
+    phase?: string;
+    last_error_code?: string | null;
+    last_success_at?: string | null;
+    uid_validity?: string | null;
     last_error?: string | null;
     last_error_at?: string | null;
   }>;
