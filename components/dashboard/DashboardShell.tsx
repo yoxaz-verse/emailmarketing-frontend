@@ -20,14 +20,14 @@ export default function DashboardShell({ role, accessFlags, email, children }: {
   }, [mobileNavOpen]);
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="dashboard-shell flex h-dvh overflow-hidden bg-background">
       <Sidebar role={role} accessFlags={accessFlags} mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
       {mobileNavOpen && (
         <button type="button" aria-label="Close navigation" className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden" onClick={() => setMobileNavOpen(false)} />
       )}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <TopBar initialEmail={email} onMenuClick={() => setMobileNavOpen(true)} />
-        <main id="main-content" tabIndex={-1} className="relative flex-1 overflow-y-auto focus:outline-none">
+        <main id="main-content" tabIndex={-1} className="relative min-h-0 flex-1 overflow-y-auto focus:outline-none">
           <div className="px-4 py-5 sm:px-6 sm:py-6 xl:px-8 xl:py-8">{children}</div>
         </main>
       </div>

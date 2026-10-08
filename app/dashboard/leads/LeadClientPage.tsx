@@ -316,7 +316,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
       </section>
 
       {/* Lead Folders & Management */}
-      <section className="rounded-3xl border border-border/40 bg-card/20 backdrop-blur-xl p-6 dark:shadow-2xl space-y-6 relative overflow-hidden group">
+      <section className="surface-panel rounded-3xl p-6 backdrop-blur-xl space-y-6 relative overflow-hidden group">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500/50 via-primary/50 to-teal-500/50 opacity-50" />
         
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-8">
@@ -464,7 +464,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
 
       {/* Main Controls */}
       <div className="space-y-4">
-        <section className="rounded-2xl border border-border/40 bg-card/30 backdrop-blur-md p-5 dark:shadow-xl relative overflow-hidden">
+        <section className="surface-panel rounded-2xl p-5 backdrop-blur-md relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/30 via-primary/80 to-primary/30" />
           <div className="space-y-4">
             <h3 className="text-xl font-bold tracking-tight flex items-center gap-2 text-foreground">
@@ -488,7 +488,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
         </section>
 
         <div className="grid grid-cols-1 gap-4 items-start">
-          <section className="rounded-2xl border border-border/40 bg-card/30 backdrop-blur-md p-5 dark:shadow-xl">
+          <section className="surface-panel rounded-2xl p-5 backdrop-blur-md">
             <div className="mb-4 flex flex-col">
               <h3 className="text-lg font-bold tracking-tight flex items-center gap-2 text-foreground">
                 <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" /> Validation
@@ -496,7 +496,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
               <p className="text-xs text-muted-foreground mt-1">Manage pipeline checks.</p>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 items-start">
-              <div className="lg:col-span-8 rounded-xl border border-border/40 bg-background/30 p-3 space-y-2">
+              <div className="surface-inset lg:col-span-8 rounded-xl p-3 space-y-2">
                 {validationLoading ? (
                   <div className="text-xs text-muted-foreground">Loading validation status...</div>
                 ) : (
@@ -526,7 +526,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
                       <div>Updated in last 2 min: <span className="text-foreground">{validationStatus?.availability?.recentUpdates ?? 0}</span></div>
                       <div>Total leads: <span className="text-foreground">{validationStatus?.availability?.totalLeads ?? 0}</span></div>
                     </div>
-                    <div className="rounded-md border border-border/40 bg-background/20 p-2 text-[10px] leading-4 text-muted-foreground space-y-1">
+                    <div className="surface-inset rounded-md p-2 text-[10px] leading-4 text-muted-foreground space-y-1">
                       <div><span className="text-foreground">Step 1</span> syntax check.</div>
                       <div><span className="text-foreground">Step 2</span> provider/domain check.</div>
                       <div><span className="text-foreground">Step 3</span> risk filters (free provider, role-based, disposable).</div>
@@ -643,7 +643,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
         </div>
       </div>
 
-      <section className="rounded-2xl border border-border/40 bg-card/20 backdrop-blur-sm p-4 dark:shadow-xl space-y-4">
+      <section className="surface-panel rounded-2xl p-4 backdrop-blur-sm space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-black uppercase tracking-wider text-foreground flex items-center gap-2">
@@ -736,7 +736,7 @@ export default function LeadsClientPage({ leads, relations, role, initialFolders
         )}
       </section>
 
-      <div className="rounded-2xl border border-border/40 bg-card/20 backdrop-blur-sm p-1 dark:shadow-2xl overflow-hidden">
+      <div className="surface-panel rounded-2xl p-1 backdrop-blur-sm overflow-hidden">
         <DynamicTable
           table="leads"
           data={filteredLeads}

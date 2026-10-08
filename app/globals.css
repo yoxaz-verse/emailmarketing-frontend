@@ -76,8 +76,8 @@
   --accent-foreground: oklch(0.18 0.006 85);
   
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.84 0.011 85);
-  --input: oklch(0.88 0.009 85);
+  --border: oklch(0.76 0.014 85);
+  --input: oklch(0.72 0.016 85);
   --ring: oklch(0.72 0.145 75);
 
   /* Charts */
@@ -93,7 +93,7 @@
   --sidebar-primary-foreground: oklch(0.08 0.004 85);
   --sidebar-accent: oklch(0.9 0.034 75);
   --sidebar-accent-foreground: oklch(0.18 0.006 85);
-  --sidebar-border: oklch(0.84 0.011 85);
+  --sidebar-border: oklch(0.76 0.014 85);
   --sidebar-ring: oklch(0.72 0.145 75);
 }
 
@@ -118,8 +118,8 @@
   --accent-foreground: oklch(0.93 0.08 78);
   
   --destructive: oklch(0.6 0.2 25);
-  --border: oklch(0.34 0.012 85);
-  --input: oklch(0.3 0.012 85);
+  --border: oklch(0.43 0.014 85);
+  --input: oklch(0.46 0.016 85);
   --ring: oklch(0.72 0.145 75);
 
   /* Charts */
@@ -135,7 +135,7 @@
   --sidebar-primary-foreground: oklch(0.06 0 0);
   --sidebar-accent: oklch(0.2 0.032 75);
   --sidebar-accent-foreground: oklch(0.93 0.08 78);
-  --sidebar-border: oklch(0.31 0.012 85);
+  --sidebar-border: oklch(0.4 0.014 85);
   --sidebar-ring: oklch(0.72 0.145 75);
 }
 
@@ -229,6 +229,25 @@
 
   :root:not(.dark) .light-shadow-none-hover:hover {
     box-shadow: none !important;
+  }
+}
+
+@layer components {
+  /* Dashboard surfaces use two border strengths so outer sections and nested
+     controls remain visually distinct in both color schemes. */
+  .surface-panel {
+    @apply border border-border bg-card/90 shadow-sm dark:bg-card/95 dark:shadow-black/20;
+  }
+
+  .surface-inset {
+    @apply border border-border/75 bg-background/45 shadow-xs dark:bg-background/30;
+  }
+
+  /* Older dashboard views use opacity-modified semantic borders directly.
+     Normalize those utilities within the shell while they migrate to the
+     surface helpers above. */
+  .dashboard-shell :where(.border-border\/40, .border-border\/50, .border-border\/60) {
+    border-color: color-mix(in oklab, var(--border) 82%, transparent);
   }
 }
 

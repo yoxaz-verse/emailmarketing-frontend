@@ -415,7 +415,7 @@ export default function DynamicTable({
         </div>
 
         {/* Bottom Tier: Toolbar & Search */}
-        <div className="flex flex-col md:flex-row items-center gap-4 bg-card/30 backdrop-blur-xl border border-border/40 p-2 rounded-2xl dark:shadow-inner">
+        <div className="surface-inset flex flex-col md:flex-row items-center gap-4 p-2 rounded-2xl backdrop-blur-xl">
           <div className="relative flex-1 group w-full">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input
@@ -542,7 +542,7 @@ export default function DynamicTable({
       </div>
 
       {/* Table Container Redesign */}
-      <div className="rounded-3xl border border-border/40 bg-card/20 backdrop-blur-md overflow-hidden transition-all duration-500 dark:shadow-2xl">
+      <div className="rounded-3xl bg-transparent overflow-hidden transition-all duration-500">
         <div className="overflow-x-auto min-h-[400px] custom-scrollbar">
           <Table>
             <TableHeader className="bg-muted/30">

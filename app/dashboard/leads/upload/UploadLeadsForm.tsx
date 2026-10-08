@@ -365,7 +365,7 @@ export default function UploadLeadsForm({
               <div className="h-px flex-1 bg-border/40" />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 h-[420px] overflow-y-auto pr-2 custom-scrollbar p-1">
+            <div className="grid grid-cols-1 gap-4 p-1 md:grid-cols-2 xl:grid-cols-3">
               {SUPPORTED_FIELDS.map((field) => (
                 <div key={field} className="flex flex-col gap-3 rounded-xl border border-border/40 bg-card/40 p-4 transition-all hover:bg-card/60 hover:border-primary/30 group">
                   <div className="flex items-center justify-between">
