@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 type Reply = {
   id: string;
+  reply_event_id?: string | null;
   email: string;
   first_name: string;
   company: string;
@@ -168,7 +169,9 @@ export default async function OperatorRepliesPage({
         repliesLoadError={repliesLoadError}
       />
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{repliesTotal.toLocaleString()} matched replies · Page {page}</span>
+        <span>
+          {repliesTotal.toLocaleString()} matched · {unmatchedReplies.length.toLocaleString()} need mapping · Page {page}
+        </span>
         <div className="flex gap-2">
           {page > 1 ? <Link className="rounded border border-border px-3 py-2" href={`?${new URLSearchParams({ ...Object.fromEntries(query), page: String(page - 1) }).toString()}`}>Previous</Link> : null}
           {replies.length === 50 ? <Link className="rounded border border-border px-3 py-2" href={`?${new URLSearchParams({ ...Object.fromEntries(query), page: String(page + 1) }).toString()}`}>Next</Link> : null}

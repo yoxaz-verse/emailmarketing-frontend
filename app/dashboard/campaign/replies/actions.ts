@@ -41,3 +41,20 @@ export async function mapUnmatchedReplyAction(input: {
   revalidatePath('/dashboard/campaign/replies');
   return result;
 }
+
+export async function deleteReplyAction(input: { leadId: string; replyEventId?: string | null }) {
+  const result = await serverFetch<{ success: boolean }>(`/operator/replies/${input.leadId}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ reply_event_id: input.replyEventId ?? null }),
+  });
+  revalidatePath('/dashboard/campaign/replies');
+  return result;
+}
+
+export async function deleteUnmatchedReplyAction(replyEventId: string) {
+  const result = await serverFetch<{ success: boolean }>(`/operator/replies/unmatched/${replyEventId}`, {
+    method: 'DELETE',
+  });
+  revalidatePath('/dashboard/campaign/replies');
+  return result;
+}

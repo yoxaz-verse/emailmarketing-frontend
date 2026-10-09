@@ -2,7 +2,12 @@
 
 import { useState, useTransition } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { mapUnmatchedReplyAction, reviewReplyInterestAction } from './actions';
+import {
+  deleteReplyAction,
+  deleteUnmatchedReplyAction,
+  mapUnmatchedReplyAction,
+  reviewReplyInterestAction,
+} from './actions';
 import {
   AlertCircle,
   AlertTriangle,
@@ -18,11 +23,13 @@ import {
   Activity,
   Filter,
   Inbox,
-  ChevronDown
+  ChevronDown,
+  Trash2,
 } from 'lucide-react';
 
 type Reply = {
   id: string;
+  reply_event_id?: string | null;
   email: string;
   first_name: string;
   company: string;
@@ -94,6 +101,7 @@ export default function RepliesReviewClient({
   const [replies, setReplies] = useState<Reply[]>(initialReplies);
   const [unmatched, setUnmatched] = useState(unmatchedReplies);
   const [busyLeadId, setBusyLeadId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const pathname = usePathname();
@@ -151,6 +159,42 @@ export default function RepliesReviewClient({
         setUnmatched((prev) => prev.filter((row) => row.id !== replyEventId));
       } catch {
         // keep list as-is on failure
+      }
+    });
+  }
+
+  function removeUnmatched(replyEventId: string) {
+    if (!window.confirm('Delete this unmapped reply? This cannot be undone.')) return;
+    setActionError(null);
+    setBusyLeadId(replyEventId);
+    startTransition(async () => {
+      try {
+        await deleteUnmatchedReplyAction(replyEventId);
+        setUnmatched((prev) => prev.filter((row) => row.id !== replyEventId));
+      } catch (error) {
+        setActionError(error instanceof Error ? error.message : 'Failed to delete reply');
+      } finally {
+        setBusyLeadId(null);
+      }
+    });
+  }
+
+  function removeReply(reply: Reply) {
+    if (!window.confirm('Delete this reply from the review queue? This cannot be undone.')) return;
+    setActionError(null);
+    setBusyLeadId(reply.id);
+    startTransition(async () => {
+      try {
+        await deleteReplyAction({ leadId: reply.id, replyEventId: reply.reply_event_id });
+        setReplies((prev) => prev.filter((row) => (
+          reply.reply_event_id
+            ? row.reply_event_id !== reply.reply_event_id
+            : row.id !== reply.id
+        )));
+      } catch (error) {
+        setActionError(error instanceof Error ? error.message : 'Failed to delete reply');
+      } finally {
+        setBusyLeadId(null);
       }
     });
   }
@@ -256,6 +300,13 @@ export default function RepliesReviewClient({
         </div>
       </div>
 
+      {actionError ? (
+        <div className="flex items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-700 dark:text-rose-200">
+          <AlertCircle className="h-5 w-5 shrink-0" />
+          <span>{actionError}</span>
+        </div>
+      ) : null}
+
       {activeTab === 'errors' ? (
         <div className="flex flex-col gap-3">
           {repliesLoadError ? (
@@ -343,6 +394,19 @@ export default function RepliesReviewClient({
                       <span className="rounded-lg bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
                         Map Required
                       </span>
+                      <button
+                        type="button"
+                        title="Delete reply"
+                        aria-label="Delete reply"
+                        disabled={isPending && busyLeadId === row.id}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          removeUnmatched(row.id);
+                        }}
+                        className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-500 disabled:opacity-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                       <ChevronDown className={`h-4 w-4 text-amber-600 dark:text-amber-400/60 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                     </div>
                   </div>
@@ -441,6 +505,19 @@ export default function RepliesReviewClient({
                         <div className={`h-1.5 w-1.5 rounded-full ${current === 'interested' ? 'bg-emerald-400' : current === 'not_interested' ? 'bg-rose-400' : 'bg-muted-foreground'}`} />
                         {current.replace('_', ' ')}
                       </span>
+                      <button
+                        type="button"
+                        title="Delete reply"
+                        aria-label="Delete reply"
+                        disabled={disabled}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          removeReply(r);
+                        }}
+                        className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-500 disabled:opacity-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                       
                       <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                     </div>
