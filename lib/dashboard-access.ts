@@ -30,7 +30,6 @@ const DASHBOARD_MODULE_RULES: Array<{
     module: 'marketing',
     exact: [
       '/dashboard/campaign',
-      '/dashboard/events-intelligence',
       '/dashboard/campaign_leads',
       '/dashboard/leads',
       '/dashboard/leads/upload',
@@ -74,7 +73,7 @@ const DASHBOARD_MODULE_RULES: Array<{
   },
   {
     module: 'industry_intelligence',
-    exact: ['/dashboard/industry-intelligence'],
+    exact: ['/dashboard/industry-intelligence', '/dashboard/events-intelligence'],
     prefixes: [],
   },
 ];

@@ -38,7 +38,6 @@ const developerItems = [
 
 const marketingItems = [
     { label: 'Campaigns', href: '/dashboard/campaign', icon: Megaphone },
-    { label: 'Events Intelligence', href: '/dashboard/events-intelligence', icon: CalendarClock },
     { label: 'Replies', href: '/dashboard/campaign/replies', icon: Mail },
     { label: 'Campaign Lead', href: '/dashboard/campaign_leads', icon: UserPlus },
     { label: 'Leads', href: '/dashboard/leads', icon: Users },
@@ -83,6 +82,7 @@ const inquiryItems = [
 
 const industryIntelligenceItems = [
     { label: 'Funding & Pitch', href: '/dashboard/industry-intelligence', icon: Landmark },
+    { label: 'Events Intelligence', href: '/dashboard/events-intelligence', icon: CalendarClock },
 ];
 
 const adminItems = [
