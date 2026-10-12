@@ -4,15 +4,18 @@ import { serverFetch } from '@/lib/server/server-fetch';
 import CampaignSetup from './CampaignSetup';
 import CampaignLeadsPaginated from './CampaignLeadsPaginated';
 import CampaignProgress from './CampaignProgress';
+import CampaignEngagement from './CampaignEngagement';
 
 type RunnerHealthResponse = { runner_health?: Parameters<typeof CampaignProgress>[0]['runner'] };
 type Analytics = Parameters<typeof CampaignProgress>[0]['analytics'];
 type ProgressSummary = Parameters<typeof CampaignProgress>[0]['summary'];
 
-function CampaignTabs({ campaignId, active }: { campaignId: string; active: 'setup' | 'progress' }) {
+type CampaignTab = 'setup' | 'progress' | 'engagement';
+
+function CampaignTabs({ campaignId, active }: { campaignId: string; active: CampaignTab }) {
   return (
     <nav className="inline-flex rounded-xl border border-border bg-card/50 p-1 dark:border-white/[0.14] dark:bg-white/[0.055] dark:shadow-inner dark:shadow-black/40" aria-label="Campaign workspace tabs">
-      {(['setup', 'progress'] as const).map((tab) => (
+      {(['setup', 'progress', 'engagement'] as const).map((tab) => (
         <Link
           key={tab}
           href={`/dashboard/campaign/${campaignId}?tab=${tab}`}
@@ -31,14 +34,18 @@ export default async function CampaignPage({
   searchParams,
 }: {
   params: Promise<{ campaignId: string }>;
-  searchParams: Promise<{ tab?: string | string[] }>;
+  searchParams: Promise<{ tab?: string | string[]; status?: string | string[] }>;
 }) {
   const [{ campaignId }, query] = await Promise.all([params, searchParams]);
   const workspace = await getCampaignWorkspace(campaignId);
   const requestedTab = Array.isArray(query.tab) ? query.tab[0] : query.tab;
   const campaignStatus = String(workspace.campaign?.status ?? 'draft').toLowerCase();
   const defaultTab = campaignStatus === 'draft' ? 'setup' : 'progress';
-  const activeTab: 'setup' | 'progress' = requestedTab === 'setup' || requestedTab === 'progress' ? requestedTab : defaultTab;
+  const activeTab: CampaignTab = requestedTab === 'setup' || requestedTab === 'progress' || requestedTab === 'engagement' ? requestedTab : defaultTab;
+  const requestedStatus = Array.isArray(query.status) ? query.status[0] : query.status;
+  const engagementStatus = requestedStatus === 'replied' || requestedStatus === 'bounced' || requestedStatus === 'all'
+    ? requestedStatus
+    : 'opened';
 
   return (
     <div className="space-y-6 px-8 py-6">
@@ -66,8 +73,10 @@ export default async function CampaignPage({
             folders={workspace.lead_folders ?? []}
           />
         </>
-      ) : (
+      ) : activeTab === 'progress' ? (
         <ProgressContent campaignId={campaignId} workspace={workspace} />
+      ) : (
+        <CampaignEngagement campaignId={campaignId} status={engagementStatus} />
       )}
     </div>
   );
