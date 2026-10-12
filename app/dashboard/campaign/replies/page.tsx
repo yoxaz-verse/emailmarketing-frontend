@@ -62,10 +62,19 @@ type OperatorOption = {
   label: string;
 };
 type ReplyCaptureHealth = {
+  status?: 'healthy' | 'stale' | 'misconfigured' | 'failed' | 'disabled';
   stale?: boolean;
+  last_cycle_at?: string | null;
+  last_cycle_error?: string | null;
   last_poll_at?: string | null;
+  configured_active_inbox_count?: number;
+  eligible_inbox_count?: number;
   failed_inbox_count?: number;
   active_inbox_count?: number;
+  skipped_inboxes?: Array<{
+    inbox_email: string;
+    reason: 'missing_smtp_account' | 'missing_host' | 'missing_username' | 'missing_password';
+  }>;
   inboxes?: Array<{
     inbox_email: string;
     connect_ok: boolean;

@@ -79,10 +79,19 @@ export default function RepliesReviewClient({
   selectedReviewStatus: string;
   selectedOperatorId: string;
   replyCaptureHealth?: {
+    status?: 'healthy' | 'stale' | 'misconfigured' | 'failed' | 'disabled';
     stale?: boolean;
+    last_cycle_at?: string | null;
+    last_cycle_error?: string | null;
     last_poll_at?: string | null;
+    configured_active_inbox_count?: number;
+    eligible_inbox_count?: number;
     failed_inbox_count?: number;
     active_inbox_count?: number;
+    skipped_inboxes?: Array<{
+      inbox_email: string;
+      reason: 'missing_smtp_account' | 'missing_host' | 'missing_username' | 'missing_password';
+    }>;
     inboxes?: Array<{
       inbox_email: string;
       connect_ok: boolean;
@@ -200,9 +209,12 @@ export default function RepliesReviewClient({
   }
 
   const hasLoadError = Boolean(repliesLoadError);
-  const hasStaleWorker = Boolean(replyCaptureHealth?.stale);
+  const hasMisconfiguredWorker = replyCaptureHealth?.status === 'misconfigured';
+  const hasFailedWorker = replyCaptureHealth?.status === 'failed';
+  const hasStaleWorker = Boolean(replyCaptureHealth?.last_poll_at) && (replyCaptureHealth?.status === 'stale' || Boolean(replyCaptureHealth?.stale));
   const hasFailedInboxes = (replyCaptureHealth?.failed_inbox_count ?? 0) > 0;
-  const errorCount = Number(hasLoadError) + Number(hasStaleWorker) + Number(hasFailedInboxes);
+  const hasWorkerStatusIssue = hasMisconfiguredWorker || hasFailedWorker || hasStaleWorker;
+  const errorCount = Number(hasLoadError) + Number(hasWorkerStatusIssue) + Number(replyCaptureHealth?.failed_inbox_count ?? 0);
   const totalActionableCount = replies.length + unmatched.length;
 
   return (
@@ -316,10 +328,48 @@ export default function RepliesReviewClient({
             </div>
           ) : null}
 
-          {replyCaptureHealth?.stale ? (
+          {hasMisconfiguredWorker ? (
+            <div className="flex flex-col gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-200 backdrop-blur-md shadow-sm">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                <div>
+                  No eligible inboxes are configured for reply capture.{' '}
+                  <span className="font-semibold">{replyCaptureHealth?.configured_active_inbox_count ?? 0} active inboxes</span> were found.
+                </div>
+              </div>
+              {(replyCaptureHealth?.skipped_inboxes?.length ?? 0) > 0 ? (
+                <ul className="mt-2 list-none space-y-1 pl-8">
+                  {replyCaptureHealth?.skipped_inboxes?.slice(0, 10).map((inbox) => (
+                    <li key={`${inbox.inbox_email}-${inbox.reason}`} className="flex items-center gap-2 text-xs opacity-80">
+                      <Inbox className="h-3 w-3" />
+                      {inbox.inbox_email || 'Unnamed inbox'}: {inbox.reason.replaceAll('_', ' ')}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="pl-8 text-xs opacity-80">Activate an inbox and link it to an SMTP account with a username and password.</div>
+              )}
+            </div>
+          ) : null}
+
+          {hasFailedWorker && replyCaptureHealth?.last_cycle_error ? (
+            <div className="flex items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-700 dark:text-rose-200 backdrop-blur-md shadow-sm">
+              <AlertCircle className="h-5 w-5 shrink-0" />
+              <div>Reply capture cycle failed: {replyCaptureHealth?.last_cycle_error}</div>
+            </div>
+          ) : null}
+
+          {hasFailedWorker && !replyCaptureHealth?.last_cycle_error && !hasFailedInboxes ? (
+            <div className="flex items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-700 dark:text-rose-200 backdrop-blur-md shadow-sm">
+              <AlertCircle className="h-5 w-5 shrink-0" />
+              <div>Reply capture has not completed a successful mailbox poll. Check the backend worker logs.</div>
+            </div>
+          ) : null}
+
+          {hasStaleWorker ? (
             <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-200 backdrop-blur-md shadow-sm">
               <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
-              <div>Reply capture worker looks stale. Last poll: <span className="font-semibold">{replyCaptureHealth.last_poll_at ? new Date(replyCaptureHealth.last_poll_at).toLocaleString() : 'never'}</span>.</div>
+              <div>Reply capture worker looks stale. Last successful poll: <span className="font-semibold">{new Date(replyCaptureHealth!.last_poll_at!).toLocaleString()}</span>.</div>
             </div>
           ) : null}
 
@@ -348,7 +398,7 @@ export default function RepliesReviewClient({
             </div>
           ) : null}
 
-          {!hasLoadError && !hasStaleWorker && !hasFailedInboxes ? (
+          {!hasLoadError && !hasWorkerStatusIssue && !hasFailedInboxes ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-border/40 bg-card/20 py-20 backdrop-blur-sm">
               <CheckCircle2 className="mb-3 h-10 w-10 text-emerald-400/70" />
               <p className="text-sm font-medium text-muted-foreground">No system errors right now</p>
