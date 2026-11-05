@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { clientFetch } from '@/lib/client-fetch';
 import { cn } from '@/lib/utils';
+import { formatEventCountdown } from '@/lib/event-countdown';
 
 type EventScope = 'international' | 'india' | 'kerala' | 'district';
 type ProviderType = 'rss' | 'ics' | 'api' | 'html';
@@ -202,6 +203,7 @@ function buildQuery(filters: {
 }
 
 export default function EventsIntelligenceClient() {
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [events, setEvents] = useState<EventItem[]>([]);
   const [sources, setSources] = useState<EventSource[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -320,6 +322,11 @@ export default function EventsIntelligenceClient() {
 
   useEffect(() => {
     void refreshAll();
+  }, []);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => window.clearInterval(intervalId);
   }, []);
 
   const applyFilters = async () => {
@@ -674,7 +681,7 @@ export default function EventsIntelligenceClient() {
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           {statusBadge(event.status)}
-                          <Badge variant="outline">{event.countdown_meta?.label ?? 'Upcoming'}</Badge>
+                          <Badge variant="outline">{formatEventCountdown(event.starts_at, nowMs)}</Badge>
                           {event.category && <Badge variant="secondary">{event.category}</Badge>}
                         </div>
                         <h2 className="mt-2 text-lg font-semibold tracking-normal">{event.title}</h2>
